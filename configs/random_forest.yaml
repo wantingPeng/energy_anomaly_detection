@@ -1,0 +1,18 @@
+model:
+  name: "RandomForest"
+  n_estimators: 200
+  max_depth: 10
+  min_samples_split: 5
+  min_samples_leaf: 2
+  class_weight: "balanced"
+
+training:
+  validation_ratio: 0.15
+
+data:
+  use_rolling_window: true
+  window_size: 30
+  normalize: false
+  feature_type: "statistical"
+
+device: "cpu"
