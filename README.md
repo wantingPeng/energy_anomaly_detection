@@ -8,7 +8,7 @@ remember:
 -dataset is pretty large, about 32 G.
 -Use Dask to process big data in the data preprocessing stage.
 -Use PyTorch DataLoader to efficiently send data to the GPU in the model training stage
-
+-The cleaned data is saved as a compressed Parquet file (.parquet)
 ## Rough Task Overview
 
 ### Literature Research
