@@ -197,6 +197,6 @@ class EnergyDataAnalyzer:
         }
 
 if __name__ == "__main__":
-    base_path = "/home/wanting/energy_anomaly_detection/Data/Energy_Data"
+    base_path = "/home/wanting/energy_anomaly_detection/Data/row/Energy_Data"
     analyzer = EnergyDataAnalyzer(base_path)
     analyzer.analyze_directory() 

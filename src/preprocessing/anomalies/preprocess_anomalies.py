@@ -249,7 +249,7 @@ def main():
     try:
         # Define paths
         input_path = "Data/Anomaly_Data/Duration_of_Anomalies.csv"
-        output_dir = "src/data_preprocessing/anomalies"    
+        output_dir = "src/preprocessing/anomalies"    
         
         # Initialize and run preprocessor
         preprocessor = AnomalyDataPreprocessor(input_path, output_dir)

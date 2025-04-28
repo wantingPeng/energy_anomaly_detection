@@ -236,6 +236,6 @@ def generate_markdown_report(results: dict, output_dir: str):
         f.write(markdown_content)
 
 if __name__ == "__main__":
-    data_path = "Data/Energy_Data"
+    data_path = "Data/row/Energy_Data"
     output_dir = "Data/visualizations"
     analyze_energy_data(data_path, output_dir) 
