@@ -2,7 +2,7 @@
 
 ## Overview
 - Original file: Data/Anomaly_Data/Duration_of_Anomalies.csv
-- Preprocessing date: 2025-04-27 10:13:09
+- Preprocessing date: 2025-04-27 11:42:23
 
 ## Original Data Statistics
 - Total rows: 5893
@@ -48,8 +48,8 @@
   "EndTime": 0
 }
 - Time range: {
-  "start": "2023-12-30T12:47:58+01:00",
-  "end": "2025-02-25T03:45:50.000000002+01:00"
+  "start": "2023-12-30T11:47:58+00:00",
+  "end": "2025-02-25T02:45:50.000000002+00:00"
 }
 - Downtime statistics: {
   "count": 5893.0,
@@ -63,6 +63,6 @@
 }
 
 ## Notes
-- All timestamps are timezone-aware (Europe/Berlin)
+- All timestamps are timezone-aware (UTC)
 - Downtime is stored in minutes
 - Original data preserved, cleaned version saved as Parquet

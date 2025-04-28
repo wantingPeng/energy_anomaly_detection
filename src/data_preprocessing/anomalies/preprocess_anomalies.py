@@ -93,7 +93,7 @@ class AnomalyDataPreprocessor:
                 self.data['Date'].str.strip(),  # Strip any whitespace
                 format='%d.%m.%Y, %H:%M:%S',
                 errors='coerce'
-            ).dt.tz_localize('Europe/Berlin')  # Assuming Berlin timezone
+            ).dt.tz_localize('Europe/Berlin').dt.tz_convert('UTC')   # Assuming Berlin timezone
             
             # Convert Downtime to minutes
             def parse_downtime(time_str: str) -> float:
