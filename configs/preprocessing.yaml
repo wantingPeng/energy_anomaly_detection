@@ -1,0 +1,33 @@
+# Data paths
+data:
+  input_dir: "Data/raw"
+  interim_dir: "Data/interim/Energy_Data/Contacting"
+  processed_dir: "Data/processed"
+
+# Time processing
+time:
+  source_timezone: "Europe/Berlin"
+  target_timezone: "UTC"
+  timestamp_format: "%Y-%m-%d %H:%M:%S"
+
+# Data cleaning parameters
+cleaning:
+  remove_duplicates: true
+  handle_missing_values: true
+  zero_variance_threshold: 0.01  # For removing zero/near-zero variance columns
+  
+# Outlier detection
+outlier:
+  method: "iqr"  # Options: iqr, zscore
+  iqr_multiplier: 1.5  # For IQR method
+  zscore_threshold: 3  # For z-score method
+
+# Columns configuration
+columns:
+  timestamp_col: "TimeStamp"
+  station_col: "Station"
+  
+# Logging
+logging:
+  level: "INFO"
+  format: "[%(asctime)s] [%(levelname)s] [%(name)s] - %(message)s"
