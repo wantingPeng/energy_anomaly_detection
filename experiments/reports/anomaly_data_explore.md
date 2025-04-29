@@ -1,0 +1,335 @@
+# Anomaly Data Text Content Exploration
+
+## Column: Condition
+
+Unique values (including rare ones):
+
+- Ms
+- R
+- W
+
+## Column: Comment
+
+Unique values (including rare ones):
+
+- MS0301 Taktzeit nicht erreicht
+- MS0301 Taktzeit wird nicht erreicht
+- MS0301 Taktzeit wird nicht erreicht (Senswork neu gestartet )
+- MS0301 Taktzeit wird nicht erreicht --> Senswork zu langsam
+- MS0302 Bauteilerkennung
+- MS0303 DMC Code Verifikation n.i.O
+- MS0304 Handling (Roboter / Greifer / Achssystem ...) Crash
+- MS0304 Handling (Roboter / Greifer / Achssystem ...) Crash / LSR Tray Schrittfehler
+- MS0304 Handling (Roboter / Greifer / Achssystem ...) Crash beladen
+- MS0304 Handling (Roboter / Greifer) Crash
+- MS0304 Handling (Roboter / Greifer) Crash - Roh Wandler entladen
+- MS0306
+- MS0306 Handling (Roboter / Greifer / Achssystem ...) Problem
+- MS0306 Handling (Roboter / Greifer / Achssystem ...) Problem  - Signal
+- MS0306 Handling - LSR Tray Crash gefahren
+- MS0307 ITAC time out
+- MS0308 PLC (SPS) Ablauffehler
+- MS0309 PLC (SPS) Laufzeitfehler / Timeout Senswork Timeout
+- MS0310 PLC (SPS) Softwarefehler
+- MS0311 Pneumatik Problem (Druckluft, Schläuche, Zylinder...)
+- MS0311 Pneumatik Problem (Druckluft, Schläuche, Zylinder...) Stift bleibt im Zylinder hängen Station 70
+- MS0311 Pneumatik Probleme
+- MS0312 Pseudofehler - Meßsystem n.i.O./ Nachprüfung i.O.
+- MS0313 Reparatur STB
+- MS0313 Reparatur STB (Kabelbruch, Motortausch,...)
+- MS0313 Reparatur STB (Kabelbruch, Motortausch,...)-  Steuerung fällt während des Betriebes aus-> STB an Anlage
+- MS0314
+- MS0314 Reparatur WZB
+- MS0315
+- MS0315 Sensor Fehler / Optimierungen
+- MS0315 Sensor Fehler / Optimierungen  -- STATION 120 3-22Y1Positioniereinheit
+- MS0315 Sensor Fehler / Optimierungen Hr. Leinfelder in EM
+- MS0315 Sensorfehler
+- MS0316 Stillstand Roboter - Grundstellung
+- MS0317
+- MS0317 WT Mobiler-Datenträger (MOBII) - Fehler
+- MS0317 WT Mobiler-Datenträger (MOBII) - Fehler  ( QRAP auf Zettel an der Maschine)
+- MS0318 KOTA, Tray verklemmt
+- MS0318 WT Transportfehler (verklemmt, ...)
+- MS0319 Bandschutz hat ausgelöst
+- MS0320 Neues Fehlerbild
+- MS0320 Neues Fehlerbild Aufstapler LSR
+- MS0320 Neues Fehlerbild PCB
+- MS0320 Neues Fehlerbild Senswork neustart
+- MS0320 Neues Fehlerbild(Kühlmitteldurchfluss gereinigt)
+- MS0320 Neues Fehlerbild/ Zentrierpin Shuttle defekt
+- MS0320 PCB Ablauffehler
+- MS0320 PCB Leiterplatte nicht richtig im schlitten
+- MS0320 PCB Leiterplatte setzen
+- MS0320 Schäum anlage Ablauffehler
+- MS0321 Impedanzmessung n.i.O. / Rechner neu gestartet
+- MS0321 Impedanzmessung n.i.O. / Rechner zwei mal neu gestartet
+- MS0321 Impendanzmessung niO
+- MS0324 Prüf-Softwarefehler
+- MS0324 Prüf-Softwarefehler - Alle Wartungen erledigt
+- MS0324 Prüf-Softwarefehler SENSWORK
+- MS0324 Prüf-Softwarefehler Senswork ausgefallen
+- MS0324 Prüf-Softwarefehler, Senswork
+- MS0324 Prüf-Softwarefehler/ Senswork Timeout
+- MS0325 Drahtlage n.i.O
+- MS0325 Drahtlage n.i.O  --  Masse
+- MS0325 Drahtlage n.i.O (Signal)
+- MS0325 Drahtlage n.i.O -- Signal
+- MS0326 Drahtverlust
+- MS0326 Drahtverlust  --  Signal
+- MS0326 Drahtverlust (Signal)
+- MS0326 Drahtverlust --  Signal
+- MS0326 Drahtverlust -- Masse
+- MS0326 Drahtverlust / Drahtverlust Signalseite
+- MS0326 Drahtverlust 2x
+- MS0326 Drahtverlust Signalseite  --  Signal
+- MS0326 Drahtverlust Signalseite 2x
+- MS0326 Drahtverlust erneut 2x daraufhin Elektroden erneuert
+- MS0327 Drahtposition auf PIN n.i.O.
+- MS0327 Drahtposition auf Pin n.i.O
+- MS0327 Drahtposition auf Pin n.i.O  (QRAP auf Zettel an der Maschine)
+- MS0327 Drahtposition auf Pin n.i.O  (Signal)
+- MS0327 Drahtposition auf Pin n.i.O  --  Masse
+- MS0327 Drahtposition auf Pin n.i.O (Masse und Signal)
+- MS0327 Drahtposition auf Pin n.i.O - Masse
+- MS0328
+- MS0328 Pin Abholung n.i.O
+- MS0329 Stanze n.i.O
+- MS0330 Pin Setzen n.i.O
+- MS0331 Stempel erreicht Endpositon nicht
+- MS0333 Kontaktieren Sensorfehler
+- MS0333 Kontaktieren Sensorfehler Abwickler ohne Funktion
+- MS0333 Sensworkfehler
+- MS0334 Lötdispenser Zylinder defekt
+- MS0334 Lötdispenser Zylinder defekt  --  Signal
+- MS0335
+- MS0335 Lötdispenser verstopft
+- MS0335 Lötdispenser verstopft  --  Masse
+- MS0335 Lötdispenser verstopft  Signal
+- MS0335 Lötdispenser verstopft - HUB NIO
+- MS0335 Lötpase
+- MS0336 Stanzband n.i.o.
+- MS0337 Lötstelle n.i.o
+- MS0337 Lötstelle n.i.o  --  Signal
+- MS0337 Lötstelle n.i.o (Masse)
+- MS0337 Lötstelle nio
+- MS0338 Drahtzufuhr 2 n.i.O
+- MS0338 Mobi NIO
+- MS0339 Drahtzufuhr 1 n.i.O
+- MS0340 Lötzelle Achsposition n.i.O
+- MS0341 Schweisen n.i.O
+- MS0341 Schweißen n.i.O
+- MS0341 Schweißen n.i.O Signalseite
+- MS0341 Schweißen n.i.O, Signalseite
+- MS0341 Schweißen n.i.O, Zylinder defekt.
+- MS0343 Stanze n.i.O. / Kontaktbiegewinkel n.ok.
+- MS0343 Stanze n.i.O. / Leiterplatten Winkel
+- MS0343 Stanze n.i.O. / Leiterplatten Winkel (QRAP auf Zettel an der Maschine)
+- MS0344 Stanze n.i.O.
+- MS0344 Stanze n.i.O. / Kantaktband vertaktet oder Vorschub n.i.O.
+- MS0345 Stanze Verschmutzt
+- MS0345 Stanze n.i.O. / Allgemeine Verschmutzung
+- MS0346 Stanze n.i.O. / Übergabe Shuttlepostion n.i.O.
+- MS0347 Neues Fehlerbild / Lötpastenkühlung n.i.O.
+- MS0347 Stanze n.i.O. / Neues Fehlerbild
+- MS0347 Stanze n.i.O. / Neues Fehlerbild / Stanze schlägt und fährt nicht immer ganz auf
+- MS0601 Taktzeit wird nicht erreicht
+- MS0602 Bauteilabfrage erkennt Bauteil nicht / Bauteil verloren
+- MS0603 DMC Code Verifikation n.i.O
+- MS0603 DMC Code Verifikation n.i.O - STB an Linie
+- MS0604 Handling (Roboter / Greifer / Achssystem ...) Crash
+- MS0605
+- MS0605 Handling (Roboter / Greifer / Achssystem ...) Position Teachen
+- MS0606 Handling (Roboter / Greifer / Achssystem ...) Problem
+- MS0606 Handling (Roboter / Greifer / Achssystem ...) Problem   --  Nest 6
+- MS0606 Handling (Roboter / Greifer / Achssystem ...) Problem / PCB Hub Handling Nio
+- MS0607 ITAC Time Out
+- MS0607 ITAC Timeout
+- MS0607 ITAC time out
+- MS0608 PLC (SPS) Ablauffehler
+- MS0608 PLC (SPS) Ablauffehler Niederhalter St. 160
+- MS0608 PLC (SPS) Ablauffehler, Achsen Ablauffehler
+- MS0608 PLC (SPS) Ablauffehler, Palette in Lift verklemmt  anschließend Ablauffehler Meldungen unplausible
+- MS0608 PLC (SPS) Ablauffehler. Komplette PCB Nester und WT´s geleert und gelöscht
+- MS0608 PLC (SPS) Ablauffehler. WT geleert und gelöscht
+- MS0608 PLC (SPS) Ablauffehler. WT geleert und gelöscht - Short Burn in Störung EM - PCB macht weiter NIO teile
+- MS0609
+- MS0609 PLC (SPS) Laufzeitfehler / Timeout
+- MS0609 PLC Laufzeitfehler / Timeout
+- MS0610 PLC (SPS) Softwarefehler
+- MS0611 Pneumatik Problem (Druckluft, Schläuche, Zylinder...)
+- MS0611 Pneumatik Problem (Druckluft, Schläuche....
+- MS0611 Pneumatik Probleme
+- MS0612 Pseudo
+- MS0613 Reparatur STB (Kabelbruch, Motortausch,...)
+- MS0614 Reparatur WZB
+- MS0614 Reparatur WZB / LSR Riemenwechsel
+- MS0615 Sensor Fehler / Optimierungen
+- MS0615 Sensorfehler
+- MS0615 Senswork stellt keine Verbindung
+- MS0618
+- MS0618 WT Transportfehler (verklemmt, ...)
+- MS0619 Bandschutz hat ausgelöst
+- MS0620
+- MS0620 Leiterplatte Winkel n.i.O
+- MS0620 Neues Fehlerbild
+- MS0620 Neues Fehlerbild und LP Schief
+- MS0620 Neues Fehlerbild/ Verbaufreigabe Nio
+- MS0620 Neues Fehlerbild>LP Montage NIO
+- MS0620 Steuerung während der Produktion ausgesetzt
+- MS0621 Impedanzmessung n.i.O.
+- MS0621 Impendanzmessung niO
+- MS0622 Impedanz Kontaktstifte n.i.O.
+- MS0622 Impedanz Kontaktstifte n.i.O./ Messstift abgebrochen PCB QRAP 525
+- MS0624
+- MS0624 Durchstiegskontrolle / Pin Check PCB
+- MS0624 Durchstiegskontrolle / Pin Check PCB 2x
+- MS0624 Durchstiegskontrolle / Pin Check PCB gesäubert
+- MS0625 Leiterplatte schief im Schlitten
+- MS0625 Leiterplatte schief im Schlitten - Nest 2
+- MS0626
+- MS0626 Nester werden nicht entladen
+- MS0626 Nester werden nicht entladen/PCB Handling Hub Nio an Nest 8 QRAP 515
+- MS0626 Nester werden nicht entladen/PCB Wandler schief in den Nestern QRAP 511
+- MS0626 Teil wird aus Rundtischnest nicht abgeholt
+- MS0628
+- MS0628 PCB Plausibilitätsfehler PCB
+- MS0628 PCB Plausibilitätsfehler PCB Nest 2
+- MS0628 Plausibilitätsfehler
+- MS0628 Plausibilitätsfehler -- LP schief im Wandler
+- MS0629
+- MS0629 Prüf-Softwarefehler
+- MS0629 Prüf-Softwarefehler  --  DNS Time
+- MS0630 Impedanzmessung TLR Teile n.i.O.
+- MS0901 Taktzeit wird nicht erreicht
+- MS0904
+- MS0904 Robi Crash
+- MS0905 Handling (Roboter / Greifer / Achssystem ...) Position Teachen
+- MS0906 Handling (Roboter / Greifer / Achssystem ...) Problem
+- MS0907 ITAC time out
+- MS0911 Pneumatik Problem (Druckluft, Schläuche, Zylinder...)
+- MS0911 Pneumatik Probleme
+- MS0912 Pseudofehler (Kamera) - Meßsystem n.i.O./ Nachprüfung i.O.
+- MS0913 Reparatur STB (Kabelbruch, Motortausch,...)
+- MS0913 Ringmontage Regel
+- MS0914 Reparatur WZB
+- MS0915
+- MS0915 Sensor Fehler / Optimierungen
+- MS0915 Sensor Fehler / Optimierungen (Ringmontage)
+- MS0916 Stillstand Roboter - Grundstellung
+- MS0920 Neues Fehlerbild
+- MS0920 Neues Fehlerbild (Not Halt)
+- MS0920 Neues Fehlerbild (Ringmontage Kamera nio)
+- MS0920 Neues Fehlerbild / Ringmontage ITAC keine Kommunikation
+- MS0920 Neues Fehlerbild Fehlermeldung: Not Halt
+- MS0920 Neues Fehlerbild Fehlermeldung: Not Halt #15# ausgelöst, Fehler tritt während Betrieb ohne jegliches zu tun auf...
+- MS0920 Neues Fehlerbild, Ini Vereinzler Rückdeckelzufuhr defekt
+- MS0920 Neues Fehlerbild, Ringe werden falsch herum montiert, teilweise nur schlecht-> Folgefehler EPP + VPZ
+- MS0921 Station seht ohne Fehlermeldung
+- MS0922 Rütteltopf Fördermenge zu gering -> Taktzeit
+- MS0922 Rütteltopf Fördermenge zu gering -> Taktzeit MS0924 Rütteltopf Ringe verklemmen in der Förderspirale MS0926 Rütteltopf Ringe verklemmen an Übergang zu Vereinzelung rechts MS0932 Ringe verklemmen in der Vereinzelung rechts -> n.i.O Abwurf MS0931 Ringe verklemmen in der Vereinzelung links -> n.i.O Abwurf (QRAP 171)
+- MS0923 Rütteltopf Material aus Bunker wird nicht ausreichend gefördert
+- MS0924
+- MS0925 / MS0926 (Ringe bleiben an Übergang von Topf zur Schiene hängen
+- MS0925 Rütteltopf Ringe verklemmen an Übergang zu Vereinzelung links
+- MS0925 Rütteltopf Ringe verklemmen an Übergang zu Vereinzelung links / MS0926 Rütteltopf Ringe verklemmen an Übergang zu Vereinzelung recht
+- MS0925 Rütteltopf Ringe verklemmen an Übergang zu Vereinzelung links MS0926 Rütteltopf Ringe verklemmen an Übergang zu Vereinzelung recht
+- MS0925 Rütteltopf Ringe verklemmen an Übergang zu Vereinzelung links MS0926 Rütteltopf Ringe verklemmen an Übergang zu Vereinzelung recht (QRAP299)
+- MS0926 Ring verklemmt
+- MS0926 Rütteltopf Ringe verklemmen an Übergang zu Vereinzelung recht
+- MS0926 Rütteltopf Ringe verklemmen an Übergang zu Vereinzelung recht / MS0932 Ringe verklemmen in der Vereinzelung rechts -> n.i.O Abwurf
+- MS0926 Rütteltopf Ringe verklemmen an Übergang zu Vereinzelung rechts
+- MS0927 Ringe verklemmen sich in der Zuführungsschiene links
+- MS0927 Rütteltopf Ringe verklemmen in der Schiene Vereinzelung links
+- MS0927 Rütteltopf Ringe verklemmen in der Schiene Vereinzelung links / MS0928 Rütteltopf Ringe verklemmen in der Schiene Vereinzelung rechts
+- MS0928 Rütteltopf Ringe verklemmen in der Schiene Vereinzelung rechts
+- MS0929 Ringe werden nicht korrekt auf Abholposition links positioniert
+- MS0929 Ringmontage Ring nicht in Abhol Pos
+- MS0930 Ringe werden nicht korrekt auf Abholposition rechts positioniert
+- MS0930 RingeMS0929 Ringmontage Ring nicht in Abhol Pos
+- MS0930 Ringmontage Ring nicht in Abhol Pos
+- MS0930 Ringmontage Ring nicht in Abholpos.
+- MS0931 Ringe verklemmen in der Vereinzelung links -> n.i.O Abwurf
+- MS0931 Ringe verklemmen in der Vereinzelung links -> n.i.O Abwurf (Ring bleibt vor Lichtschranke neben Abholposition liegen-> nicht vorhandener nio Ring wird ständig abgeschoben, Keine Fehler- und/oder Pagermeldung)
+- MS0931 Ringe verklemmen in der Vereinzelung links -> n.i.O Abwurf / MS0932 Ringe verklemmen in der Vereinzelung rechts -> n.i.O Abwurf
+- MS0931 Ringe verklemmen in der Vereinzelung links -> n.i.O Abwurf, nio Schieber fährt ständig hin und her da Lichtschranke dauerhaft belegt ist, Kamera aber verklemmten Ring als nio erkennt, Keine Fehler und oder Pagermeldung)
+- MS0932 Ringe verklemmen in der Vereinzelung rechts -> n.i.O Abwurf
+- MS0932 Ringe verklemmen in der Vereinzelung rechts -> n.i.O Abwurf / MS0931 Ringe verklemmen in der Vereinzelung links -> n.i.O Abwurf
+- MS0932 Ringe verklemmen in der Vereinzelung rechts -> n.i.O Abwurf MS1228 Beschriftungslaser Ungültige Zeigeroperation MS1335 Trayhandling in Verpackzelle n.i.o
+- MS0932 Ringe verklemmen in der Vereinzelung rechts u. links
+- RM0301 Rüsten Kontaktband wechsel
+- RM0301 Rüstung Kontaktband
+- RM0301 Rüstung Kontaktband 2x - Sensor passt nicht
+- RM0301 Rüstung Kontaktband, Unterbrechung im Band
+- RM0302
+- RM0302 Rüstung Lotpaste
+- RM0302 Rüstung Lötpaste
+- RM0303 Draht
+- RM0303 Drahtspule erneuert - mit Elektrodenwechsel
+- RM0303 Elektrodenwechsel
+- RM0303 Elektrodenwechsel (FS)
+- RM0303 Elektrodenwechsel - 4x obere und 1x untere
+- RM0303 Elektrodenwechsel da Drahtverlust
+- RM0303 Elektrodenwechsel und kontaktband durchstanzen
+- RM0303 Rüstung Draht
+- WG0301 Stanze ausgebaut und gereinigt
+- WG0304 K1 Kontaktieren Elektrodenwechsel 1x pro Schicht 7 min
+- WG0304 K1 Kontaktieren Elektrodenwechsel 1x pro Schicht 7 min + Elektroden getauscht
+- WG0306 K3 Kontaktieren 2 Shuttle Reinigung 3x pro Woche 20 min
+- WG0306 Shuttle ausgebaut und gereinigt
+- WG0307 K4 Kontaktieren 1 K3+ WZ Reinigung klein alle 2 Wochen 45 min
+- WG0307 Stanzenwartung
+- WG0307 Stanzenwartung, Wartung
+- WG0308 K5 Kontaktieren 1+2 K3+ WZ Reinigung groß alle 2 Wochen 153 min
+- WG0601 STB an PCB
+- WG0601 Wartung PCB geplant (WG)
+- WG0604 P1 PCB Stempel zum Einpressen reinigen 1 x pro Woche 10 min
+- WG0901 Wartung Ringmontage geplant (WG)
+- WU0302 Wartung Kontaktieren ungeplant ()
+- WU0302 Wartung Kontaktieren ungeplant (Dosiernadel verstopf und erneuert)
+- WU0302 Wartung Kontaktieren ungeplant (Drahtlage Signalseite nachgestellt)
+- WU0302 Wartung Kontaktieren ungeplant (Stanzen Wartung)
+- WU0302 Wartung Kontaktieren ungeplant (WU)
+- WU0302 Wartung Kontaktieren ungeplant (WU) Signal Lötstelle einstellen
+- WU0302 Wartung Kontaktieren ungeplant (wechsel untere Elektrode)
+- WU0303 Optimierung durch WZB Kamera-Aufnahmen gemacht
+- WU0303 Optimierungen Drahtlage justiert, Lötpunkt justiert
+- WU0303 Optimierungen Lötpunkt justiert
+- WU0303 Optimierungen durch STB WZB Lieferant
+- WU0303 Optimierungen durch STB WZB Lieferant (Lechner T. an der KOTA)
+- WU0303 Optimierungen durch STB WZB Lieferant (Schäumen)
+- WU0303 Optimierungen durch STB WZB Lieferant Senswork ITAC Optimierung
+- WU0303 Optimierungen durch STB, AV (Lechner T. an der KOTA)
+- WU0602 Optimierung durch Röthinger
+- WU0602 PCB Bauteilabfrage eingestellt
+- WU0602 PCB Wartung
+- WU0602 PCB reinigen
+- WU0602 Wartung PCB ungeplant (WU)
+- WU0602 Wartung PCB ungeplant (WU) Schneid M. in PCB
+- WU0602 Wartung PCB ungeplant (WU), PIN Check gereinigt
+- WU0603 Optimierungen durch STB WZB Lieferant
+- WU0902 Wartung Ringmontage ungeplant ( Abblassensor rechts nachgestellt)
+- WU0902 Wartung Ringmontage ungeplant ( Reinigung nio Abschieber auf Grund von verklemmten Ringen )
+- WU0902 Wartung Ringmontage ungeplant (Dämpfer am Greifer BCW Deckelmontage erneuert)
+- WU0902 Wartung Ringmontage ungeplant (WU)
+- WU0902 Wartung Ringmontage ungeplant (WU) -- Reinigung Ringmontagezelle
+- WU0902 Wartung Ringmontage ungeplant (WU) -- Reinigung Ringmontagezelle BCW-Zelle und VPZ
+- WU0902 Wartung Ringmontage ungeplant (WU), Ringmontage Topf 2 Zuführung gereinigt
+- WU0902 Wartung Ringmontage ungeplant (WU)/Miller T.
+- WU0903 Optimierungen durch STB WZB Lieferant
+
+## Column: Station
+
+Unique values (including rare ones):
+
+- Kontaktieren
+- Pcb
+- Ringmontage
+
+## Column: Line
+
+Unique values (including rare ones):
+
+- E08Usv01-Em
+- E08Usv01-Vm
+

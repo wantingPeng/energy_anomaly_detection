@@ -1,8 +1,8 @@
 # Duration of Anomalies Preprocessing Summary
 
 ## Overview
-- Original file: Data/Anomaly_Data/Duration_of_Anomalies.csv
-- Preprocessing date: 2025-04-27 11:42:23
+- Original file: /home/wanting/energy_anomaly_detection/Data/row/Anomaly_Data/Duration_of_Anomalies.csv
+- Preprocessing date: 2025-04-29 10:03:42
 
 ## Original Data Statistics
 - Total rows: 5893
@@ -63,6 +63,6 @@
 }
 
 ## Notes
-- All timestamps are timezone-aware (UTC)
+- All timestamps are timezone-aware (Europe/Berlin)
 - Downtime is stored in minutes
 - Original data preserved, cleaned version saved as Parquet
