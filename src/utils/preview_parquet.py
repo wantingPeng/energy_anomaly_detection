@@ -38,8 +38,8 @@ def preview_parquet(parquet_path, sample_size=1000, output_csv_path=None):
 
 if __name__ == "__main__":
     # ====== Customize below ======
-    parquet_file = "/home/wanting/energy_anomaly_detection/Data/interim/Energy_Data/Contacting/April_2024.parquet"
-    sample_output_csv = "/home/wanting/energy_anomaly_detection/Data/row/April_2024_sample.csv"
+    parquet_file = "Data/interim/Anomaly_Data/Duration_of_Anomalies_cleaned.parquet"
+    sample_output_csv = "/home/wanting/energy_anomaly_detection/Data/row/anomaly_data_cleaned_preview.csv"
     # ====== ================== ======
 
     preview_parquet(parquet_file, sample_size=1000, output_csv_path=sample_output_csv)

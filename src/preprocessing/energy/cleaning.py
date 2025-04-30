@@ -24,7 +24,8 @@ def get_column_stats(df):
 
 def identify_zero_variance_columns(df, threshold=0.01):
     """Identify columns with zero or near-zero variance."""
-    variances = df.var().compute()
+    numeric_df = df.select_dtypes(include=["int", "float", "number"])
+    variances = numeric_df.var().compute()
     zero_var_cols = variances[variances <= threshold].index.tolist()
     return zero_var_cols
 
@@ -43,8 +44,8 @@ def detect_outliers(df, numeric_cols):
         df['IsOutlier'] = 0
         
         for col in numeric_cols:
-            Q1 = df[col].quantile(0.25)
-            Q3 = df[col].quantile(0.75)
+            Q1 = df[col].quantile(0.25).compute()
+            Q3 = df[col].quantile(0.75).compute()   
             IQR = Q3 - Q1
             lower_bound = Q1 - multiplier * IQR
             upper_bound = Q3 + multiplier * IQR
@@ -56,7 +57,7 @@ def detect_outliers(df, numeric_cols):
             outlier_stats[col] = {
                 'lower_bound': float(lower_bound),
                 'upper_bound': float(upper_bound),
-                'n_outliers': int(outliers.sum())
+                'n_outliers': int(outliers.sum().compute())
             }
             
     return df, outlier_stats
@@ -103,19 +104,11 @@ def cleaning(df):
     # 3. Standardize timestamp
     timestamp_col = config['columns']['timestamp_col']
     if timestamp_col in df.columns:
-        source_tz = pytz.timezone(config['time']['source_timezone'])
-        target_tz = pytz.timezone(config['time']['target_timezone'])
-        
-        # Convert to pandas for timezone conversion
-        df = df.compute()  # Convert to pandas
-        df[timestamp_col] = pd.to_datetime(df[timestamp_col])
-        df[timestamp_col] = df[timestamp_col].dt.tz_localize(source_tz).dt.tz_convert(target_tz)
+        df = df.compute()
+        df[timestamp_col] = pd.to_datetime(df[timestamp_col], utc=True)  
+        df = dd.from_pandas(df, npartitions=1)
         
         report_content.append("\n## Timestamp Standardization\n")
-        report_content.append(f"- Converted from {source_tz} to {target_tz}\n")
-        
-        # Convert back to dask
-        df = dd.from_pandas(df, npartitions=1)
     
     # 4. Standardize Station column
     station_col = config['columns']['station_col']
