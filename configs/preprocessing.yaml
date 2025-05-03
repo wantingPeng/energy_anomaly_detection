@@ -1,7 +1,7 @@
 # Data paths
 data:
   input_dir: "Data/raw"
-  interim_dir: "Data/interim/Energy_Data/Contacting"
+  interim_dir: "Data/interim/Energy_Data/Ring"
   processed_dir: "Data/processed"
 
 # Time processing
@@ -9,6 +9,7 @@ time:
   source_timezone: "Europe/Berlin"
   target_timezone: "UTC"
   timestamp_format: "%Y-%m-%d %H:%M:%S"
+  gap_threshold: 15.0  # 2 seconds threshold for gap detection
 
 # Data cleaning parameters
 cleaning:

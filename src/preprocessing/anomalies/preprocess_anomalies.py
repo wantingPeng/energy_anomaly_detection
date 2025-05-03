@@ -95,37 +95,33 @@ class AnomalyDataPreprocessor:
                 errors='coerce'
             ).dt.tz_localize('Europe/Berlin').dt.tz_convert('UTC')   # Assuming Berlin timezone
             
-            # Convert Downtime to minutes
-            def parse_downtime(time_str: str) -> float:
-                """Convert HH:MM:SS to minutes."""
+            # Convert Downtime string to timedelta
+            def parse_downtime(time_str: str) -> pd.Timedelta:
+                """Convert HH:MM:SS to pandas Timedelta."""
                 if pd.isna(time_str):
-                    return np.nan
+                    return pd.NaT
                 try:
                     # Remove any whitespace
                     time_str = str(time_str).strip()
                     # Split the time string into hours, minutes, and seconds
                     parts = time_str.split(':')
                     if len(parts) != 3:
-                        return np.nan
-                    hours = float(parts[0])
-                    minutes = float(parts[1])
-                    seconds = float(parts[2])
-                    # Convert to total minutes
-                    total_minutes = hours * 60 + minutes + seconds / 60
-                    return total_minutes
+                        return pd.NaT
+                    # Create timedelta directly from the HH:MM:SS string
+                    return pd.Timedelta(time_str)
                 except Exception as e:
                     logger.warning(f"Error parsing downtime value '{time_str}': {str(e)}")
-                    return np.nan
+                    return pd.NaT
             
-            # Convert Downtime to minutes
-            self.data['DowntimeMinutes'] = self.data['Downtime'].apply(parse_downtime)
+            # Convert Downtime strings to Timedelta objects
+            self.data['Downtime'] = self.data['Downtime'].apply(parse_downtime)
             
-            # Calculate EndTime using timedelta
-            self.data['EndTime'] = self.data['StartTime'] + pd.to_timedelta(self.data['DowntimeMinutes'], unit='m')
+            # Calculate EndTime by adding Downtime to StartTime
+            self.data['EndTime'] = self.data['StartTime'] + self.data['Downtime']
             
             # Log some statistics for verification
             logger.info(f"StartTime range: {self.data['StartTime'].min()} to {self.data['StartTime'].max()}")
-            logger.info(f"Average downtime: {self.data['DowntimeMinutes'].mean():.2f} minutes")
+            logger.info(f"Average downtime: {self.data['Downtime'].mean()}")
             logger.info(f"EndTime range: {self.data['EndTime'].min()} to {self.data['EndTime'].max()}")
             
             # Check for any NaT values
@@ -159,7 +155,11 @@ class AnomalyDataPreprocessor:
                     'start': self.data['StartTime'].min().isoformat(),
                     'end': self.data['EndTime'].max().isoformat()
                 },
-                'downtime_stats': self.data['DowntimeMinutes'].describe().to_dict()
+                'downtime_stats': {
+                    'mean': str(self.data['Downtime'].mean()),
+                    'min': str(self.data['Downtime'].min()),
+                    'max': str(self.data['Downtime'].max())
+                }
             }
             
             logger.info("Data validation completed")
@@ -248,8 +248,8 @@ def main():
     """Main execution function."""
     try:
         # Define paths
-        input_path = "Data/Anomaly_Data/Duration_of_Anomalies.csv"
-        output_dir = "src/preprocessing/anomalies"    
+        input_path = "Data/row/Anomaly_Data/Duration_of_Anomalies.csv"
+        output_dir = "Data/interim/Anomaly_Data"    
         
         # Initialize and run preprocessor
         preprocessor = AnomalyDataPreprocessor(input_path, output_dir)

@@ -26,7 +26,7 @@ def preview_parquet(parquet_path, sample_size=1000, output_csv_path=None):
 
     # 3. Sampling a small subset for manual checking
     if sample_size > 0:
-        sample_df = df.sample(n=min(sample_size, len(df)), random_state=42)
+        sample_df = df.head(sample_size)#df.sample(n=min(sample_size, len(df)), random_state=42)
         if output_csv_path:
             print(f"\nSaving a sample of {len(sample_df)} rows to {output_csv_path}")
             sample_df.to_csv(output_csv_path, index=False)
@@ -38,8 +38,8 @@ def preview_parquet(parquet_path, sample_size=1000, output_csv_path=None):
 
 if __name__ == "__main__":
     # ====== Customize below ======
-    parquet_file = "Data/interim/Anomaly_Data/Duration_of_Anomalies_cleaned.parquet"
-    sample_output_csv = "/home/wanting/energy_anomaly_detection/Data/row/anomaly_data_cleaned_preview.csv"
+    parquet_file = "Data/interim/Energy_time_series/ring_20250503_094853/part.0.parquet"
+    sample_output_csv = "Data/data_preview/Energy_Data_ring_time_series.csv"
     # ====== ================== ======
 
     preview_parquet(parquet_file, sample_size=1000, output_csv_path=sample_output_csv)

@@ -37,6 +37,12 @@ def main():
         # Clean the data
         logger.info("Starting data cleaning process")
         cleaned_df = cleaning(df)
+
+        # Time series analysis
+        # logger.info("Starting time series analysis")
+        # time_series_df = time_series(cleaned_df)
+        # logger.info("Time series analysis completed")
+
         logger.info("Data cleaning completed")
         
         logger.info("Preprocessing pipeline completed successfully")
