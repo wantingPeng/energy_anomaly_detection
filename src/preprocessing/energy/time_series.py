@@ -26,6 +26,7 @@ def analyze_time_series(df, timestamp_col):
     """
     config = load_config()
     gap_threshold = config['time']['gap_threshold']
+    window_size = config['sliding_window']['window_size']
 
     # Sort by timestamp
     df = df.sort_values(timestamp_col)
@@ -41,15 +42,30 @@ def analyze_time_series(df, timestamp_col):
         'std_interval': df['time_diff'].std()
     }
     
-    # Identify segments based on time gapget_threshold
+    # Identify segments based on time gap threshold
     segment_changes = (df['time_diff'] > gap_threshold).astype(int).cumsum()
     df['segment_id'] = segment_changes
     
+    # Calculate segment lengths
+    segment_lengths = df.groupby("segment_id").size()
+    
+    # Filter segments based on window size
+    valid_segments = segment_lengths[segment_lengths >= window_size].index
+    filtered_df = df[df['segment_id'].isin(valid_segments)]
+    
+    # Calculate filtering statistics
+    total_segments = len(segment_lengths)
+    valid_segments_count = len(valid_segments)
+    filtered_percentage = ((total_segments - valid_segments_count) / total_segments) * 100
+    
     segment_stats = {
-        'total_segments': df['segment_id'].max() + 1,
+        'total_segments': total_segments,
+        'valid_segments': valid_segments_count,
+        'filtered_percentage': filtered_percentage,
+        'segment_lengths': segment_lengths[segment_lengths >= window_size].describe()
     }
     
-    return df ,time_stats, segment_stats
+    return filtered_df, time_stats, segment_stats
 
 
 
@@ -72,13 +88,10 @@ def main():
         # Perform time series analysis
         df, time_stats, segment_stats = analyze_time_series(df, timestamp_col)
 
-        segment_lengths = df.groupby("segment_id").size()
-        summary = segment_lengths.describe()
-        print('时序分析后',df.head())
-        print("Segment lengths summary:\n", summary)
+        
       # 直方图可视化 segment 长度分布（限最大1000显示）
-        lengths = segment_lengths.compute()
-        lengths[lengths < 1000].plot.hist(bins=50)
+        lengths = segment_stats['segment_lengths']
+        lengths.plot.hist(bins=50)
         plt.xlabel("Segment Length (seconds)")
         plt.ylabel("Frequency")
         plt.title("Distribution of Segment Lengths (<1000s)")
@@ -98,7 +111,9 @@ def main():
         
         report_content.append("\n### Segmentation Statistics\n")
         report_content.append(f"- Total segments: {segment_stats['total_segments']}\n")
-        report_content.append(f"- Segment details: {segment_stats}\n")
+        report_content.append(f"- Valid segments (length >= {config['sliding_window']['window_size']}s): {segment_stats['valid_segments']}\n")
+        report_content.append(f"- Filtered segments percentage: {segment_stats['filtered_percentage']:.2f}%\n")
+        report_content.append(f"- Segment details: {segment_stats['segment_lengths']}\n")
     
     report_path = "experiments/reports/Energy_Data_ring_time_series.md"
     os.makedirs(os.path.dirname(report_path), exist_ok=True)

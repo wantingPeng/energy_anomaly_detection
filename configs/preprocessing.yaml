@@ -32,3 +32,26 @@ columns:
 logging:
   level: "INFO"
   format: "[%(asctime)s] [%(levelname)s] [%(name)s] - %(message)s"
+
+# Sliding window parameters
+sliding_window:
+  window_size: 600  # seconds
+  step_size: 60     # seconds
+  overlap_threshold: 0.3  # 30% overlap required for anomaly labeling
+
+# Data paths
+paths:
+  anomaly_dict: "Data/interim/Anomaly_Data/anomaly_dict.pkl"
+  energy_data: "Data/interim/Energy_time_series"
+  output_dir: "Data/interim/Energy_labeling_correlations"
+  report_file: "Data/interim/Energy_labeling_correlations/labeling_correlations.md"
+
+# Correlation analysis
+correlation:
+  method: "pearson"  # pearson, spearman, or kendall
+  min_correlation: 0.1  # minimum correlation to report
+  top_n_features: 10   # number of top features to report
+
+# Station mapping
+stations:
+  ringmontage: "Ringmontage"
