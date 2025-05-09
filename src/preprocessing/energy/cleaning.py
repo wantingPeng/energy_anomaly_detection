@@ -109,23 +109,23 @@ def cleaning(df):
         report_content.append(f"- Duplicates removed: {n_duplicates}\n")
     
 
-    #4. Handle outliers
-        numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
-        df, outlier_stats = detect_outliers(df, numeric_cols)
+    # #4. Handle outliers
+    #     numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
+    #     df, outlier_stats = detect_outliers(df, numeric_cols)
         
-        report_content.append("\n## Outlier Detection\n")
-        total_outliers = df['IsOutlier'].sum()
-        report_content.append(f"- Total records marked as outliers: {total_outliers}\n")
-        report_content.append(f"- Percentage of outliers: {(total_outliers/len(df)*100):.2f}%\n")
+    #     report_content.append("\n## Outlier Detection\n")
+    #     total_outliers = df['IsOutlier'].sum()
+    #     report_content.append(f"- Total records marked as outliers: {total_outliers}\n")
+    #     report_content.append(f"- Percentage of outliers: {(total_outliers/len(df)*100):.2f}%\n")
     
-    for col, stats in outlier_stats.items():
-        report_content.append(f"\n### {col}\n")
-        report_content.append(f"- Lower bound: {stats['lower_bound']:.2f}\n")
-        report_content.append(f"- Upper bound: {stats['upper_bound']:.2f}\n")
-        report_content.append(f"- Number of outliers: {stats['n_outliers']}\n")
+    # for col, stats in outlier_stats.items():
+    #     report_content.append(f"\n### {col}\n")
+    #     report_content.append(f"- Lower bound: {stats['lower_bound']:.2f}\n")
+    #     report_content.append(f"- Upper bound: {stats['upper_bound']:.2f}\n")
+    #     report_content.append(f"- Number of outliers: {stats['n_outliers']}\n")
     
     # Save the report
-    report_path = "experiments/reports/Energy_Data_ring_cleaned.md"
+    report_path = "experiments/reports/Energy_Data_pcb_cleaned.md"
     os.makedirs(os.path.dirname(report_path), exist_ok=True)
     with open(report_path, 'w') as f:
          f.write('\n'.join(report_content))
@@ -136,7 +136,7 @@ def cleaning(df):
     # Save the cleaned and sorted dataset with year-month partitioning
     data_save(
         df=df,
-        filename="ring",
+        filename="PCB",
         save_dir="Data/interim/Energy_Data_cleaned",
         timestamp_col=timestamp_col
     )

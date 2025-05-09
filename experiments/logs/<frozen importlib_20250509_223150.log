@@ -1,0 +1,4 @@
+[2025-05-09 22:31:50,841] [INFO] [<frozen importlib] - Successfully loaded config from configs/feature_selection.yaml
+[2025-05-09 22:31:51,375] [INFO] [<frozen importlib] - Loaded ring data with shape (579589, 286)
+[2025-05-09 22:31:51,375] [WARNING] [<frozen importlib] - Unknown component type for file: Kontaktieren_labeled.parquet
+[2025-05-09 22:31:51,865] [INFO] [<frozen importlib] - Loaded pcb data with shape (581763, 316)

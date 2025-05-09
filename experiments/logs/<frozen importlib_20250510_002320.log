@@ -1,0 +1,20 @@
+[2025-05-10 00:23:20,814] [INFO] [<frozen importlib] - Successfully loaded config from configs/feature_selection.yaml
+[2025-05-10 00:23:21,314] [INFO] [<frozen importlib] - Loaded ring data with shape (579589, 286)
+[2025-05-10 00:23:21,709] [INFO] [<frozen importlib] - Loaded contact data with shape (535142, 276)
+[2025-05-10 00:23:22,157] [INFO] [<frozen importlib] - Loaded pcb data with shape (581763, 316)
+[2025-05-10 00:24:06,414] [INFO] [<frozen importlib] - Successfully calculated correlations using method 1
+[2025-05-10 00:24:06,416] [INFO] [<frozen importlib] - Analyzed correlations for ring
+[2025-05-10 00:24:44,318] [INFO] [<frozen importlib] - Successfully calculated correlations using method 1
+[2025-05-10 00:24:44,320] [INFO] [<frozen importlib] - Analyzed correlations for contact
+[2025-05-10 00:25:38,491] [INFO] [<frozen importlib] - Successfully calculated correlations using method 1
+[2025-05-10 00:25:38,493] [INFO] [<frozen importlib] - Analyzed correlations for pcb
+[2025-05-10 00:25:38,642] [INFO] [<frozen importlib] - Added missing column 'airDruck_skew' with NaN values for ring
+[2025-05-10 00:25:38,643] [INFO] [<frozen importlib] - Added missing column 'airDruck_range' with NaN values for ring
+[2025-05-10 00:25:38,644] [INFO] [<frozen importlib] - Added missing column 'airDruck_min' with NaN values for ring
+[2025-05-10 00:25:38,946] [INFO] [<frozen importlib] - Added missing column 'airDruck_skew' with NaN values for contact
+[2025-05-10 00:25:38,947] [INFO] [<frozen importlib] - Added missing column 'airDruck_range' with NaN values for contact
+[2025-05-10 00:25:38,947] [INFO] [<frozen importlib] - Added missing column 'airDruck_min' with NaN values for contact
+[2025-05-10 00:25:38,947] [INFO] [<frozen importlib] - Added missing column 'aPowerFactorPF_L1_range' with NaN values for contact
+[2025-05-10 00:25:39,576] [INFO] [<frozen importlib] - Selected 70 features (including important features)
+[2025-05-10 00:25:41,673] [INFO] [<frozen importlib] - Saved merged dataset with shape (1696494, 75)
+[2025-05-10 00:25:41,674] [INFO] [<frozen importlib] - Saved analysis report to experiments/reports/correlation_featureMergen.md

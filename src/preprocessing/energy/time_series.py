@@ -71,7 +71,7 @@ def analyze_time_series(df, timestamp_col):
 
 def main():
     df = data_loader(
-        "Data/interim/Energy_Data_cleaned/ring_20250503_090858/part.0.parquet"
+        "Data/interim/Energy_Data_cleaned/PCB_20250509_085245/part.0.parquet"
     )
     logger.info(f"Data type: {type(df)}")
     print("验证加载后数据:")
@@ -86,7 +86,7 @@ def main():
         df[timestamp_col] = pd.to_datetime(df[timestamp_col], utc=True)
         
         # Perform time series analysis
-        df, time_stats, segment_stats = analyze_time_series(df, timestamp_col)
+        filtered_df, time_stats, segment_stats = analyze_time_series(df, timestamp_col)
 
         
       # 直方图可视化 segment 长度分布（限最大1000显示）
@@ -115,19 +115,19 @@ def main():
         report_content.append(f"- Filtered segments percentage: {segment_stats['filtered_percentage']:.2f}%\n")
         report_content.append(f"- Segment details: {segment_stats['segment_lengths']}\n")
     
-    report_path = "experiments/reports/Energy_Data_ring_time_series.md"
+    report_path = "experiments/reports/Energy_Data_pcb_time_series.md"
     os.makedirs(os.path.dirname(report_path), exist_ok=True)
     with open(report_path, 'w') as f:
          f.write('\n'.join(report_content))
     logger.info("Verifying data before saving:")
-    logger.info(df.head())
+    logger.info(filtered_df.head())
 
     # Convert back to Dask DataFrame for saving
-    df = dd.from_pandas(df)
+    df = dd.from_pandas(filtered_df)
     # Save the cleaned and sorted dataset with year-month partitioning
     data_save(
         df=df,
-        filename="ring",
+        filename="PCB",
         save_dir="Data/interim/Energy_time_series",
         timestamp_col=timestamp_col
     )

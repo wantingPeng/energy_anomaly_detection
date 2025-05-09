@@ -1,0 +1,2 @@
+[2025-05-09 14:36:53,398] [INFO] [<frozen importlib] - Reading parquet file from: Data/interim/Energy_labeling_correlations/Pcb_labeled.parquet
+[2025-05-09 14:36:53,979] [INFO] [<frozen importlib] - Analysis completed. Results saved to: experiments/reports/Window_Feature.md

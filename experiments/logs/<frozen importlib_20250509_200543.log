@@ -1,0 +1,4 @@
+[2025-05-09 20:05:43,731] [INFO] [<frozen importlib] - Loading data from Data/interim/Energy_labeling_correlations/Pcb_labeled.parquet
+[2025-05-09 20:05:44,292] [INFO] [<frozen importlib] - Successfully loaded data with shape (581763, 315)
+[2025-05-09 20:06:38,487] [INFO] [<frozen importlib] - Successfully calculated correlations using method 1
+[2025-05-09 20:06:38,491] [INFO] [<frozen importlib] - Saved method 1 correlations to experiments/reports/correlation_analysis4/method1_correlations_Pcb.csv

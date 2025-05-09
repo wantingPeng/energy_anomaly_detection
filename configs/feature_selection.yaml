@@ -1,0 +1,11 @@
+data_paths:
+  input_dir: "Data/interim/Energy_labeling_correlations"
+  output_dir: "Data/processed"
+
+feature_selection:
+  correlation_threshold: 0.05  # 基本相关性阈值
+  high_correlation_threshold: 0.1  # 重要特征阈值
+  multicollinearity_threshold: 0.85  # 多重共线性阈值
+
+report:
+  output_path: "experiments/reports/correlation_featureMergen.md"

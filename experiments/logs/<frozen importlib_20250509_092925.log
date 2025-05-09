@@ -1,0 +1,4 @@
+[2025-05-09 09:29:25,095] [INFO] [<frozen importlib] - Reading parquet file from: Data/interim/Energy_time_series/ring_20250509_090739/part.0.parquet
+[2025-05-09 09:29:29,011] [INFO] [<frozen importlib] - Total number of rows in the dataset: 34692221
+[2025-05-09 09:29:29,011] [INFO] [<frozen importlib] - Number of unique segment_ids: 301
+[2025-05-09 09:29:29,380] [INFO] [<frozen importlib] - Script completed successfully

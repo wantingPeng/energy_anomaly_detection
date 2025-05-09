@@ -1,7 +1,7 @@
-# Data paths
+# Data Cleaning
 data:
   input_dir: "Data/raw"
-  interim_dir: "Data/interim/Energy_Data/Ring"
+  interim_dir: "Data/interim/Energy_Data/PCB"
   processed_dir: "Data/processed"
 
 # Time processing
@@ -22,6 +22,8 @@ outlier:
   method: "iqr"  # Options: iqr, zscore
   iqr_multiplier: 1.5  # For IQR method
   zscore_threshold: 3  # For z-score method
+
+
 
 # Columns configuration
 columns:
@@ -55,3 +57,19 @@ correlation:
 # Station mapping
 stations:
   ringmontage: "Ringmontage"
+
+
+
+# configs/preprocessing.yaml
+
+data_paths:
+  input_dir: "Data/interim/Energy_labeling_correlations"
+  output_dir: "Data/processed"
+
+feature_selection:
+  correlation_threshold: 0.05  # 基本相关性阈值
+  high_correlation_threshold: 0.1  # 重要特征阈值
+  multicollinearity_threshold: 0.85  # 多重共线性阈值
+
+report:
+  output_path: "experiments/reports/correlation_featureMergen.md"

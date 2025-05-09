@@ -1,0 +1,10 @@
+[2025-05-09 22:36:53,340] [INFO] [<frozen importlib] - Successfully loaded config from configs/feature_selection.yaml
+[2025-05-09 22:36:53,861] [INFO] [<frozen importlib] - Loaded ring data with shape (579589, 286)
+[2025-05-09 22:36:54,277] [INFO] [<frozen importlib] - Loaded contact data with shape (535142, 276)
+[2025-05-09 22:36:54,657] [INFO] [<frozen importlib] - Loaded pcb data with shape (581763, 316)
+[2025-05-09 22:37:38,780] [INFO] [<frozen importlib] - Successfully calculated correlations using method 1
+[2025-05-09 22:37:38,782] [INFO] [<frozen importlib] - Analyzed correlations for ring
+[2025-05-09 22:38:16,710] [INFO] [<frozen importlib] - Successfully calculated correlations using method 1
+[2025-05-09 22:38:16,711] [INFO] [<frozen importlib] - Analyzed correlations for contact
+[2025-05-09 22:39:10,933] [INFO] [<frozen importlib] - Successfully calculated correlations using method 1
+[2025-05-09 22:39:10,935] [INFO] [<frozen importlib] - Analyzed correlations for pcb

@@ -37,6 +37,11 @@ def create_interval_tree(anomaly_periods: List[Tuple[str, str]]) -> IntervalTree
         # Convert string timestamps to integers for interval tree
         start_int = int(pd.Timestamp(start).timestamp())
         end_int = int(pd.Timestamp(end).timestamp())
+        
+        # 如果开始时间和结束时间相同，将结束时间加1秒
+        if start_int == end_int:
+            end_int += 1
+            
         tree[start_int:end_int] = True
     return tree
 
@@ -68,8 +73,14 @@ def calculate_window_overlap(window_start: pd.Timestamp,
 
 def analyze_correlations(df: pd.DataFrame, config: dict) -> pd.DataFrame:
     """Analyze correlations between features and anomaly labels."""
+    # Define columns to exclude from correlation analysis
+    exclude_cols = ['window_start', 'window_end', 'segment_id', 'overlap_ratio']
+    
+    # Create a copy of DataFrame excluding the specified columns
+    analysis_df = df.drop(columns=exclude_cols, errors='ignore')
+    
     # Calculate correlations
-    correlations = df.corr(method=config['correlation']['method'])['anomaly_label'].abs()
+    correlations = analysis_df.corr(method=config['correlation']['method'])['anomaly_label'].abs().drop('anomaly_label')
     correlations = correlations.sort_values(ascending=False)
     
     # Filter correlations above threshold
@@ -97,12 +108,11 @@ Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 - Anomaly Windows: {anomaly_windows}
 - Anomaly Ratio: {anomaly_ratio:.2%}
 
-### Top Correlated Features
+### All Feature Correlations (Sorted by Correlation Strength)
 """
     
-    # Add top correlated features
-    top_features = correlations.head(config['correlation']['top_n_features'])
-    for feature, corr in top_features.items():
+    # Add all correlated features sorted by correlation strength
+    for feature, corr in correlations.items():
         report += f"- {feature}: {corr:.3f}\n"
     
     return report
@@ -311,6 +321,6 @@ def label_and_analyze_correlations(energy_data_path: str, station_name: str) -> 
 
 if __name__ == "__main__":
     # Example usage
-    energy_data_path = "Data/interim/Energy_time_series/ring_20250508_132202"
-    station_name = "Ringmontage"
+    energy_data_path = "Data/interim/Energy_time_series/contact_20250509_093729/part.0.parquet"
+    station_name = "Kontaktieren"
     label_and_analyze_correlations(energy_data_path, station_name) 
