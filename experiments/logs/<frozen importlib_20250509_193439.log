@@ -1,2 +1,0 @@
-[2025-05-09 19:34:39,378] [INFO] [<frozen importlib] - Loading data from Data/interim/Energy_labeling_correlations/Kontaktieren_labeled.parquet
-[2025-05-09 19:34:39,845] [INFO] [<frozen importlib] - Successfully loaded data with shape (535142, 275)

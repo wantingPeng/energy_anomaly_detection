@@ -1,4 +1,0 @@
-[2025-05-09 20:26:53,374] [INFO] [<frozen importlib] - Loading data from Data/interim/Energy_labeling_correlations/Ringmontage_labeled.parquet
-[2025-05-09 20:26:54,026] [INFO] [<frozen importlib] - Successfully loaded data with shape (579589, 285)
-[2025-05-09 20:27:38,155] [INFO] [<frozen importlib] - Successfully calculated correlations using method 1
-[2025-05-09 20:27:38,158] [INFO] [<frozen importlib] - Saved method 1 correlations to experiments/reports/correlation_analysis4/method1_correlations_ringmontage.csv

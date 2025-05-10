@@ -1,4 +1,0 @@
-[2025-05-09 19:11:43,572] [INFO] [<frozen importlib] - Loading data from Data/interim/Energy_labeling_correlations/Kontaktieren_labeled.parquet
-[2025-05-09 19:11:44,025] [INFO] [<frozen importlib] - Successfully loaded data with shape (535142, 275)
-[2025-05-09 19:12:21,951] [ERROR] [<frozen importlib] - Error in analyze_correlations_method1: Series.sort_values() takes 1 positional argument but 2 positional arguments (and 1 keyword-only argument) were given
-[2025-05-09 19:12:21,951] [ERROR] [<frozen importlib] - Error in compare_correlation_methods: Series.sort_values() takes 1 positional argument but 2 positional arguments (and 1 keyword-only argument) were given

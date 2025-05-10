@@ -1,5 +1,0 @@
-[2025-05-09 19:06:29,747] [INFO] [<frozen importlib] - Loading data from Data/interim/Energy_labeling_correlations/Kontaktieren_labeled.parquet
-[2025-05-09 19:06:30,229] [INFO] [<frozen importlib] - Successfully loaded data with shape (535142, 275)
-[2025-05-09 19:07:08,153] [INFO] [<frozen importlib] - Successfully calculated correlations using method 1
-[2025-05-09 19:07:08,156] [INFO] [<frozen importlib] - Saved method 1 correlations to experiments/correlation_analysis2/method1_correlations.csv
-[2025-05-09 19:07:47,383] [INFO] [<frozen importlib] - Saved correlation heatmap to experiments/correlation_analysis2/method2_heatmap.png

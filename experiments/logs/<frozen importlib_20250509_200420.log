@@ -1,2 +1,0 @@
-[2025-05-09 20:04:20,413] [INFO] [<frozen importlib] - Loading data from Data/interim/Energy_labeling_correlations/Pcb_labeled.parquet
-[2025-05-09 20:04:20,987] [INFO] [<frozen importlib] - Successfully loaded data with shape (581763, 315)

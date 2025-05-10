@@ -115,7 +115,7 @@ def select_features(correlations: Dict[str, pd.Series],
     common_features.update(all_important_features)
     
     # Create intersection DataFrame with additional columns
-    additional_columns = ['window_start', 'window_end', 'segment_id', 'overlap_ratio', 'component_type']
+    additional_columns = ['window_start', 'window_end', 'component_type', 'anomaly_label']
     all_columns = list(common_features) + additional_columns
     intersection_df = pd.DataFrame()
     
@@ -136,38 +136,68 @@ def select_features(correlations: Dict[str, pd.Series],
         component_df = component_df[all_columns].copy()
         intersection_df = pd.concat([intersection_df, component_df], axis=0)
     
+    # Convert anomaly_label to binary (0/1)
+    intersection_df['anomaly_label'] = intersection_df['anomaly_label'].astype(int)
+    
+    # Perform one-hot encoding for component_type and convert to int
+    component_dummies = pd.get_dummies(intersection_df['component_type'], prefix='component').astype(int)
+    intersection_df = pd.concat([intersection_df, component_dummies], axis=1)
+    
     logger.info(f"Selected {len(common_features)} features (including important features)")
     return intersection_df, report_content
-
-
 
 def save_processed_data(df: pd.DataFrame, output_dir: str) -> None:
     """Save processed data to parquet file"""
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, 'merged_features.parquet')
     
-    if 'timestamp' in df.columns:
-        df.sort_values('timestamp', inplace=True)
+    # Define custom ordering for component_type
+    component_order = {'contact': 0, 'pcb': 1, 'ring': 2}
     
+    # Create a temporary column for sorting component_type
+    df['component_order'] = df['component_type'].map(component_order)
+    
+    # Sort by component_type first, then by window_start
+    df = df.sort_values(['component_order', 'window_start'])
+    
+    # Remove the temporary sorting column
+    df = df.drop(['component_type','component_order'], axis=1)
+
     df.to_parquet(output_path)
     logger.info(f"Saved merged dataset with shape {df.shape}")
 
 def save_report(report_content: List[str], 
                 selected_features: Set[str], 
-                report_path: str) -> None:
+                report_path: str,
+                df: pd.DataFrame) -> None:
     """Save analysis report"""
     os.makedirs(os.path.dirname(report_path), exist_ok=True)
     
-    final_report = report_content + [
+    # Calculate anomaly statistics
+    total_samples = len(df)
+    anomaly_samples = df['anomaly_label'].sum()
+    anomaly_rate = (anomaly_samples / total_samples) * 100
+    
+    final_report = [
+        "# Feature Selection Analysis Report\n\n",
+        "## Anomaly Statistics\n",
+        f"Total samples: {total_samples}\n",
+        f"Anomaly samples: {anomaly_samples}\n",
+        f"Overall anomaly rate: {anomaly_rate:.2f}%\n\n",
+        "### Anomaly Rate by Component Type\n",
+        "\n## Selected Features\n",
+        *report_content,
         "\nFinal selected features:",
         "\n".join(f"- {f}" for f in sorted(selected_features))
     ]
     
     with open(report_path, 'w') as f:
-        f.write("# Feature Selection Analysis Report\n\n")
         f.write("\n".join(final_report))
     
     logger.info(f"Saved analysis report to {report_path}")
+    
+    # Log anomaly statistics
+    logger.info(f"Overall anomaly rate: {anomaly_rate:.2f}%")
 
 def main():
     # Load configuration
@@ -183,14 +213,15 @@ def main():
         config.correlation_threshold,
         config.high_correlation_threshold
     )
-
     
     # Save results
     save_processed_data(final_df, config.output_dir)
     save_report(
         feature_report,
-        set(final_df.columns) - {'window_start', 'window_end', 'segment_id', 'overlap_ratio', 'component_type'},
-        config.report_path
+        set(final_df.columns) - {'window_start', 'window_end', 'anomaly_label'} - 
+        set(col for col in final_df.columns if col.startswith('component_')),
+        config.report_path,
+        final_df
     )
 
 if __name__ == "__main__":
