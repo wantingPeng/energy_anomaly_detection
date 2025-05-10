@@ -1,4 +1,0 @@
-[2025-05-09 09:42:26,919] [INFO] [<frozen importlib] - Reading parquet file from: Data/interim/Energy_time_series/contact_20250509_093729/part.0.parquet
-[2025-05-09 09:42:30,922] [INFO] [<frozen importlib] - Total number of rows in the dataset: 32163678
-[2025-05-09 09:42:30,922] [INFO] [<frozen importlib] - Number of unique segment_ids: 294
-[2025-05-09 09:42:31,268] [INFO] [<frozen importlib] - Script completed successfully

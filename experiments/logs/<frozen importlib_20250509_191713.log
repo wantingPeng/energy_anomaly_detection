@@ -1,6 +1,0 @@
-[2025-05-09 19:17:13,027] [INFO] [<frozen importlib] - Loading data from Data/interim/Energy_labeling_correlations/Kontaktieren_labeled.parquet
-[2025-05-09 19:17:13,510] [INFO] [<frozen importlib] - Successfully loaded data with shape (535142, 275)
-[2025-05-09 19:17:51,623] [INFO] [<frozen importlib] - Successfully calculated correlations using method 1
-[2025-05-09 19:17:51,626] [INFO] [<frozen importlib] - Saved method 1 correlations to experiments/correlation_analysis2/method1_correlations.csv
-[2025-05-09 19:18:29,536] [ERROR] [<frozen importlib] - Error in plot_correlation_heatmap: DataFrame.sort_values() missing 1 required positional argument: 'by'
-[2025-05-09 19:18:29,536] [ERROR] [<frozen importlib] - Error in compare_correlation_methods: DataFrame.sort_values() missing 1 required positional argument: 'by'

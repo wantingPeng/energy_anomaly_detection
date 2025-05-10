@@ -1,72 +1,87 @@
 # Feature Selection Analysis Report
 
 
+## Anomaly Statistics
+
+Total samples: 1696494
+
+Anomaly samples: 107894
+
+Overall anomaly rate: 6.36%
+
+
+### Anomaly Rate by Component Type
+
+
+## Selected Features
+
+
 Important features (ring, correlation > 0.1):
-- aPowerFactorPF_L2_std
-- aCosPhi_L1_diff_std
-- airDurchfluss_std
-- aPowerFactorPF_L1_range
-- airTempeatur_std
-- aActivePower_L1_std
-- aCosPhi_L1_std
-- airTempeatur_range
-- aCurrentL2_range
-- rTotalReactivePower_range
 - airDurchfluss_range
-- aReactivePower_L1_range
-- aCurrentL1_range
-- airDurchfluss_diff_std
 - aActivePower_L1_range
-- aReactivePower_L2_range
-- aReactivePower_L1_std
-- aPowerFactorPF_L2_range
-- aApparentPower_L1_range
-- aReactivePower_L2_diff_std
-- rTotalApparentPower_range
-- aCurrentL2_std
-- aCosPhi_L1_range
+- airTempeatur_std
+- aApparentPower_L2_range
+- aActivePower_L2_std
 - aCosPhi_L2_range
-- aActivePower_L2_range
-- airTempeatur_min
-- aCurrentL1_std
+- aCurrentL2_std
+- aPowerFactorPF_L2_range
+- rTotalApparentPower_range
+- aPowerFactorPF_L1_range
+- aCurrentL1_range
 - aReactivePower_L2_std
 - airDurchfluss_max
-- rTotalReactivePower_std
-- aApparentPower_L2_range
-- airTempeatur_diff_std
+- airDurchfluss_std
+- aCurrentL1_std
+- airDurchfluss_diff_std
 - aApparentPower_L2_std
-- aActivePower_L2_std
+- airTempeatur_range
+- aCosPhi_L1_range
+- rTotalReactivePower_range
+- aApparentPower_L1_range
+- aActivePower_L2_range
+- aCosPhi_L1_std
+- aActivePower_L1_std
+- aReactivePower_L1_range
+- aCosPhi_L1_diff_std
+- airTempeatur_min
+- aReactivePower_L2_diff_std
+- rTotalReactivePower_std
+- aPowerFactorPF_L2_std
+- aReactivePower_L2_range
+- aReactivePower_L1_std
+- airTempeatur_diff_std
+- aCurrentL2_range
 
 Important features (contact, correlation > 0.1):
-- aCurrentL3_range
-- airTempeatur_std
-- aVoltage_L1_N_mean
-- airTempeatur_range
-- airTotal_max
-- aApparentPower_L1_max
-- airTotal_mean
-- airDurchfluss_range
-- aCurrentL1_max
-- aCurrentL1_range
-- airDurchfluss_diff_std
-- aReactivePower_L1_diff_std
-- aApparentPower_L1_range
 - rTotalApparentEnergy_max
-- aCurrentL3_skew
+- airDurchfluss_range
+- airTotal_mean
+- airTempeatur_std
+- aReactivePower_L1_diff_std
+- aCurrentL1_range
+- aCurrentL3_range
+- airDurchfluss_diff_std
+- airTotal_max
+- airTempeatur_range
+- aApparentPower_L3_skew
+- aApparentPower_L1_range
+- aCurrentL1_max
+- aApparentPower_L1_max
 - airTotal_min
 - aApparentPower_L3_range
-- aApparentPower_L3_skew
-- rTotalApparentEnergy_mean
 - rTotalApparentEnergy_min
+- rTotalApparentEnergy_mean
+- aVoltage_L1_N_mean
+- aCurrentL3_skew
 
 Important features (pcb, correlation > 0.1):
+- airDruck_range
+- airDurchfluss_max
+- aCosPhi_L1_std
+- airDurchfluss_range
 - airDruck_min
 - airTempeatur_range
-- aCosPhi_L1_std
 - airDruck_skew
-- airDurchfluss_max
-- airDruck_range
-- airDurchfluss_range
 
 Final selected features:
 - aActivePower_L1_range

@@ -1,3 +1,0 @@
-[2025-05-09 11:50:01,996] [INFO] [<frozen importlib] - Starting variance calculation for data in Data/interim/Energy_Data
-[2025-05-09 11:50:01,996] [INFO] [<frozen importlib] - Processing directory: Contacting
-[2025-05-09 11:50:01,999] [ERROR] [<frozen importlib] - Error during variance analysis: 'DataFrame' object has no attribute 'agg'
