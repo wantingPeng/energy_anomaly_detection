@@ -1,0 +1,30 @@
+[2025-05-10 20:39:24,969] [INFO] [<frozen importlib] - Loading training and validation data...
+[2025-05-10 20:39:25,420] [INFO] [<frozen importlib] - Training data shape: (1187545, 73)
+[2025-05-10 20:39:25,420] [INFO] [<frozen importlib] - Validation data shape: (254473, 73)
+[2025-05-10 20:39:25,439] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 100, 'max_depth': 10, 'min_samples_split': 2, 'class_weight': 'balanced'}
+[2025-05-10 20:39:54,065] [INFO] [<frozen importlib] - New best model found! F1 Score: 0.8363
+[2025-05-10 20:39:54,065] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 100, 'max_depth': 10, 'min_samples_split': 2, 'class_weight': 'balanced_subsample'}
+[2025-05-10 20:40:28,002] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 100, 'max_depth': 10, 'min_samples_split': 5, 'class_weight': 'balanced'}
+[2025-05-10 20:40:59,390] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 100, 'max_depth': 10, 'min_samples_split': 5, 'class_weight': 'balanced_subsample'}
+[2025-05-10 20:41:32,785] [INFO] [<frozen importlib] - New best model found! F1 Score: 0.8402
+[2025-05-10 20:41:32,786] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 100, 'max_depth': 10, 'min_samples_split': 10, 'class_weight': 'balanced'}
+[2025-05-10 20:42:03,969] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 100, 'max_depth': 10, 'min_samples_split': 10, 'class_weight': 'balanced_subsample'}
+[2025-05-10 20:42:38,114] [INFO] [<frozen importlib] - New best model found! F1 Score: 0.8403
+[2025-05-10 20:42:38,114] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 100, 'max_depth': 20, 'min_samples_split': 2, 'class_weight': 'balanced'}
+[2025-05-10 20:43:26,638] [INFO] [<frozen importlib] - New best model found! F1 Score: 0.9383
+[2025-05-10 20:43:26,638] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 100, 'max_depth': 20, 'min_samples_split': 2, 'class_weight': 'balanced_subsample'}
+[2025-05-10 20:44:17,791] [INFO] [<frozen importlib] - New best model found! F1 Score: 0.9391
+[2025-05-10 20:44:17,791] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 100, 'max_depth': 20, 'min_samples_split': 5, 'class_weight': 'balanced'}
+[2025-05-10 20:45:06,810] [INFO] [<frozen importlib] - New best model found! F1 Score: 0.9396
+[2025-05-10 20:45:06,810] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 100, 'max_depth': 20, 'min_samples_split': 5, 'class_weight': 'balanced_subsample'}
+[2025-05-10 20:45:58,988] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 100, 'max_depth': 20, 'min_samples_split': 10, 'class_weight': 'balanced'}
+[2025-05-10 20:46:47,567] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 100, 'max_depth': 20, 'min_samples_split': 10, 'class_weight': 'balanced_subsample'}
+[2025-05-10 20:47:39,655] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 100, 'max_depth': 30, 'min_samples_split': 2, 'class_weight': 'balanced'}
+[2025-05-10 20:48:34,924] [INFO] [<frozen importlib] - New best model found! F1 Score: 0.9401
+[2025-05-10 20:48:34,924] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 100, 'max_depth': 30, 'min_samples_split': 2, 'class_weight': 'balanced_subsample'}
+[2025-05-10 20:49:32,709] [INFO] [<frozen importlib] - New best model found! F1 Score: 0.9402
+[2025-05-10 20:49:32,709] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 100, 'max_depth': 30, 'min_samples_split': 5, 'class_weight': 'balanced'}
+[2025-05-10 20:50:28,026] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 100, 'max_depth': 30, 'min_samples_split': 5, 'class_weight': 'balanced_subsample'}
+[2025-05-10 20:51:25,576] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 100, 'max_depth': 30, 'min_samples_split': 10, 'class_weight': 'balanced'}
+[2025-05-10 20:52:19,989] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 100, 'max_depth': 30, 'min_samples_split': 10, 'class_weight': 'balanced_subsample'}
+[2025-05-10 20:53:16,990] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 100, 'max_depth': 'None', 'min_samples_split': 2, 'class_weight': 'balanced'}

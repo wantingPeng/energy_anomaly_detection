@@ -1,18 +1,19 @@
 model:
-  name: "RandomForest"
-  n_estimators: 200
-  max_depth: 10
-  min_samples_split: 5
-  min_samples_leaf: 2
-  class_weight: "balanced"
+  name: "random_forest"
+  random_state: 42
 
-training:
-  validation_ratio: 0.15
+hyperparameters:
+  n_estimators: [100, 200, 300]
+  max_depth: [10, 20, 30]
+  min_samples_split: [2, 5, 10]
+  class_weight: ["balanced", "balanced_subsample"]
 
 data:
-  use_rolling_window: true
-  window_size: 30
-  normalize: false
-  feature_type: "statistical"
+  train_path: "Data/processed/splits/train.parquet"
+  val_path: "Data/processed/splits/val.parquet"
+  target_column: "anomaly_label"
 
-device: "cpu"
+output:
+  model_path: "src/models/random_forest_best_manual.joblib"
+  feature_importance_path: "src/model_report/feature_importance.csv"
+  validation_report_path: "src/model_report/validation_results.md"
