@@ -41,7 +41,8 @@ sliding_window:
   step_size: 60     # seconds
   anomaly_step_size: 10
   overlap_threshold: 0.3  # 30% overlap required for anomaly labeling
-
+  batch_size: 50  # 每批处理的segment数量
+  max_memory_usage: 1000  # 最大内存使用量（MB）
 # Data paths
 paths:
   anomaly_dict: "Data/interim/Anomaly_Data/anomaly_dict.pkl"

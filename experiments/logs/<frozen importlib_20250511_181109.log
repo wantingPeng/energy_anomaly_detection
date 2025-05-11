@@ -1,0 +1,14 @@
+[2025-05-11 18:11:10,152] [INFO] [<frozen importlib] - System memory: total=62.55GB, available=41.66GB, percent used=33.4%
+[2025-05-11 18:11:10,180] [INFO] [<frozen importlib] - Loading energy data from Data/interim/Energy_time_series/contact_20250509_093729/part.0.parquet
+[2025-05-11 18:11:16,116] [INFO] [<frozen importlib] - Total segments to process: 294
+[2025-05-11 18:11:18,483] [INFO] [<frozen importlib] - Segment sizes: avg=33.59MB, max=313.34MB
+[2025-05-11 18:11:20,730] [INFO] [<frozen importlib] - Created 22 batches with max size 500.00MB
+[2025-05-11 18:11:20,731] [INFO] [<frozen importlib] - Using 12 CPU cores for parallel processing
+[2025-05-11 18:11:20,731] [INFO] [<frozen importlib] - Processing batch 1/22 with 6 segments
+[2025-05-11 18:11:22,402] [INFO] [<frozen importlib] - Processing segment 0.0 (Process: 127218, Initial memory: 27208.19 MB)
+[2025-05-11 18:11:22,490] [INFO] [<frozen importlib] - Processing segment 2.0 (Process: 127219, Initial memory: 27217.71 MB)
+[2025-05-11 18:11:22,716] [INFO] [<frozen importlib] - Processing segment 3.0 (Process: 127220, Initial memory: 27336.71 MB)
+[2025-05-11 18:11:23,093] [INFO] [<frozen importlib] - Processing segment 4.0 (Process: 127221, Initial memory: 27255.26 MB)
+[2025-05-11 18:11:23,141] [INFO] [<frozen importlib] - Processing segment 5.0 (Process: 127222, Initial memory: 27218.65 MB)
+[2025-05-11 18:11:23,178] [INFO] [<frozen importlib] - Processing segment 6.0 (Process: 127223, Initial memory: 27213.66 MB)
+[2025-05-11 18:11:31,631] [INFO] [<frozen importlib] - Completed segment 0.0 (Process: 127218, Final memory: 27224.71 MB, Delta: 16.52 MB)

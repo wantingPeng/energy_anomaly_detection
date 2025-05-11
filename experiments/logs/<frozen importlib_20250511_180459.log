@@ -1,0 +1,66 @@
+[2025-05-11 18:04:59,954] [INFO] [<frozen importlib] - Loading energy data from Data/interim/Energy_time_series/contact_20250509_093729/part.0.parquet
+[2025-05-11 18:05:03,187] [INFO] [<frozen importlib] - 
+All columns:
+[2025-05-11 18:05:03,187] [INFO] [<frozen importlib] - ['ID', 'TimeStamp', 'Station', 'rTotalActivePower', 'rTotalReactivePower', 'rTotalApparentPower', 'rTotalReactiveEnergy', 'rTotalApparentEnergy', 'aCurrentL1', 'aCurrentL2', 'aCurrentL3', 'aVoltage_L1_N', 'aVoltage_L2_N', 'aVoltage_L3_N', 'aActivePower_L1', 'aActivePower_L2', 'aActivePower_L3', 'aReactivePower_L1', 'aReactivePower_L2', 'aReactivePower_L3', 'aApparentPower_L1', 'aApparentPower_L2', 'aApparentPower_L3', 'aCosPhi_L1', 'aCosPhi_L2', 'aCosPhi_L3', 'aPowerFactorPF_L2', 'airTotal', 'airDurchfluss', 'airTempeatur', 'time_diff', 'segment_id']
+[2025-05-11 18:05:03,187] [INFO] [<frozen importlib] - 
+Data sample:
+[2025-05-11 18:05:03,187] [INFO] [<frozen importlib] -             ID           TimeStamp            Station  ...  airTempeatur  time_diff  segment_id
+0  457457742.0 2023-12-31 00:00:00  E08VM_01-02210-00  ...          24.4        NaN         0.0
+1  457457756.0 2023-12-31 00:00:01  E08VM_01-02210-00  ...          24.2        1.0         0.0
+2  457457770.0 2023-12-31 00:00:02  E08VM_01-02210-00  ...          24.2        1.0         0.0
+3  457457784.0 2023-12-31 00:00:03  E08VM_01-02210-00  ...          24.4        1.0         0.0
+4  457457798.0 2023-12-31 00:00:04  E08VM_01-02210-00  ...          24.2        1.0         0.0
+
+[5 rows x 32 columns]
+[2025-05-11 18:05:03,327] [INFO] [<frozen importlib] - Processing batch 1/6
+[2025-05-11 18:05:08,328] [INFO] [<frozen importlib] - Processing segment 0.0
+[2025-05-11 18:05:08,419] [INFO] [<frozen importlib] - Processing segment 2.0
+[2025-05-11 18:05:08,662] [INFO] [<frozen importlib] - Processing segment 3.0
+[2025-05-11 18:05:09,038] [INFO] [<frozen importlib] - Processing segment 4.0
+[2025-05-11 18:05:09,059] [INFO] [<frozen importlib] - Processing segment 5.0
+[2025-05-11 18:05:09,107] [INFO] [<frozen importlib] - Processing segment 6.0
+[2025-05-11 18:05:09,293] [INFO] [<frozen importlib] - Processing segment 8.0
+[2025-05-11 18:05:09,296] [INFO] [<frozen importlib] - Processing segment 9.0
+[2025-05-11 18:05:09,302] [INFO] [<frozen importlib] - Processing segment 11.0
+[2025-05-11 18:05:09,309] [INFO] [<frozen importlib] - Processing segment 13.0
+[2025-05-11 18:05:09,314] [INFO] [<frozen importlib] - Processing segment 7.0
+[2025-05-11 18:05:09,322] [INFO] [<frozen importlib] - Processing segment 14.0
+[2025-05-11 18:05:09,489] [INFO] [<frozen importlib] - Processing segment 16.0
+[2025-05-11 18:05:09,584] [INFO] [<frozen importlib] - Processing segment 17.0
+[2025-05-11 18:05:09,621] [INFO] [<frozen importlib] - Processing segment 18.0
+[2025-05-11 18:05:09,734] [INFO] [<frozen importlib] - Processing segment 20.0
+[2025-05-11 18:05:09,735] [INFO] [<frozen importlib] - Processing segment 19.0
+[2025-05-11 18:05:09,793] [INFO] [<frozen importlib] - Processing segment 22.0
+[2025-05-11 18:05:09,912] [INFO] [<frozen importlib] - Processing segment 23.0
+[2025-05-11 18:05:09,916] [INFO] [<frozen importlib] - Processing segment 25.0
+[2025-05-11 18:05:09,919] [INFO] [<frozen importlib] - Processing segment 28.0
+[2025-05-11 18:05:09,967] [INFO] [<frozen importlib] - Processing segment 30.0
+[2025-05-11 18:05:09,976] [INFO] [<frozen importlib] - Processing segment 31.0
+[2025-05-11 18:05:09,991] [INFO] [<frozen importlib] - Processing segment 32.0
+[2025-05-11 18:05:10,008] [INFO] [<frozen importlib] - Processing segment 33.0
+[2025-05-11 18:05:10,012] [INFO] [<frozen importlib] - Processing segment 34.0
+[2025-05-11 18:05:10,280] [INFO] [<frozen importlib] - Processing segment 36.0
+[2025-05-11 18:05:10,289] [INFO] [<frozen importlib] - Processing segment 35.0
+[2025-05-11 18:05:10,336] [INFO] [<frozen importlib] - Processing segment 37.0
+[2025-05-11 18:05:10,362] [INFO] [<frozen importlib] - Processing segment 38.0
+[2025-05-11 18:05:10,365] [INFO] [<frozen importlib] - Processing segment 39.0
+[2025-05-11 18:05:10,404] [INFO] [<frozen importlib] - Processing segment 40.0
+[2025-05-11 18:05:10,422] [INFO] [<frozen importlib] - Processing segment 41.0
+[2025-05-11 18:05:10,448] [INFO] [<frozen importlib] - Processing segment 42.0
+[2025-05-11 18:05:10,458] [INFO] [<frozen importlib] - Processing segment 43.0
+[2025-05-11 18:05:10,473] [INFO] [<frozen importlib] - Processing segment 44.0
+[2025-05-11 18:05:10,498] [INFO] [<frozen importlib] - Processing segment 45.0
+[2025-05-11 18:05:10,511] [INFO] [<frozen importlib] - Processing segment 46.0
+[2025-05-11 18:05:10,527] [INFO] [<frozen importlib] - Processing segment 47.0
+[2025-05-11 18:05:10,535] [INFO] [<frozen importlib] - Processing segment 48.0
+[2025-05-11 18:05:10,557] [INFO] [<frozen importlib] - Processing segment 49.0
+[2025-05-11 18:05:10,561] [INFO] [<frozen importlib] - Processing segment 50.0
+[2025-05-11 18:05:10,567] [INFO] [<frozen importlib] - Processing segment 51.0
+[2025-05-11 18:05:10,571] [INFO] [<frozen importlib] - Processing segment 52.0
+[2025-05-11 18:05:10,580] [INFO] [<frozen importlib] - Processing segment 53.0
+[2025-05-11 18:05:10,584] [INFO] [<frozen importlib] - Processing segment 54.0
+[2025-05-11 18:05:10,590] [INFO] [<frozen importlib] - Processing segment 56.0
+[2025-05-11 18:05:10,596] [INFO] [<frozen importlib] - Processing segment 57.0
+[2025-05-11 18:05:10,618] [INFO] [<frozen importlib] - Processing segment 58.0
+[2025-05-11 18:05:10,627] [INFO] [<frozen importlib] - Processing segment 59.0
+[2025-05-11 18:05:10,981] [ERROR] [<frozen importlib] - Error in label_and_analyze_correlations: The column label 'TimeStamp' is not unique.

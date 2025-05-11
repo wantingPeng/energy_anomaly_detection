@@ -1,0 +1,18 @@
+[2025-05-11 17:48:49,770] [INFO] [<frozen importlib] - Starting XGBoost model training
+[2025-05-11 17:48:49,770] [INFO] [<frozen importlib] - Loading data from Data/processed/splits/train.parquet
+[2025-05-11 17:48:50,169] [INFO] [<frozen importlib] - Loading data from Data/processed/splits/val.parquet
+[2025-05-11 17:48:50,255] [INFO] [<frozen importlib] - Calculated scale_pos_weight: 12.80
+[2025-05-11 17:48:50,900] [INFO] [<frozen importlib] - Training model with early stopping
+[2025-05-11 17:48:52,041] [INFO] [<frozen importlib] - Model saved to models/xgboost_model.json
+[2025-05-11 17:48:52,041] [INFO] [<frozen importlib] - Evaluating model performance
+[2025-05-11 17:48:52,181] [INFO] [<frozen importlib] - 
+              precision    recall  f1-score   support
+
+           0       0.97      0.77      0.86    244243
+           1       0.08      0.51      0.14     10230
+
+    accuracy                           0.76    254473
+   macro avg       0.53      0.64      0.50    254473
+weighted avg       0.94      0.76      0.83    254473
+
+[2025-05-11 17:48:52,387] [INFO] [<frozen importlib] - Evaluation results saved to src/model_report/xgboost

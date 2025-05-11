@@ -12,6 +12,10 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy import stats
 from src.preprocessing.energy.calculate_window_features import calculate_window_features
+from multiprocessing import Pool, cpu_count
+from functools import partial
+from joblib import Parallel, delayed
+import gc  # Add garbage collection to release memory
 
 
 def load_config() -> dict:
@@ -96,8 +100,69 @@ Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
     return report
 
 
+def process_segment(segment_data: Tuple[str, pd.DataFrame], 
+                   interval_tree: IntervalTree,
+                   config: dict) -> List[dict]:
+    """
+    处理单个segment的函数，用于并行处理
+    
+    Args:
+        segment_data: (segment_id, segment_df) 元组
+        interval_tree: 用于检查异常重叠的区间树
+        config: 配置字典
+    
+    Returns:
+        List[dict]: 该segment的所有窗口特征列表
+    """
+    segment_id, segment = segment_data
+    logger.info(f"Processing segment {segment_id}")
+    
+    try:
+        window_features = []
+        window_size = pd.Timedelta(seconds=config['sliding_window']['window_size'])
+        normal_step_size = pd.Timedelta(seconds=60)
+        anomaly_step_size = pd.Timedelta(seconds=10)
+        
+        segment['TimeStamp'] = pd.to_datetime(segment['TimeStamp'])
+        segment = segment.sort_values('TimeStamp')
+        
+        timestamps = segment['TimeStamp']
+        start_time = timestamps.iloc[0]
+        end_time = start_time + window_size
+        
+        while end_time <= timestamps.iloc[-1]:
+            current_overlap = calculate_window_overlap(
+                start_time,
+                end_time,
+                interval_tree
+            )
+            
+            step_size = anomaly_step_size if current_overlap > 0 else normal_step_size
+            
+            window_mask = (segment['TimeStamp'] >= start_time) & (segment['TimeStamp'] < end_time)
+            window = segment.loc[window_mask]
+            
+            if not window.empty:
+                features = calculate_window_features(window).to_dict()
+                features['anomaly_label'] = current_overlap >= config['sliding_window']['overlap_threshold']
+                features['overlap_ratio'] = current_overlap
+                features['step_size'] = step_size.total_seconds()
+                
+                window_features.append(features)
+            
+            start_time += step_size
+            end_time += step_size
+        
+        return window_features
+
+    except Exception as e:
+        logger.error(f"Error processing segment {segment_id}: {str(e)}")
+        return []
+
+
 def label(energy_data_path: str, station_name: str) -> None:
     """
+    Main function to label energy data and analyze correlations.
     
     Args:
         energy_data_path: Path to the energy data directory
@@ -119,59 +184,30 @@ def label(energy_data_path: str, station_name: str) -> None:
         logger.info(f"Loading energy data from {energy_data_path}")
         df = pd.read_parquet(energy_data_path)
         
-        # Initialize results storage
-        window_features = []
+        # 准备并行处理
+        n_jobs = 20  # Set to use 20 processes
+        logger.info(f"Using {n_jobs} threads for parallel processing")
         
-        # 修改窗口和步长设置
-        window_size = pd.Timedelta(seconds=config['sliding_window']['window_size'])
-        normal_step_size = pd.Timedelta(seconds=60)  # 正常区域步长60s
-        anomaly_step_size = pd.Timedelta(seconds=10)  # 异常区域步长10s
-
-        # Process each segment
-        for segment_id, segment in df.groupby('segment_id'):
-            logger.info(f"Processing segment {segment_id}")
-            
-            segment['TimeStamp'] = pd.to_datetime(segment['TimeStamp'])
-            segment = segment.sort_values('TimeStamp')
-            
-            timestamps = segment['TimeStamp']
-            start_time = timestamps.iloc[0]
-            end_time = start_time + window_size
-            
-            while end_time <= timestamps.iloc[-1]:
-                # 检查当前窗口的异常重叠情况
-                current_overlap = calculate_window_overlap(
-                    start_time,
-                    end_time,
-                    interval_tree
-                )
-                
-                # 根据是否在异常区域选择步长
-                step_size = anomaly_step_size if current_overlap > 0 else normal_step_size
-                
-                # Get current window data
-                window_mask = (segment['TimeStamp'] >= start_time) & (segment['TimeStamp'] < end_time)
-                window = segment.loc[window_mask]
-                
-                if not window.empty:
-                    # 计算特征和标签
-                    features = calculate_window_features(window)
-                    features['anomaly_label'] = current_overlap >= config['sliding_window']['overlap_threshold']
-                    features['overlap_ratio'] = current_overlap
-                    features['step_size'] = step_size.total_seconds()  # 记录使用的步长
-                    
-                    window_features.append(features)
-                
-                # 使用动态步长移动到下一个窗口
-                start_time += step_size
-                end_time += step_size
+        # 使用 joblib 进行并行处理
+        results = Parallel(n_jobs=n_jobs, prefer='threads')(  # Use threads to reduce data copying
+            delayed(process_segment)(segment_data, interval_tree, config)
+            for segment_data in df.groupby('segment_id')
+        )
+        
+        # 合并所有结果
+        window_features = []
+        for segment_features in results:
+            window_features.extend(segment_features)
+        
+        # Explicitly release memory
+        del results
+        gc.collect()
         
         # Create DataFrame from window features
         labeled_df = pd.DataFrame(window_features)
         
-        
         # Generate and save report
-        report = generate_report(labeled_df,config, station_name)
+        report = generate_report(labeled_df, config, station_name)
         report_path = config['paths']['report_file']
         os.makedirs(os.path.dirname(report_path), exist_ok=True)
         with open(report_path, 'w') as f:

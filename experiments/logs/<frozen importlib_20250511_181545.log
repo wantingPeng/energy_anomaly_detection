@@ -1,0 +1,25 @@
+[2025-05-11 18:15:46,402] [INFO] [<frozen importlib] - Loading energy data from Data/interim/Energy_time_series/contact_20250509_093729/part.0.parquet
+[2025-05-11 18:15:49,490] [INFO] [<frozen importlib] - Using 31 CPU cores for parallel processing
+[2025-05-11 18:15:49,603] [INFO] [<frozen importlib] - Processing 294 segments in 14 batches
+[2025-05-11 18:15:55,777] [INFO] [<frozen importlib] - Processing batch 1/14 with 21 segments
+[2025-05-11 18:16:00,322] [INFO] [<frozen importlib] - Processing segment 0.0
+[2025-05-11 18:16:00,436] [INFO] [<frozen importlib] - Processing segment 2.0
+[2025-05-11 18:16:00,675] [INFO] [<frozen importlib] - Processing segment 3.0
+[2025-05-11 18:16:01,054] [INFO] [<frozen importlib] - Processing segment 4.0
+[2025-05-11 18:16:01,091] [INFO] [<frozen importlib] - Processing segment 5.0
+[2025-05-11 18:16:01,138] [INFO] [<frozen importlib] - Processing segment 6.0
+[2025-05-11 18:16:01,336] [INFO] [<frozen importlib] - Processing segment 8.0
+[2025-05-11 18:16:01,352] [INFO] [<frozen importlib] - Processing segment 9.0
+[2025-05-11 18:16:01,362] [INFO] [<frozen importlib] - Processing segment 11.0
+[2025-05-11 18:16:01,371] [INFO] [<frozen importlib] - Processing segment 13.0
+[2025-05-11 18:16:01,379] [INFO] [<frozen importlib] - Processing segment 7.0
+[2025-05-11 18:16:01,381] [INFO] [<frozen importlib] - Processing segment 14.0
+[2025-05-11 18:16:01,630] [INFO] [<frozen importlib] - Processing segment 16.0
+[2025-05-11 18:16:01,766] [INFO] [<frozen importlib] - Processing segment 17.0
+[2025-05-11 18:16:01,815] [INFO] [<frozen importlib] - Processing segment 18.0
+[2025-05-11 18:16:01,995] [INFO] [<frozen importlib] - Processing segment 20.0
+[2025-05-11 18:16:02,014] [INFO] [<frozen importlib] - Processing segment 19.0
+[2025-05-11 18:16:02,136] [INFO] [<frozen importlib] - Processing segment 22.0
+[2025-05-11 18:16:02,334] [INFO] [<frozen importlib] - Processing segment 25.0
+[2025-05-11 18:16:02,344] [INFO] [<frozen importlib] - Processing segment 28.0
+[2025-05-11 18:16:02,345] [INFO] [<frozen importlib] - Processing segment 23.0

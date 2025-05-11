@@ -1,0 +1,31 @@
+[2025-05-11 19:08:52,700] [INFO] [<frozen importlib] - Loading energy data from Data/interim/Energy_time_series/contact_20250509_093729/part.0.parquet
+[2025-05-11 19:08:56,034] [INFO] [<frozen importlib] - Using 31 CPU cores for parallel processing
+[2025-05-11 19:09:02,972] [INFO] [<frozen importlib] - Processing segment 0.0
+[2025-05-11 19:09:03,446] [INFO] [<frozen importlib] - Processing segment 4.0
+[2025-05-11 19:09:03,513] [INFO] [<frozen importlib] - Processing segment 11.0
+[2025-05-11 19:09:03,546] [INFO] [<frozen importlib] - Processing segment 7.0
+[2025-05-11 19:09:03,790] [INFO] [<frozen importlib] - Processing segment 16.0
+[2025-05-11 19:09:03,893] [INFO] [<frozen importlib] - Processing segment 19.0
+[2025-05-11 19:09:04,012] [INFO] [<frozen importlib] - Processing segment 23.0
+[2025-05-11 19:09:04,113] [INFO] [<frozen importlib] - Processing segment 30.0
+[2025-05-11 19:09:04,459] [INFO] [<frozen importlib] - Processing segment 33.0
+[2025-05-11 19:09:04,506] [INFO] [<frozen importlib] - Processing segment 13.0
+[2025-05-11 19:09:04,515] [INFO] [<frozen importlib] - Processing segment 36.0
+[2025-05-11 19:09:04,639] [INFO] [<frozen importlib] - Processing segment 39.0
+[2025-05-11 19:09:04,769] [INFO] [<frozen importlib] - Processing segment 42.0
+[2025-05-11 19:09:04,840] [INFO] [<frozen importlib] - Processing segment 14.0
+[2025-05-11 19:09:04,899] [INFO] [<frozen importlib] - Processing segment 45.0
+[2025-05-11 19:09:04,943] [INFO] [<frozen importlib] - Processing segment 48.0
+[2025-05-11 19:09:04,956] [INFO] [<frozen importlib] - Processing segment 51.0
+[2025-05-11 19:09:04,968] [INFO] [<frozen importlib] - Processing segment 54.0
+[2025-05-11 19:09:05,079] [INFO] [<frozen importlib] - Processing segment 58.0
+[2025-05-11 19:09:05,121] [INFO] [<frozen importlib] - Processing segment 64.0
+[2025-05-11 19:09:05,340] [INFO] [<frozen importlib] - Processing segment 69.0
+[2025-05-11 19:09:05,435] [INFO] [<frozen importlib] - Processing segment 72.0
+[2025-05-11 19:09:05,439] [INFO] [<frozen importlib] - Processing segment 76.0
+[2025-05-11 19:09:05,453] [INFO] [<frozen importlib] - Processing segment 81.0
+[2025-05-11 19:09:05,680] [INFO] [<frozen importlib] - Processing segment 85.0
+[2025-05-11 19:09:05,895] [INFO] [<frozen importlib] - Processing segment 88.0
+[2025-05-11 19:09:05,974] [INFO] [<frozen importlib] - Processing segment 91.0
+[2025-05-11 19:09:06,049] [INFO] [<frozen importlib] - Processing segment 2.0
+[2025-05-11 19:09:06,234] [INFO] [<frozen importlib] - Processing segment 95.0

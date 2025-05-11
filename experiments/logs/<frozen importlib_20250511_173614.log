@@ -1,0 +1,16 @@
+[2025-05-11 17:36:14,362] [INFO] [<frozen importlib] - Starting XGBoost model training
+[2025-05-11 17:36:14,367] [INFO] [<frozen importlib] - Loading data from Data/processed/splits/train.parquet
+[2025-05-11 17:36:14,840] [INFO] [<frozen importlib] - Loading data from Data/processed/splits/val.parquet
+[2025-05-11 17:36:14,938] [INFO] [<frozen importlib] - Calculated scale_pos_weight: 12.80
+[2025-05-11 17:36:14,938] [INFO] [<frozen importlib] - Training model with early stopping
+[2025-05-11 17:36:14,938] [ERROR] [<frozen importlib] - Error in XGBoost training pipeline: EarlyStopping.__init__() got an unexpected keyword argument 'metric'
+Traceback (most recent call last):
+  File "/home/wanting/energy_anomaly_detection/src/training/xgboost_model.py", line 157, in main
+    detector.train()
+  File "/home/wanting/energy_anomaly_detection/src/training/xgboost_model.py", line 72, in train
+    callbacks=[xgb.callback.EarlyStopping(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/wanting/energy_anomaly_detection/.venv/lib/python3.12/site-packages/xgboost/core.py", line 729, in inner_f
+    return func(**kwargs)
+           ^^^^^^^^^^^^^^
+TypeError: EarlyStopping.__init__() got an unexpected keyword argument 'metric'

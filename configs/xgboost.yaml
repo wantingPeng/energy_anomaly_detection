@@ -1,0 +1,25 @@
+# XGBoost model configuration for anomaly detection
+model:
+  booster: "gbtree"
+  max_depth: 6
+  learning_rate: 0.1
+  n_estimators: 200
+  subsample: 0.8
+  colsample_bytree: 0.8
+  tree_method: "gpu_hist"  # Enable GPU acceleration
+  eval_metric: "logloss"
+  use_label_encoder: false
+  early_stopping_rounds: 20
+  prediction_threshold: 0.5
+
+# Data paths
+data:
+  train_path: "Data/processed/splits/train.parquet"
+  val_path: "Data/processed/splits/val.parquet"
+  model_save_path: "models/xgboost_model.json"
+  report_dir: "src/model_report/xgboost"
+
+# Feature engineering
+features:
+  target_column: "anomaly_label"
+  exclude_columns: ["anomaly_label"]  # Columns to exclude from features 

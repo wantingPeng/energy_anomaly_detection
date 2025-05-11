@@ -1,0 +1,16 @@
+[2025-05-11 18:41:53,725] [INFO] [<frozen importlib] - Loading energy data from Data/interim/Energy_time_series/contact_20250509_093729/part.0.parquet
+[2025-05-11 18:41:57,158] [INFO] [<frozen importlib] - Using 3 CPU cores for parallel processing
+[2025-05-11 18:41:57,265] [INFO] [<frozen importlib] - Processing 294 segments in 58 batches
+[2025-05-11 18:42:03,395] [INFO] [<frozen importlib] - Processing batch 1/59 with 5 segments
+[2025-05-11 18:42:03,982] [INFO] [<frozen importlib] - Processing segment 0.0
+[2025-05-11 18:42:04,085] [INFO] [<frozen importlib] - Processing segment 2.0
+[2025-05-11 18:42:04,320] [INFO] [<frozen importlib] - Processing segment 3.0
+[2025-05-11 18:42:06,381] [INFO] [<frozen importlib] - Processing segment 4.0
+[2025-05-11 18:42:45,862] [INFO] [<frozen importlib] - Processing segment 5.0
+[2025-05-11 18:49:10,918] [INFO] [<frozen importlib] - Saved batch 1 temporary results with 46264 windows
+[2025-05-11 18:49:11,355] [INFO] [<frozen importlib] - Processing batch 2/59 with 5 segments
+[2025-05-11 18:49:11,962] [INFO] [<frozen importlib] - Processing segment 6.0
+[2025-05-11 18:49:12,117] [INFO] [<frozen importlib] - Processing segment 8.0
+[2025-05-11 18:49:12,153] [INFO] [<frozen importlib] - Processing segment 7.0
+[2025-05-11 18:49:32,056] [INFO] [<frozen importlib] - Processing segment 9.0
+[2025-05-11 18:49:33,503] [INFO] [<frozen importlib] - Processing segment 11.0

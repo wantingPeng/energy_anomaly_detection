@@ -5,23 +5,6 @@ from scipy import stats
 from src.utils.logger import logger
 
 
-def calculate_lof(window_data: np.ndarray) -> float:
-    """
-    计算局部异常因子 (Local Outlier Factor)
-    """
-    try:
-        if len(window_data.shape) == 1:
-            window_data = window_data.reshape(-1, 1)
-        
-        # 初始化LOF检测器
-        lof = LocalOutlierFactor(n_neighbors=min(20, len(window_data)-1), novelty=True)
-        lof.fit(window_data)
-        # 返回异常分数的平均值
-        return -np.mean(lof.score_samples(window_data))  # 负值表示异常程度
-    except Exception as e:
-        logger.warning(f"LOF calculation failed: {str(e)}")
-        return 0.0
-
 
 def calculate_ks_test(window_data: np.ndarray) -> float:
     """
@@ -76,14 +59,15 @@ def calculate_window_features(window: pd.DataFrame) -> pd.Series:
             # 突变检测
             features[f"{col}_change_point_score"] = np.max(np.abs(np.diff(values)))
             
-            # 局部异常因子
-            features[f"{col}_local_outlier_factor"] = calculate_lof(values)
+            # 计算绝对能量
+            features[f"{col}_abs_energy"] = np.sum(values ** 2)
+            
+            # 计算尖峰计数
+            spike_threshold = mean_val + 3 * std_val
+            features[f"{col}_spike_count"] = np.sum(values > spike_threshold)
             
             # 统计检验
             features[f"{col}_ks_test_statistic"] = calculate_ks_test(values)
-            
-            # 阈值检测
-            features[f"{col}_threshold_breaches"] = np.sum(np.abs(values - mean_val) > 3 * std_val)
             
             # 安全计算z-score
             if std_val > 1e-10:  # 避免除以接近零的标准差
