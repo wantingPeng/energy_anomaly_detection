@@ -1,19 +1,39 @@
 model:
   name: "random_forest"
   random_state: 42
+  n_estimators: [300]
+  max_depth: [30]
+  min_samples_split: [10]
+  class_weight: ["balanced"]
+  n_jobs: -1
+
+# hyperparameters:
+#   n_estimators: [100, 200, 300]
+#   max_depth: [10, 20, 30]
+#   min_samples_split: [2, 5, 10]
+#   class_weight: ["balanced", "balanced_subsample"]
+
 
 hyperparameters:
-  n_estimators: [100, 200, 300]
-  max_depth: [10, 20, 30]
-  min_samples_split: [2, 5, 10]
-  class_weight: ["balanced", "balanced_subsample"]
+  n_estimators: [300]
+  max_depth: [30]
+  min_samples_split: [10]
+  class_weight: ["balanced"]
 
 data:
   train_path: "Data/processed/splits/train.parquet"
   val_path: "Data/processed/splits/val.parquet"
   target_column: "anomaly_label"
+  smote_sampling_strategy: 0.1  # 将异常样本过采样到正常样本的 10%（即异常率 ≈ 10%）
+  smote_k_neighbors: 5  # 用于确定边界样本的邻居数
+  smote_m_neighbors: 10  # 用于生成新样本的邻居数
+  smote_kind: "borderline-1"  # 边界SMOTE的类型：'borderline-1' 或 'borderline-2'
 
 output:
-  model_path: "src/models/random_forest_best_manual.joblib"
-  feature_importance_path: "src/model_report/feature_importance.csv"
-  validation_report_path: "src/model_report/validation_results.md"
+  model_path: "src/models/random_forest_best_manual2.joblib"
+  feature_importance_path: "src/model_report/feature_importance2.csv"
+  validation_report_path: "src/model_report/validation_results2.md"
+  model_dir: "models/random_forest"
+  results_dir: "results/random_forest"
+  feature_importance_plot: "results/random_forest/feature_importance.png"
+  validation_report: "results/random_forest/validation_report.md"

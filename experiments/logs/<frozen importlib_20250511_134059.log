@@ -1,0 +1,27 @@
+[2025-05-11 13:40:59,592] [INFO] [<frozen importlib] - Loading training and validation data...
+[2025-05-11 13:41:00,088] [INFO] [<frozen importlib] - Class distribution before SMOTE:
+[2025-05-11 13:41:00,088] [INFO] [<frozen importlib] - Training set - Normal: 1101486, Anomaly: 86059
+[2025-05-11 13:41:00,088] [INFO] [<frozen importlib] - Training set anomaly ratio: 0.0725
+[2025-05-11 13:41:00,088] [INFO] [<frozen importlib] - Validation set - Normal: 244243, Anomaly: 10230
+[2025-05-11 13:41:00,088] [INFO] [<frozen importlib] - Validation set anomaly ratio: 0.0402
+[2025-05-11 13:41:00,088] [INFO] [<frozen importlib] - Handling missing values with SimpleImputer...
+[2025-05-11 13:41:01,058] [INFO] [<frozen importlib] - Number of NaN values in training set before imputation: 2715532
+[2025-05-11 13:41:01,070] [INFO] [<frozen importlib] - Number of NaN values in validation set before imputation: 581898
+[2025-05-11 13:41:01,129] [INFO] [<frozen importlib] - Number of NaN values in training set after imputation: 0
+[2025-05-11 13:41:01,140] [INFO] [<frozen importlib] - Number of NaN values in validation set after imputation: 0
+[2025-05-11 13:41:04,152] [INFO] [<frozen importlib] - Class distribution after SMOTE:
+[2025-05-11 13:41:04,152] [INFO] [<frozen importlib] - Training set - Normal: 1101486, Anomaly: 110148
+[2025-05-11 13:41:04,152] [INFO] [<frozen importlib] - Training set anomaly ratio: 0.0909
+[2025-05-11 13:41:04,152] [INFO] [<frozen importlib] - Number of synthetic samples generated: 24089
+[2025-05-11 13:41:04,152] [INFO] [<frozen importlib] - Training data shape: (1211634, 73)
+[2025-05-11 13:41:04,152] [INFO] [<frozen importlib] - Validation data shape: (254473, 73)
+[2025-05-11 13:41:04,173] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 300, 'max_depth': 30, 'min_samples_split': 10, 'class_weight': 'balanced'}
+[2025-05-11 13:43:37,397] [INFO] [<frozen importlib] - Confusion matrix saved to src/model_report/confusion_matrix_1.png
+[2025-05-11 13:43:37,483] [INFO] [<frozen importlib] - Precision-Recall curve saved to src/model_report/pr_curve_1.png
+[2025-05-11 13:43:37,483] [INFO] [<frozen importlib] - New best model found! F1 Score: 0.1242
+[2025-05-11 13:43:37,483] [INFO] [<frozen importlib] - Optimal threshold: 0.1114
+[2025-05-11 13:43:37,542] [INFO] [<frozen importlib] - Metrics comparison plot saved to src/model_report/metrics_comparison.png
+[2025-05-11 13:43:37,542] [INFO] [<frozen importlib] - Validation results saved to src/model_report/validation_results2.md
+[2025-05-11 13:43:38,216] [INFO] [<frozen importlib] - Best model saved to src/models/random_forest_best_manual2.joblib
+[2025-05-11 13:43:38,340] [INFO] [<frozen importlib] - Feature importance saved to src/model_report/feature_importance2.csv
+[2025-05-11 13:43:38,685] [INFO] [<frozen importlib] - ROC curve saved to src/model_report/roc_curve.png

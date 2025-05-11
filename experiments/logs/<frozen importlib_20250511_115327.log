@@ -1,0 +1,7 @@
+[2025-05-11 11:53:27,289] [INFO] [<frozen importlib] - Loading training and validation data...
+[2025-05-11 11:53:27,733] [INFO] [<frozen importlib] - Training data shape: (1187545, 73)
+[2025-05-11 11:53:27,733] [INFO] [<frozen importlib] - Validation data shape: (254473, 73)
+[2025-05-11 11:53:27,750] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 200, 'contamination': 0.15, 'max_samples': 'auto', 'max_features': 1.0}
+[2025-05-11 11:53:31,989] [INFO] [<frozen importlib] - New best model found! F1 Score: 0.7549
+[2025-05-11 11:53:32,963] [INFO] [<frozen importlib] - Anomaly scores distribution plot saved to src/model_report/anomaly_scores_distribution.png
+[2025-05-11 11:53:33,013] [INFO] [<frozen importlib] - Confusion matrix saved to src/model_report/confusion_matrix.png

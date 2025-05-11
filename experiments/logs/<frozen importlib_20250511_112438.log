@@ -1,0 +1,3 @@
+[2025-05-11 11:24:38,716] [INFO] [<frozen importlib] - Loading training and validation data...
+[2025-05-11 11:24:39,160] [INFO] [<frozen importlib] - Training data shape: (1187545, 73)
+[2025-05-11 11:24:39,160] [INFO] [<frozen importlib] - Validation data shape: (254473, 73)

@@ -1,0 +1,13 @@
+[2025-05-11 12:53:51,836] [INFO] [<frozen importlib] - Loading training and validation data...
+[2025-05-11 12:53:52,270] [INFO] [<frozen importlib] - Training data shape: (1187545, 73)
+[2025-05-11 12:53:52,270] [INFO] [<frozen importlib] - Validation data shape: (254473, 73)
+[2025-05-11 12:53:52,288] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 300, 'max_depth': 30, 'min_samples_split': 10, 'class_weight': 'balanced'}
+[2025-05-11 12:56:21,283] [INFO] [<frozen importlib] - Confusion matrix saved to src/model_report/confusion_matrix_1.png
+[2025-05-11 12:56:21,372] [INFO] [<frozen importlib] - Precision-Recall curve saved to src/model_report/pr_curve_1.png
+[2025-05-11 12:56:21,372] [INFO] [<frozen importlib] - New best model found! F1 Score: 0.1209
+[2025-05-11 12:56:21,372] [INFO] [<frozen importlib] - Optimal threshold: 0.1208
+[2025-05-11 12:56:21,429] [INFO] [<frozen importlib] - Metrics comparison plot saved to src/model_report/metrics_comparison.png
+[2025-05-11 12:56:21,429] [INFO] [<frozen importlib] - Validation results saved to src/model_report/validation_results2.md
+[2025-05-11 12:56:22,064] [INFO] [<frozen importlib] - Best model saved to src/models/random_forest_best_manual2.joblib
+[2025-05-11 12:56:22,180] [INFO] [<frozen importlib] - Feature importance saved to src/model_report/feature_importance2.csv
+[2025-05-11 12:56:22,554] [INFO] [<frozen importlib] - ROC curve saved to src/model_report/roc_curve.png

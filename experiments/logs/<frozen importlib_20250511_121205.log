@@ -1,0 +1,9 @@
+[2025-05-11 12:12:05,468] [INFO] [<frozen importlib] - Loading training and validation data...
+[2025-05-11 12:12:05,920] [INFO] [<frozen importlib] - Training data shape: (1187545, 73)
+[2025-05-11 12:12:05,920] [INFO] [<frozen importlib] - Validation data shape: (254473, 73)
+[2025-05-11 12:12:05,939] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 200, 'contamination': 0.04, 'max_samples': 'auto', 'max_features': 1.0}
+[2025-05-11 12:12:10,570] [INFO] [<frozen importlib] - New best model found! F1 Score: 0.8824
+[2025-05-11 12:12:11,559] [INFO] [<frozen importlib] - Anomaly scores distribution plot saved to src/model_report/isolation_forest/anomaly_scores_distribution_20250511_121205.png
+[2025-05-11 12:12:11,609] [INFO] [<frozen importlib] - Confusion matrix saved to src/model_report/isolation_forest/confusion_matrix_20250511_121205.png
+[2025-05-11 12:12:11,609] [INFO] [<frozen importlib] - Validation results saved to src/model_report/isolation_forest/validation_results_20250511_121205.md
+[2025-05-11 12:12:11,632] [INFO] [<frozen importlib] - Best model saved to src/models/isolation_forest_best_20250511_121205.joblib
