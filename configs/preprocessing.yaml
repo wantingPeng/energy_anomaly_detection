@@ -9,7 +9,7 @@ time:
   source_timezone: "Europe/Berlin"
   target_timezone: "UTC"
   timestamp_format: "%Y-%m-%d %H:%M:%S"
-  gap_threshold: 15.0  # 2 seconds threshold for gap detection
+  gap_threshold: 15.0  #  seconds threshold for gap detection
 
 # Data cleaning parameters
 cleaning:
@@ -39,14 +39,15 @@ logging:
 sliding_window:
   window_size: 600  # seconds
   step_size: 60     # seconds
+  anomaly_step_size: 10
   overlap_threshold: 0.3  # 30% overlap required for anomaly labeling
 
 # Data paths
 paths:
   anomaly_dict: "Data/interim/Anomaly_Data/anomaly_dict.pkl"
   energy_data: "Data/interim/Energy_time_series"
-  output_dir: "Data/interim/Energy_labeling_correlations"
-  report_file: "Data/interim/Energy_labeling_correlations/labeling_correlations.md"
+  output_dir: "Data/interim/Energy_labeling_windowFeatures"
+  report_file: "Data/interim/Energy_labeling_windowFeatures/Energy_labeling_windowFeatures.md"
 
 # Correlation analysis
 correlation:
