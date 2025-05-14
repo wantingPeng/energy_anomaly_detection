@@ -1,5 +1,6 @@
 import os
 import pickle
+import psutil
 import yaml
 import pandas as pd
 import numpy as np
@@ -101,14 +102,14 @@ Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 
 def process_segment(segment_data: Tuple[str, pd.DataFrame], 
-                   interval_tree: IntervalTree,
+                   anomaly_periods: List[Tuple[str, str]],
                    config: dict) -> List[dict]:
     """
     处理单个segment的函数，用于并行处理
     
     Args:
         segment_data: (segment_id, segment_df) 元组
-        interval_tree: 用于检查异常重叠的区间树
+        anomaly_periods: 异常时间段列表
         config: 配置字典
     
     Returns:
@@ -118,6 +119,9 @@ def process_segment(segment_data: Tuple[str, pd.DataFrame],
     logger.info(f"Processing segment {segment_id}")
     
     try:
+        # Create interval tree for this process
+        interval_tree = create_interval_tree(anomaly_periods)
+        
         window_features = []
         window_size = pd.Timedelta(seconds=config['sliding_window']['window_size'])
         normal_step_size = pd.Timedelta(seconds=60)
@@ -159,6 +163,10 @@ def process_segment(segment_data: Tuple[str, pd.DataFrame],
         logger.error(f"Error processing segment {segment_id}: {str(e)}")
         return []
 
+def print_memory():
+    process = psutil.Process(os.getpid())
+    mem = process.memory_info().rss / 1024**2  # in MB
+    print(f"[MEM] Process {os.getpid()} is using {mem:.2f} MB")
 
 def label(energy_data_path: str, station_name: str) -> None:
     """
@@ -177,34 +185,82 @@ def label(energy_data_path: str, station_name: str) -> None:
         if station_name not in anomaly_dict:
             raise ValueError(f"Station {station_name} not found in anomaly dictionary")
         
-        # Create interval tree for efficient overlap checking
-        interval_tree = create_interval_tree(anomaly_dict[station_name])
+        # Get anomaly periods for the station
+        anomaly_periods = anomaly_dict[station_name]
         
         # Load energy data
         logger.info(f"Loading energy data from {energy_data_path}")
         df = pd.read_parquet(energy_data_path)
         
-        # 准备并行处理
-        n_jobs = 20  # Set to use 20 processes
-        logger.info(f"Using {n_jobs} threads for parallel processing")
+        # 准备分批处理
+        batch_size = 60  # 每批处理的segment数量
+        n_jobs = 6  # 每批使用的进程数
+        logger.info(f"Using batch processing with {batch_size} segments per batch and {n_jobs} processes per batch")
         
-        # 使用 joblib 进行并行处理
-        results = Parallel(n_jobs=n_jobs, prefer='threads')(  # Use threads to reduce data copying
-            delayed(process_segment)(segment_data, interval_tree, config)
-            for segment_data in df.groupby('segment_id')
-        )
+        # 获取所有segment的groupby对象
+        segment_groups = list(df.groupby('segment_id'))
+        total_segments = len(segment_groups)
+        total_batches = (total_segments + batch_size - 1) // batch_size
         
-        # 合并所有结果
-        window_features = []
-        for segment_features in results:
-            window_features.extend(segment_features)
+        # 创建临时目录存储批次结果
+        temp_dir = os.path.join(config['paths']['output_dir'], 'temp_batches')
+        os.makedirs(temp_dir, exist_ok=True)
         
-        # Explicitly release memory
-        del results
+        # 分批处理
+        for batch_idx in range(total_batches):
+            start_idx = batch_idx * batch_size
+            end_idx = min((batch_idx + 1) * batch_size, total_segments)
+            current_batch = segment_groups[start_idx:end_idx]
+            
+            logger.info(f"Processing batch {batch_idx + 1}/{total_batches} "
+                       f"(segments {start_idx + 1}-{end_idx} of {total_segments})")
+            
+            # 处理当前批次
+            batch_results = Parallel(n_jobs=n_jobs, prefer='processes')(
+                delayed(process_segment)(segment_data, anomaly_periods, config)
+                for segment_data in current_batch
+            )
+            
+            # 合并当前批次的结果并保存
+            batch_features = []
+            for segment_features in batch_results:
+                batch_features.extend(segment_features)
+            
+            # 保存当前批次结果
+            batch_df = pd.DataFrame(batch_features)
+            batch_file = os.path.join(temp_dir, f"{station_name}_batch_{batch_idx}.parquet")
+            batch_df.to_parquet(batch_file)
+            
+            # 清理当前批次的内存
+            del batch_results
+            del batch_features
+            del batch_df
+            del current_batch
+            gc.collect()
+            
+            logger.info(f"Completed and saved batch {batch_idx + 1}/{total_batches}")
+            print_memory()
+        
+        # 清理不再需要的数据
+        del segment_groups
+        del df
         gc.collect()
+        print_memory()
         
-        # Create DataFrame from window features
-        labeled_df = pd.DataFrame(window_features)
+        # 合并所有批次结果
+        logger.info("Merging all batch results...")
+        batch_files = [os.path.join(temp_dir, f) for f in os.listdir(temp_dir) 
+                      if f.startswith(f"{station_name}_batch_") and f.endswith('.parquet')]
+        batch_files.sort()  # 确保按批次顺序合并
+        
+        # 使用列表推导式读取所有批次文件
+        batch_dfs = [pd.read_parquet(f) for f in batch_files]
+        labeled_df = pd.concat(batch_dfs, ignore_index=True)
+        
+        # 清理批次文件
+        for f in batch_files:
+            os.remove(f)
+        os.rmdir(temp_dir)
         
         # Generate and save report
         report = generate_report(labeled_df, config, station_name)
@@ -235,6 +291,6 @@ def label(energy_data_path: str, station_name: str) -> None:
 
 if __name__ == "__main__":
     # Example usage
-    energy_data_path = "Data/interim/Energy_time_series/contact_20250509_093729/part.0.parquet"
-    station_name = "Kontaktieren"
+    energy_data_path = "Data/interim/Energy_time_series/ring_20250509_090739/part.0.parquet"
+    station_name = "Ringmontage"
     label(energy_data_path, station_name) 
