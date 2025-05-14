@@ -12,12 +12,12 @@ def split_data():
         tuple: (train_df, val_df, test_df) - Three DataFrames containing the split data
     """
     # Create output directory if it doesn't exist
-    output_dir = Path("Data/processed/splits")
+    output_dir = Path("Data/processed/splits_no_correlation")
     output_dir.mkdir(parents=True, exist_ok=True)
     
     # Load the merged features data
     logger.info("Loading merged features data...")
-    df = pd.read_parquet("Data/processed/merged_features.parquet")
+    df = pd.read_parquet("Data/processed/merged_features_no_correlation.parquet")
     
     # Print first 10 rows
     logger.info("First 10 rows of the data:")
@@ -25,7 +25,7 @@ def split_data():
     
     # Remove unnecessary columns
     logger.info("Removing unnecessary columns...")
-    df = df.drop(['window_start', 'window_end'], axis=1)
+    df = df.drop(['window_start', 'window_end',"overlap_ratio","step_size"], axis=1)
     
     # Get feature columns (all columns except anomaly_label and component columns)
     component_cols = ['component_contact', 'component_pcb', 'component_ring']

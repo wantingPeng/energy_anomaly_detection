@@ -71,6 +71,7 @@ class RandomForestTrainer:
         logger.info(f"Number of NaN values in training set after imputation: {X_train_imputed.isna().sum().sum()}")
         logger.info(f"Number of NaN values in validation set after imputation: {X_val_imputed.isna().sum().sum()}")
         
+        '''
         # Apply BorderlineSMOTE to training data only
         logger.info("Applying BorderlineSMOTE for oversampling...")
         borderline_smote = BorderlineSMOTE(
@@ -93,6 +94,12 @@ class RandomForestTrainer:
         logger.info(f"Validation data shape: {X_val_imputed.shape}")
         
         return X_train_resampled, y_train_resampled, X_val_imputed, y_val
+        '''
+        
+        logger.info(f"Training data shape: {X_train_imputed.shape}")
+        logger.info(f"Validation data shape: {X_val_imputed.shape}")
+        
+        return X_train_imputed, y_train, X_val_imputed, y_val
     
     def _create_model(self, params):
         """Create a Random Forest model with given parameters."""
@@ -117,12 +124,17 @@ class RandomForestTrainer:
         best_threshold_idx = np.argmax(f1_scores)
         best_threshold = thresholds[best_threshold_idx]
         
+        # 使用最佳阈值进行预测并计算实际指标
+        y_pred = (y_pred_proba >= best_threshold).astype(int)
+        cm = confusion_matrix(y_true, y_pred)
+        actual_metrics = calculate_metrics_from_confusion_matrix(cm)
+        
         # 记录最佳阈值下的指标
         best_metrics = {
             'threshold': best_threshold,
-            'precision': precision[best_threshold_idx],
-            'recall': recall[best_threshold_idx],
-            'f1_score': f1_scores[best_threshold_idx]
+            'precision': actual_metrics['Precision'],
+            'recall': actual_metrics['Recall'],
+            'f1_score': actual_metrics['F1 Score']
         }
         
         return best_threshold, best_metrics

@@ -1,0 +1,12 @@
+[2025-05-14 22:05:40,385] [INFO] [<frozen importlib] - Loading training and validation data...
+[2025-05-14 22:05:43,127] [INFO] [<frozen importlib] - Class distribution before SMOTE:
+[2025-05-14 22:05:43,127] [INFO] [<frozen importlib] - Training set - Normal: 1157932, Anomaly: 498805
+[2025-05-14 22:05:43,127] [INFO] [<frozen importlib] - Training set anomaly ratio: 0.3011
+[2025-05-14 22:05:43,127] [INFO] [<frozen importlib] - Validation set - Normal: 281704, Anomaly: 73310
+[2025-05-14 22:05:43,127] [INFO] [<frozen importlib] - Validation set anomaly ratio: 0.2065
+[2025-05-14 22:05:43,127] [INFO] [<frozen importlib] - Handling missing values with SimpleImputer...
+[2025-05-14 22:05:50,054] [INFO] [<frozen importlib] - Number of NaN values in training set before imputation: 0
+[2025-05-14 22:05:50,157] [INFO] [<frozen importlib] - Number of NaN values in validation set before imputation: 0
+[2025-05-14 22:05:50,654] [INFO] [<frozen importlib] - Number of NaN values in training set after imputation: 0
+[2025-05-14 22:05:50,761] [INFO] [<frozen importlib] - Number of NaN values in validation set after imputation: 0
+[2025-05-14 22:05:50,761] [INFO] [<frozen importlib] - Applying BorderlineSMOTE for oversampling...
