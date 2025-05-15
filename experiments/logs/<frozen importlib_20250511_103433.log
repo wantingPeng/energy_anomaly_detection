@@ -1,7 +1,0 @@
-[2025-05-11 10:34:33,473] [INFO] [<frozen importlib] - Loading training and validation data...
-[2025-05-11 10:34:33,912] [INFO] [<frozen importlib] - Training data shape: (1187545, 73)
-[2025-05-11 10:34:33,913] [INFO] [<frozen importlib] - Validation data shape: (254473, 73)
-[2025-05-11 10:34:33,931] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 300, 'max_depth': 30, 'min_samples_split': 10, 'class_weight': 'balanced'}
-[2025-05-11 10:37:06,454] [INFO] [<frozen importlib] - Confusion matrix saved to src/model_report/confusion_matrix_1.png
-[2025-05-11 10:37:06,513] [INFO] [<frozen importlib] - Precision-Recall curve saved to src/model_report/pr_curve_1.png
-[2025-05-11 10:37:06,513] [INFO] [<frozen importlib] - New best model found! Macro Avg F1 Score: 0.4900

@@ -8,7 +8,8 @@ from sklearn.metrics import (
     confusion_matrix,
     precision_recall_curve,
     roc_curve,
-    auc
+    auc,
+    f1_score
 )
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -86,7 +87,7 @@ class XGBoostAnomalyDetector:
         self._save_model()
         
         # Evaluate model
-        self.evaluate(X_val, y_val, prediction_threshold)
+        self.evaluate(X_val, y_val)
 
     def _save_model(self):
         save_path = self.config['data']['model_save_path']
@@ -94,11 +95,21 @@ class XGBoostAnomalyDetector:
         self.model.save_model(save_path)
         logger.info(f"Model saved to {save_path}")
 
-    def evaluate(self, X_val, y_val, threshold):
+    def find_best_threshold(self, y_true, y_scores):
+        precision, recall, thresholds = precision_recall_curve(y_true, y_scores)
+        f1_scores = 2 * (precision * recall) / (precision + recall)
+        best_index = f1_scores.argmax()
+        best_threshold = thresholds[best_index]
+        best_f1 = f1_scores[best_index]
+        logger.info(f"Best F1 Score: {best_f1:.2f} at threshold: {best_threshold:.2f}")
+        return best_threshold
+
+    def evaluate(self, X_val, y_val):
         logger.info("Evaluating model performance")
 
         y_pred_proba = self.model.predict(xgb.DMatrix(X_val))
-        y_pred = (y_pred_proba >= threshold).astype(int)
+        best_threshold = self.find_best_threshold(y_val, y_pred_proba)
+        y_pred = (y_pred_proba >= best_threshold).astype(int)
 
         report = classification_report(y_val, y_pred)
         logger.info("\n" + report)

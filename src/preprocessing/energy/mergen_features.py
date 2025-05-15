@@ -10,7 +10,6 @@ from typing import Dict, List, Tuple, Set, Optional
 import seaborn as sns
 import matplotlib.pyplot as plt
 from src.utils.logger import logger
-from src.utils.correlation import analyze_correlations_method1
 from dataclasses import dataclass
 from functools import partial
 
@@ -69,76 +68,50 @@ def load_data(input_dir: str) -> Dict[str, pd.DataFrame]:
     loaded_data = [load_single_file(fp) for fp in file_paths]
     return {comp_type: df for comp_type, df in loaded_data if df is not None}
 
-def analyze_correlations(data_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.Series]:
-    """Analyze correlations for each component type"""
-    correlations = {}
-    for component, df in data_dict.items():
-        correlations[component] = analyze_correlations_method1(df)
-        logger.info(f"Analyzed correlations for {component}")
-    return correlations
 
-def select_features(correlations: Dict[str, pd.Series], 
-                   data_dict: Dict[str, pd.DataFrame],
-                   threshold: float, 
-                   high_threshold: float) -> Tuple[pd.DataFrame, List[str]]:
-    """Select features based on correlation thresholds and create intersection DataFrame"""
+def add_missing_columns(df: pd.DataFrame, feature_columns: Set[str], default_value: float) -> pd.DataFrame:
+    """Add missing columns to the DataFrame with a default value."""
+    missing_cols = [col for col in feature_columns if col not in df.columns]
+    for col in missing_cols:
+        df[col] = default_value
+        logger.info(f"Added missing column '{col}' with {default_value} values")
+    return df
+
+def encode_and_convert_labels(df: pd.DataFrame) -> pd.DataFrame:
+    """Convert anomaly_label to binary and perform one-hot encoding for component_type."""
+    df['anomaly_label'] = df['anomaly_label'].astype(int)
+    component_dummies = pd.get_dummies(df['component_type'], prefix='component').astype(int)
+    df = pd.concat([df, component_dummies], axis=1)
+    return df
+
+def merge_features(data_dict: Dict[str, pd.DataFrame]) -> Tuple[pd.DataFrame, List[str]]:
+    """Merge features from all component types, aligning columns and filling missing values with 0."""
     report_content = []
-    selected_by_component = {}
+    all_columns = set()
+    for df in data_dict.values():
+        all_columns.update(df.columns)
     
-    # Select features for each component
-    for component, corr in correlations.items():
-        selected = set(corr[corr > threshold].index)
-        selected_by_component[component] = selected
-        
-        important_features = set(corr[corr > high_threshold].index)
-        report_content.extend([
-            f"\nImportant features ({component}, correlation > {high_threshold}):",
-            "\n".join(f"- {f}" for f in important_features)
-        ])
-
-    # Find common features
-    common_features = set.intersection(*selected_by_component.values())
-    
-    # Add important features that weren't in the intersection
-    all_important_features = set()
-    for component, corr in correlations.items():
-        important_features = set(corr[corr > high_threshold].index)
-        all_important_features.update(important_features)
-    
-    # Update common features with all important features
-    common_features.update(all_important_features)
-    
-    # Create intersection DataFrame with additional columns
+    non_feature_cols = {'window_start', 'window_end', 'component_type', 'anomaly_label'}
+    feature_columns = all_columns - non_feature_cols
     additional_columns = ['window_start', 'window_end', 'component_type', 'anomaly_label']
-    all_columns = list(common_features) + additional_columns
-    intersection_df = pd.DataFrame()
+    all_columns = list(feature_columns) + additional_columns
+    merged_df = pd.DataFrame()
     
-    # Process each component's data
     for component, df in data_dict.items():
-        # Find missing columns for this component
-        missing_cols = [col for col in common_features if col not in df.columns]
-        
-        # Create a copy of the dataframe
-        component_df = df.copy()
-        
-        # Add missing columns with NaN values
-        for col in missing_cols:
-            component_df[col] = np.nan
-            logger.info(f"Added missing column '{col}' with NaN values for {component}")
-        
-        # Select required columns
-        component_df = component_df[all_columns].copy()
-        intersection_df = pd.concat([intersection_df, component_df], axis=0)
+        df = add_missing_columns(df, feature_columns, default_value=0)
+        df = df[all_columns].copy()
+        df = encode_and_convert_labels(df)
+        merged_df = pd.concat([merged_df, df], axis=0)
     
-    # Convert anomaly_label to binary (0/1)
-    intersection_df['anomaly_label'] = intersection_df['anomaly_label'].astype(int)
+    report_content.extend([
+        f"\nTotal number of features: {len(feature_columns)}",
+        "\nFeature columns:",
+        "\n".join(f"- {f}" for f in sorted(feature_columns))
+    ])
     
-    # Perform one-hot encoding for component_type and convert to int
-    component_dummies = pd.get_dummies(intersection_df['component_type'], prefix='component').astype(int)
-    intersection_df = pd.concat([intersection_df, component_dummies], axis=1)
-    
-    logger.info(f"Selected {len(common_features)} features (including important features)")
-    return intersection_df, report_content
+    logger.info(f"Merged {len(feature_columns)} features from all components")
+    return merged_df, report_content
+
 
 def save_processed_data(df: pd.DataFrame, output_dir: str) -> None:
     """Save processed data to parquet file"""
@@ -192,58 +165,6 @@ def save_report(report_content: List[str],
     
     # Log anomaly statistics
     logger.info(f"Overall anomaly rate: {anomaly_rate:.2f}%")
-
-def merge_features(data_dict: Dict[str, pd.DataFrame]) -> Tuple[pd.DataFrame, List[str]]:
-    """Merge features from all component types, aligning columns and filling missing values with 0"""
-    report_content = []
-    
-    # Get all unique columns across all components
-    all_columns = set()
-    for df in data_dict.values():
-        all_columns.update(df.columns)
-    
-    # Remove non-feature columns from the set
-    non_feature_cols = {'window_start', 'window_end', 'component_type', 'anomaly_label'}
-    feature_columns = all_columns - non_feature_cols
-    
-    # Create merged DataFrame with additional columns
-    additional_columns = ['window_start', 'window_end', 'component_type', 'anomaly_label']
-    all_columns = list(feature_columns) + additional_columns
-    merged_df = pd.DataFrame()
-    
-    # Process each component's data
-    for component, df in data_dict.items():
-        # Find missing columns for this component
-        missing_cols = [col for col in feature_columns if col not in df.columns]
-        
-        # Create a copy of the dataframe
-        component_df = df.copy()
-        
-        # Add missing columns with 0 values
-        for col in missing_cols:
-            component_df[col] = 0
-            logger.info(f"Added missing column '{col}' with 0 values for {component}")
-        
-        # Select required columns
-        component_df = component_df[all_columns].copy()
-        merged_df = pd.concat([merged_df, component_df], axis=0)
-    
-    # Convert anomaly_label to binary (0/1)
-    merged_df['anomaly_label'] = merged_df['anomaly_label'].astype(int)
-    
-    # Perform one-hot encoding for component_type and convert to int
-    component_dummies = pd.get_dummies(merged_df['component_type'], prefix='component').astype(int)
-    merged_df = pd.concat([merged_df, component_dummies], axis=1)
-    
-    # Add feature information to report
-    report_content.extend([
-        f"\nTotal number of features: {len(feature_columns)}",
-        "\nFeature columns:",
-        "\n".join(f"- {f}" for f in sorted(feature_columns))
-    ])
-    
-    logger.info(f"Merged {len(feature_columns)} features from all components")
-    return merged_df, report_content
 
 def main():
     # Load configuration

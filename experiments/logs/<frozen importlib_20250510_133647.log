@@ -1,3 +1,0 @@
-[2025-05-10 13:36:47,347] [INFO] [<frozen importlib] - Successfully loaded config from configs/feature_selection.yaml
-[2025-05-10 13:36:47,847] [INFO] [<frozen importlib] - Loaded ring data with shape (579589, 286)
-[2025-05-10 13:36:48,254] [INFO] [<frozen importlib] - Loaded contact data with shape (535142, 276)

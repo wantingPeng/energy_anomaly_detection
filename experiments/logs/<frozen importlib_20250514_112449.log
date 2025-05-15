@@ -1,2 +1,0 @@
-[2025-05-14 11:24:49,633] [INFO] [<frozen importlib] - Loading energy data from Data/interim/Energy_time_series/contact_20250509_093729/part.0.parquet
-[2025-05-14 11:24:53,015] [INFO] [<frozen importlib] - Using 20 processes for parallel processing

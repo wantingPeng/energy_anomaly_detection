@@ -1,0 +1,7 @@
+sliding_window:
+  window_size: 60  # seconds
+  step_size: 10   # seconds
+  anomaly_threshold: 0.3  # 30% overlap required for anomaly labeling
+
+paths:
+  anomaly_dict: "Data/processed/lstm/anomaly_dict.pkl"

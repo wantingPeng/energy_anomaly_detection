@@ -1,6 +1,0 @@
-[2025-05-11 10:31:13,702] [INFO] [<frozen importlib] - Loading training and validation data...
-[2025-05-11 10:31:14,168] [INFO] [<frozen importlib] - Training data shape: (1187545, 73)
-[2025-05-11 10:31:14,169] [INFO] [<frozen importlib] - Validation data shape: (254473, 73)
-[2025-05-11 10:31:14,187] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 300, 'max_depth': 30, 'min_samples_split': 10, 'class_weight': 'balanced'}
-[2025-05-11 10:33:45,161] [INFO] [<frozen importlib] - Confusion matrix saved to src/model_report/confusion_matrix_1.png
-[2025-05-11 10:33:45,221] [INFO] [<frozen importlib] - Precision-Recall curve saved to src/model_report/pr_curve_1.png

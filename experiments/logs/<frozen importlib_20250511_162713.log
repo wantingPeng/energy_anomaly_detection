@@ -1,4 +1,0 @@
-[2025-05-11 16:27:13,901] [INFO] [<frozen importlib] - Loading energy data from Data/interim/Energy_time_series/contact_20250509_093729/part.0.parquet
-[2025-05-11 16:27:19,540] [INFO] [<frozen importlib] - Processing segment 0.0
-[2025-05-11 16:27:28,186] [INFO] [<frozen importlib] - Processing segment 2.0
-[2025-05-11 16:30:19,699] [INFO] [<frozen importlib] - Processing segment 3.0

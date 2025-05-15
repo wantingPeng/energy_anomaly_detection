@@ -47,29 +47,29 @@ class RandomForestTrainer:
         X_val = val_data.drop(columns=[target_col])
         y_val = val_data[target_col]
         
-        # Log class distribution before SMOTE
-        train_dist = pd.Series(y_train).value_counts()
-        val_dist = pd.Series(y_val).value_counts()
-        logger.info("Class distribution before SMOTE:")
-        logger.info(f"Training set - Normal: {train_dist[0]}, Anomaly: {train_dist[1]}")
-        logger.info(f"Training set anomaly ratio: {train_dist[1]/(train_dist[0]+train_dist[1]):.4f}")
-        logger.info(f"Validation set - Normal: {val_dist[0]}, Anomaly: {val_dist[1]}")
-        logger.info(f"Validation set anomaly ratio: {val_dist[1]/(val_dist[0]+val_dist[1]):.4f}")
+        # # Log class distribution before SMOTE
+        # train_dist = pd.Series(y_train).value_counts()
+        # val_dist = pd.Series(y_val).value_counts()
+        # logger.info("Class distribution before SMOTE:")
+        # logger.info(f"Training set - Normal: {train_dist[0]}, Anomaly: {train_dist[1]}")
+        # logger.info(f"Training set anomaly ratio: {train_dist[1]/(train_dist[0]+train_dist[1]):.4f}")
+        # logger.info(f"Validation set - Normal: {val_dist[0]}, Anomaly: {val_dist[1]}")
+        # logger.info(f"Validation set anomaly ratio: {val_dist[1]/(val_dist[0]+val_dist[1]):.4f}")
         
-        # Handle missing values
-        logger.info("Handling missing values with SimpleImputer...")
-        X_train_imputed = self.imputer.fit_transform(X_train)
-        X_val_imputed = self.imputer.transform(X_val)
+        # # Handle missing values
+        # logger.info("Handling missing values with SimpleImputer...")
+        # X_train_imputed = self.imputer.fit_transform(X_train)
+        # X_val_imputed = self.imputer.transform(X_val)
         
-        # Convert back to DataFrame to preserve column names
-        X_train_imputed = pd.DataFrame(X_train_imputed, columns=X_train.columns)
-        X_val_imputed = pd.DataFrame(X_val_imputed, columns=X_val.columns)
+        # # Convert back to DataFrame to preserve column names
+        # X_train_imputed = pd.DataFrame(X_train_imputed, columns=X_train.columns)
+        # X_val_imputed = pd.DataFrame(X_val_imputed, columns=X_val.columns)
         
-        # Log missing value statistics
-        logger.info(f"Number of NaN values in training set before imputation: {X_train.isna().sum().sum()}")
-        logger.info(f"Number of NaN values in validation set before imputation: {X_val.isna().sum().sum()}")
-        logger.info(f"Number of NaN values in training set after imputation: {X_train_imputed.isna().sum().sum()}")
-        logger.info(f"Number of NaN values in validation set after imputation: {X_val_imputed.isna().sum().sum()}")
+        # # Log missing value statistics
+        # logger.info(f"Number of NaN values in training set before imputation: {X_train.isna().sum().sum()}")
+        # logger.info(f"Number of NaN values in validation set before imputation: {X_val.isna().sum().sum()}")
+        # logger.info(f"Number of NaN values in training set after imputation: {X_train_imputed.isna().sum().sum()}")
+        # logger.info(f"Number of NaN values in validation set after imputation: {X_val_imputed.isna().sum().sum()}")
         
         '''
         # Apply BorderlineSMOTE to training data only
@@ -96,10 +96,10 @@ class RandomForestTrainer:
         return X_train_resampled, y_train_resampled, X_val_imputed, y_val
         '''
         
-        logger.info(f"Training data shape: {X_train_imputed.shape}")
-        logger.info(f"Validation data shape: {X_val_imputed.shape}")
+        logger.info(f"Training data shape: {X_train.shape}")
+        logger.info(f"Validation data shape: {X_val.shape}")
         
-        return X_train_imputed, y_train, X_val_imputed, y_val
+        return X_train, y_train, X_val, y_val
     
     def _create_model(self, params):
         """Create a Random Forest model with given parameters."""
@@ -172,6 +172,25 @@ class RandomForestTrainer:
         os.makedirs(os.path.dirname(self.config['output']['feature_importance_path']), exist_ok=True)
         importance_df.to_csv(self.config['output']['feature_importance_path'], index=False)
         logger.info(f"Feature importance saved to {self.config['output']['feature_importance_path']}")
+
+    def _save_top_features(self, model, feature_names, X, y, top_n, save_path):
+        """Save top N important features to a parquet file."""
+        importance_df = pd.DataFrame({
+            'feature': feature_names,
+            'importance': model.feature_importances_
+        })
+        importance_df = importance_df.sort_values('importance', ascending=False)
+        top_features = importance_df.head(top_n)['feature'].tolist()
+        selected_data = X[top_features].copy()
+        selected_data[y.name] = y.values
+        # Add component columns
+        component_cols = ['component_contact', 'component_ring', 'component_pcb']
+        for col in component_cols:
+            if col in X.columns:
+                selected_data[col] = X[col].values
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        selected_data.to_parquet(save_path, index=False)
+        logger.info(f"Top {top_n} features saved to {save_path}")
 
     def train_and_evaluate(self):
         """Train and evaluate Random Forest model with different hyperparameters."""
@@ -249,6 +268,10 @@ class RandomForestTrainer:
             y_val, 
             os.path.join(output_dir, 'roc_curve.png')
         )
+        
+        # Save top 50 and 100 features
+        self._save_top_features(self.best_model, feature_names, X_train, y_train, 50, 'Data/processed/top_50_features.parquet')
+        self._save_top_features(self.best_model, feature_names, X_train, y_train, 100, 'Data/processed/top_100_features.parquet')
         
         return self.best_model, self.best_params
 

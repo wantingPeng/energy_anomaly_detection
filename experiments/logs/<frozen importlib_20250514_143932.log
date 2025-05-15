@@ -1,3 +1,0 @@
-[2025-05-14 14:39:33,424] [INFO] [<frozen importlib] - Loading energy data from Data/interim/Energy_time_series/PCB_20250509_094113/part.0.parquet
-[2025-05-14 14:39:37,830] [INFO] [<frozen importlib] - Using batch processing with 100 segments per batch and 6 processes per batch
-[2025-05-14 14:39:41,004] [INFO] [<frozen importlib] - Processing batch 1/2 (segments 1-100 of 145)

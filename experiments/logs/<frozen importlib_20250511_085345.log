@@ -1,9 +1,0 @@
-[2025-05-11 08:53:45,842] [INFO] [<frozen importlib] - Loading training and validation data...
-[2025-05-11 08:53:46,330] [INFO] [<frozen importlib] - Training data shape: (1187545, 73)
-[2025-05-11 08:53:46,330] [INFO] [<frozen importlib] - Validation data shape: (254473, 73)
-[2025-05-11 08:53:46,349] [INFO] [<frozen importlib] - Training model with parameters: {'n_estimators': 100, 'max_depth': 10, 'min_samples_split': 2, 'class_weight': 'balanced'}
-[2025-05-11 08:54:16,073] [INFO] [<frozen importlib] - New best model found! F1 Score: 0.8363
-[2025-05-11 08:54:16,073] [INFO] [<frozen importlib] - Validation results saved to src/model_report/validation_results.md
-[2025-05-11 08:54:16,085] [INFO] [<frozen importlib] - Best model saved to src/models/random_forest_best_manual.joblib
-[2025-05-11 08:54:16,127] [INFO] [<frozen importlib] - Feature importance saved to src/model_report/feature_importance.csv
-[2025-05-11 08:54:16,307] [INFO] [<frozen importlib] - ROC curve saved to src/models/roc_curve.png
