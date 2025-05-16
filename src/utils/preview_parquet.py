@@ -38,8 +38,8 @@ def preview_parquet(parquet_path, sample_size=1000, output_csv_path=None):
 
 if __name__ == "__main__":
     # ====== Customize below ======
-    parquet_file = "Data/processed/merged_features.parquet"
-    sample_output_csv = "Data/data_preview/Energy_merged_features.csv"
+    parquet_file = "Data/processed/lsmt/merged/test.parquet/part.0.parquet"
+    sample_output_csv = "Data/data_preview/mergend_test_preview.csv"
     # ====== ================== ======
 
     preview_parquet(parquet_file, sample_size=1000, output_csv_path=sample_output_csv)

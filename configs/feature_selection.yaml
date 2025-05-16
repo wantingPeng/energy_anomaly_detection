@@ -1,5 +1,5 @@
 data_paths:
-  input_dir: "Data/interim/Energy_labeling_correlations"
+  input_dir: "Data/interim/Energy_labeling_windowFeatures"
   output_dir: "Data/processed"
 
 feature_selection:
@@ -8,4 +8,4 @@ feature_selection:
   multicollinearity_threshold: 0.85  # 多重共线性阈值
 
 report:
-  output_path: "experiments/reports/correlation_featureMergen.md"
+  output_path: "experiments/reports/featureMergen.md"
