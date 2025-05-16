@@ -1,0 +1,19 @@
+[2025-05-10 13:00:20,326] [INFO] [<frozen importlib] - Successfully loaded config from configs/feature_selection.yaml
+[2025-05-10 13:00:20,822] [INFO] [<frozen importlib] - Loaded ring data with shape (579589, 286)
+[2025-05-10 13:00:21,232] [INFO] [<frozen importlib] - Loaded contact data with shape (535142, 276)
+[2025-05-10 13:00:21,619] [INFO] [<frozen importlib] - Loaded pcb data with shape (581763, 316)
+[2025-05-10 13:01:05,753] [INFO] [<frozen importlib] - Successfully calculated correlations using method 1
+[2025-05-10 13:01:05,755] [INFO] [<frozen importlib] - Analyzed correlations for ring
+[2025-05-10 13:01:43,671] [INFO] [<frozen importlib] - Successfully calculated correlations using method 1
+[2025-05-10 13:01:43,672] [INFO] [<frozen importlib] - Analyzed correlations for contact
+[2025-05-10 13:02:37,886] [INFO] [<frozen importlib] - Successfully calculated correlations using method 1
+[2025-05-10 13:02:37,888] [INFO] [<frozen importlib] - Analyzed correlations for pcb
+[2025-05-10 13:02:38,037] [INFO] [<frozen importlib] - Added missing column 'airDruck_range' with NaN values for ring
+[2025-05-10 13:02:38,038] [INFO] [<frozen importlib] - Added missing column 'airDruck_min' with NaN values for ring
+[2025-05-10 13:02:38,039] [INFO] [<frozen importlib] - Added missing column 'airDruck_skew' with NaN values for ring
+[2025-05-10 13:02:38,335] [INFO] [<frozen importlib] - Added missing column 'airDruck_range' with NaN values for contact
+[2025-05-10 13:02:38,335] [INFO] [<frozen importlib] - Added missing column 'aPowerFactorPF_L1_range' with NaN values for contact
+[2025-05-10 13:02:38,336] [INFO] [<frozen importlib] - Added missing column 'airDruck_min' with NaN values for contact
+[2025-05-10 13:02:38,336] [INFO] [<frozen importlib] - Added missing column 'airDruck_skew' with NaN values for contact
+[2025-05-10 13:02:39,094] [INFO] [<frozen importlib] - Selected 70 features (including important features)
+[2025-05-10 13:02:41,553] [INFO] [<frozen importlib] - Saved merged dataset with shape (1696494, 76)
