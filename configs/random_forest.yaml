@@ -1,18 +1,39 @@
 model:
-  name: "RandomForest"
-  n_estimators: 200
-  max_depth: 10
-  min_samples_split: 5
-  min_samples_leaf: 2
-  class_weight: "balanced"
+  name: "random_forest"
+  random_state: 42
+  n_estimators: [300]
+  max_depth: [30]
+  min_samples_split: [10]
+  class_weight: ["balanced"]
+  n_jobs: -1
 
-training:
-  validation_ratio: 0.15
+# hyperparameters:
+#   n_estimators: [100, 200, 300]
+#   max_depth: [10, 20, 30]
+#   min_samples_split: [2, 5, 10]
+#   class_weight: ["balanced", "balanced_subsample"]
+
+
+hyperparameters:
+  n_estimators: [300]
+  max_depth: [30]
+  min_samples_split: [10]
+  class_weight: ["balanced"]
 
 data:
-  use_rolling_window: true
-  window_size: 30
-  normalize: false
-  feature_type: "statistical"
+  train_path: "Data/processed/splits_top_50_features/train.parquet"
+  val_path: "Data/processed/splits_top_50_features/val.parquet"
+  target_column: "anomaly_label"
+  smote_sampling_strategy: 0.1  # 将异常样本过采样到正常样本的 10%（即异常率 ≈ 10%）
+  smote_k_neighbors: 5  # 用于确定边界样本的邻居数
+  smote_m_neighbors: 10  # 用于生成新样本的邻居数
+  smote_kind: "borderline-1"  # 边界SMOTE的类型：'borderline-1' 或 'borderline-2'
 
-device: "cpu"
+output:
+  model_path: "src/models/random_forest_best_top_50_features.joblib"
+  feature_importance_path: "src/model_report/feature_importance_top_50_features.csv"
+  validation_report_path: "src/model_report/validation_results_top_50_features.md"
+  model_dir: "models/random_forest"
+  results_dir: "results/random_forest"
+  feature_importance_plot: "results/random_forest/feature_importance_top_50_features.png"
+  validation_report: "results/random_forest/validation_report_top_50_features.md"

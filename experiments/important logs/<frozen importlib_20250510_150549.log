@@ -1,0 +1,39 @@
+[2025-05-10 15:05:49,860] [INFO] [<frozen importlib] - Loading merged features data...
+[2025-05-10 15:05:50,220] [INFO] [<frozen importlib] - First 10 rows of the data:
+[2025-05-10 15:05:50,235] [INFO] [<frozen importlib] - 
+         window_start          window_end  anomaly_label  component_contact  component_pcb  component_ring
+0 2023-12-31 00:00:00 2023-12-31 00:09:59              0                  1              0               0
+1 2023-12-31 00:01:00 2023-12-31 00:10:59              0                  1              0               0
+2 2023-12-31 00:02:00 2023-12-31 00:11:59              0                  1              0               0
+3 2023-12-31 00:03:00 2023-12-31 00:12:59              0                  1              0               0
+4 2023-12-31 00:04:00 2023-12-31 00:13:59              0                  1              0               0
+5 2023-12-31 00:05:00 2023-12-31 00:14:59              0                  1              0               0
+6 2023-12-31 00:06:00 2023-12-31 00:15:59              0                  1              0               0
+7 2023-12-31 00:07:00 2023-12-31 00:16:59              0                  1              0               0
+8 2023-12-31 00:08:00 2023-12-31 00:17:59              0                  1              0               0
+9 2023-12-31 00:09:00 2023-12-31 00:18:59              0                  1              0               0
+[2025-05-10 15:05:50,235] [INFO] [<frozen importlib] - Removing unnecessary columns...
+[2025-05-10 15:05:50,386] [INFO] [<frozen importlib] - Feature columns: ['airDruck_range', 'aReactivePower_L3_max', 'rTotalApparentEnergy_max', 'airDurchfluss_range', 'aActivePower_L1_range', 'rTotalActivePower_max', 'aActivePower_L2_std', 'aReactivePower_L1_diff_std', 'aPowerFactorPF_L1_range', 'aCurrentL1_range', 'rTotalApparentPower_std', 'airDurchfluss_max', 'aReactivePower_L2_std', 'aActivePower_L3_range', 'aCurrentL1_std', 'airDurchfluss_diff_std', 'aApparentPower_L2_std', 'airTempeatur_range', 'aVoltage_L3_N_diff_std', 'rTotalReactivePower_range', 'aCosPhi_L1_range', 'aApparentPower_L3_skew', 'aApparentPower_L1_range', 'aActivePower_L2_range', 'aActivePower_L1_std', 'aReactivePower_L1_range', 'aCurrentL1_max', 'aApparentPower_L1_max', 'aCosPhi_L1_diff_std', 'airTempeatur_min', 'aReactivePower_L2_diff_std', 'airDruck_min', 'rTotalReactivePower_std', 'aApparentPower_L3_range', 'aActivePower_L3_max', 'airDruck_skew', 'aCurrentL3_max', 'aVoltage_L2_N_diff_std', 'airTempeatur_diff_std', 'aVoltage_L1_N_mean', 'aCurrentL2_range', 'aVoltage_L1_N_diff_std', 'airTempeatur_std', 'airTotal_mean', 'aApparentPower_L2_range', 'aCosPhi_L2_range', 'aCurrentL2_std', 'aPowerFactorPF_L2_max', 'aPowerFactorPF_L2_range', 'aCosPhi_L2_std', 'rTotalApparentPower_range', 'airDurchfluss_std', 'aApparentPower_L3_max', 'rTotalReactivePower_diff_std', 'aCurrentL3_range', 'airTotal_max', 'aCosPhi_L2_diff_std', 'aCosPhi_L1_std', 'aVoltage_L1_N_min', 'airTotal_min', 'aVoltage_L1_N_max', 'aReactivePower_L3_range', 'rTotalApparentEnergy_min', 'aPowerFactorPF_L2_std', 'aReactivePower_L2_range', 'aReactivePower_L1_std', 'rTotalApparentEnergy_mean', 'aCosPhi_L2_mean', 'rTotalActivePower_range', 'aCurrentL3_skew']
+[2025-05-10 15:05:50,386] [INFO] [<frozen importlib] - Splitting data by component type...
+[2025-05-10 15:05:50,475] [INFO] [<frozen importlib] - Processing component_contact with 535142 samples
+[2025-05-10 15:05:50,571] [INFO] [<frozen importlib] - Processing component_pcb with 581763 samples
+[2025-05-10 15:05:50,667] [INFO] [<frozen importlib] - Processing component_ring with 579589 samples
+[2025-05-10 15:05:50,808] [INFO] [<frozen importlib] - Saving split datasets...
+[2025-05-10 15:05:53,151] [INFO] [<frozen importlib] - Train set size: 1187545
+[2025-05-10 15:05:53,151] [INFO] [<frozen importlib] - Validation set size: 254473
+[2025-05-10 15:05:53,151] [INFO] [<frozen importlib] - Test set size: 254476
+[2025-05-10 15:05:53,151] [INFO] [<frozen importlib] - 
+Train set component distribution:
+[2025-05-10 15:05:53,152] [INFO] [<frozen importlib] - component_contact: 374599 samples
+[2025-05-10 15:05:53,152] [INFO] [<frozen importlib] - component_pcb: 407234 samples
+[2025-05-10 15:05:53,153] [INFO] [<frozen importlib] - component_ring: 405712 samples
+[2025-05-10 15:05:53,153] [INFO] [<frozen importlib] - 
+Validation set component distribution:
+[2025-05-10 15:05:53,153] [INFO] [<frozen importlib] - component_contact: 80271 samples
+[2025-05-10 15:05:53,153] [INFO] [<frozen importlib] - component_pcb: 87264 samples
+[2025-05-10 15:05:53,153] [INFO] [<frozen importlib] - component_ring: 86938 samples
+[2025-05-10 15:05:53,153] [INFO] [<frozen importlib] - 
+Test set component distribution:
+[2025-05-10 15:05:53,153] [INFO] [<frozen importlib] - component_contact: 80272 samples
+[2025-05-10 15:05:53,154] [INFO] [<frozen importlib] - component_pcb: 87265 samples
+[2025-05-10 15:05:53,154] [INFO] [<frozen importlib] - component_ring: 86939 samples

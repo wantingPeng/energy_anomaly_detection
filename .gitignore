@@ -1,3 +1,5 @@
 Data/
 .cursorignore
 .venv/
+
+src/models/*.joblib
