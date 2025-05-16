@@ -26,7 +26,7 @@ def preview_parquet(parquet_path, sample_size=1000, output_csv_path=None):
 
     # 3. Sampling a small subset for manual checking
     if sample_size > 0:
-        sample_df = df.head(sample_size)#df.sample(n=min(sample_size, len(df)), random_state=42)
+        sample_df = df.tail(sample_size)#df.sample(n=min(sample_size, len(df)), random_state=42)
         if output_csv_path:
             print(f"\nSaving a sample of {len(sample_df)} rows to {output_csv_path}")
             sample_df.to_csv(output_csv_path, index=False)
@@ -38,8 +38,8 @@ def preview_parquet(parquet_path, sample_size=1000, output_csv_path=None):
 
 if __name__ == "__main__":
     # ====== Customize below ======
-    parquet_file = "Data/processed/lsmt/merged/test.parquet/part.0.parquet"
-    sample_output_csv = "Data/data_preview/mergend_test_preview.csv"
+    parquet_file = "Data/processed/lsmt/standerScaler/train.parquet/part.66.parquet"
+    sample_output_csv = "Data/data_preview/standerScaler_train_preview.csv"
     # ====== ================== ======
 
     preview_parquet(parquet_file, sample_size=1000, output_csv_path=sample_output_csv)

@@ -1,6 +1,6 @@
 # 基础科学计算
-numpy>=1.21.0
-pandas>=1.5.0
+numpy>=1.24.0
+pandas>=1.5.3
 scipy>=1.11
 
 # 可视化
@@ -18,14 +18,19 @@ statsmodels>=0.14
 pyyaml>=6.0
 jupyter>=1.0.0
 
+# 大数据处理
 dask>=2023.3.0
 pyarrow>=14.0.1
+fastparquet>=2023.7.0
 
+# 效率工具
 pytz>=2023.3
 tqdm>=4.65.0
-fastparquet>=2023.7.0
 python-dateutil>=2.8.2
+psutil>=5.9.0
 
+# 专用数据结构
 intervaltree>=3.1.0
-scipy>=1.7.0
-pyarrow>=7.0.0  # for parquet support
+
+# 深度学习
+torch>=2.0.0
