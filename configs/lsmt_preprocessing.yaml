@@ -1,14 +1,28 @@
-sliding_window:
-  window_size: 60  # seconds
-  step_size: 10   # seconds
-  anomaly_threshold: 0.3  # 30% overlap required for anomaly labeling
-
+# Data paths
 paths:
-  anomaly_dict: "Data/interim/Anomaly_Data/anomaly_dict.pkl"
-  input_dir: "Data/processed/lsmt/standerScaler"
-  output_dir: "Data/processed/lsmt/windows"
-  reports_dir: "experiments/reports/lsmt"
+  input_dir: 'Data/processed/lsmt/standerScaler'
+  output_dir: 'Data/processed/lsmt/sliding_window'
+  reports_dir: 'reports/sliding_window'
+  anomaly_dict: 'Data/interim/Anomaly_Data/anomaly_dict.pkl'
+  temp_dir: 'Data/temp/sliding_window'
 
-processing:
-  chunk_size: 100000  # Number of rows to process at once
-  save_intermediate: true  # Whether to save intermediate results
+# Sliding window parameters
+sliding_window:
+  window_size: 60  # Window size in seconds
+  step_size: 10    # Step size in seconds
+  anomaly_threshold: 0.5  # Minimum overlap ratio to label as anomaly
+
+# Component processing configuration
+components:
+  processing_order: ['contact', 'pcb', 'ring']
+
+# # Logging configuration
+# logging:
+#   log_dir: 'experiments/logs'
+#   log_format: '[%(asctime)s] [%(levelname)s] [%(name)s] - %(message)s'
+#   date_format: '%Y-%m-%d %H:%M:%S'
+
+# Memory management
+memory:
+  gc_collect_frequency: 1  # How often to force garbage collection
+  log_memory_frequency: 1  # How often to log memory usage

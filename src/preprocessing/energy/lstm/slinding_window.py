@@ -13,17 +13,23 @@ import pickle
 import pandas as pd
 import numpy as np
 import dask.dataframe as dd
+import pyarrow.parquet as pq
 from datetime import datetime, timedelta
 from pathlib import Path
 from intervaltree import IntervalTree
 from tqdm import tqdm
 import torch
+import logging
 from typing import Dict, List, Tuple, Union, Optional
 
 from src.utils.logger import logger
 from src.utils.memory_left import log_memory
 from src.preprocessing.energy.lstm.dataset import LSTMWindowDataset
-from src.preprocessing.energy.labeling_slidingWindow import load_anomaly_dict, create_interval_tree
+from src.preprocessing.energy.labeling_slidingWindow import (
+    load_anomaly_dict, 
+    create_interval_tree,
+    calculate_window_overlap
+)
 
 
 def load_config() -> dict:
@@ -34,18 +40,8 @@ def load_config() -> dict:
     return config
 
 
-import os
-import dask.dataframe as dd
-import pandas as pd
-from src.utils.logger import logger
-
-import os
-import dask.dataframe as dd
-import pandas as pd
-import pyarrow.parquet as pq
-from src.utils.logger import logger
-
 def is_valid_parquet(file_path: str) -> bool:
+    """Check if a file is a valid parquet file."""
     try:
         pq.ParquetFile(file_path)
         return True
@@ -92,21 +88,27 @@ def load_data(path: str) -> pd.DataFrame:
 
 
 
-def split_by_component(df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
+def split_by_component(df: pd.DataFrame, temp_dir: str) -> List[str]:
     """
-    Split data by component type.
+    Split data by component type and save each component to a temporary parquet file.
     
     Args:
         df: Input DataFrame
+        temp_dir: Directory to save temporary component files
         
     Returns:
-        Dictionary mapping component type to DataFrame
+        List of component names in order they were processed
     """
     logger.info("Splitting data by component type")
-    component_dfs = {}
+    
+    # Create temp directory if it doesn't exist
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    component_names = []
     
     # Check which component type columns exist
     component_cols = [col for col in df.columns if col.startswith('component_type_')]
+    logger.info(f"Found component columns: {component_cols}")
     
     for col in component_cols:
         # Extract component name from column name
@@ -118,10 +120,56 @@ def split_by_component(df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
         if not component_df.empty:
             # Sort by timestamp
             component_df = component_df.sort_values('TimeStamp')
-            component_dfs[component] = component_df
-            logger.info(f"Found {len(component_df)} rows for component {component}")
+            
+            # Save to temporary parquet file
+            temp_file = os.path.join(temp_dir, f"{component}_temp.parquet")
+            component_df.to_parquet(temp_file)
+            
+            component_names.append(component)
+            logger.info(f"Saved {len(component_df)} rows for component {component} to {temp_file}")
+            
+            # Free memory
+            del component_df
+            gc.collect()
     
-    return component_dfs
+    return component_names
+
+
+def get_component_df(component: str, temp_dir: str) -> pd.DataFrame:
+    """
+    Load a specific component's DataFrame from temporary storage.
+    
+    Args:
+        component: Component name to load
+        temp_dir: Directory containing temporary component files
+        
+    Returns:
+        DataFrame for the specified component
+    """
+    temp_file = os.path.join(temp_dir, f"{component}_temp.parquet")
+    logger.info(f"Loading component data from {temp_file}")
+    
+    if not os.path.exists(temp_file):
+        raise FileNotFoundError(f"Temporary file for component {component} not found")
+    
+    return pd.read_parquet(temp_file)
+
+
+def cleanup_temp_files(temp_dir: str):
+    """
+    Clean up temporary component files.
+    
+    Args:
+        temp_dir: Directory containing temporary files to clean up
+    """
+    logger.info(f"Cleaning up temporary files in {temp_dir}")
+    for file in os.listdir(temp_dir):
+        if file.endswith("_temp.parquet"):
+            os.remove(os.path.join(temp_dir, file))
+    try:
+        os.rmdir(temp_dir)
+    except OSError:
+        logger.warning(f"Could not remove temp directory {temp_dir} - it may not be empty")
 
 
 def create_sliding_windows(
@@ -194,7 +242,7 @@ def create_sliding_windows(
             # Create a continuous time range with 1-second intervals
             start_time = segment_df['TimeStamp'].min()
             end_time = segment_df['TimeStamp'].max()
-            time_range = pd.date_range(start=start_time, end=end_time, freq='1S')
+            time_range = pd.date_range(start=start_time, end=end_time, freq='1s')
             
             # Create a new DataFrame with the continuous time range
             continuous_df = pd.DataFrame({'TimeStamp': time_range})
@@ -214,61 +262,47 @@ def create_sliding_windows(
             segment_df = continuous_df
         
         # Create sliding windows
-        for i in range(0, len(segment_df) - window_size + 1, step_size):
-            window_df = segment_df.iloc[i:i + window_size]
+        start_time = segment_df['TimeStamp'].min()
+        end_time = start_time + timedelta(seconds=window_size)
+        
+        while end_time <= segment_df['TimeStamp'].max():
+            # Get window data
+            window_mask = (segment_df['TimeStamp'] >= start_time) & (segment_df['TimeStamp'] < end_time)
+            window_df = segment_df.loc[window_mask]
             
-            # Ensure window has exact length
-            if len(window_df) != window_size:
-                continue
-            
-            # Get window features
-            window = window_df[feature_cols].values
-            
-            # Update stats
-            stats["min_window_length"] = min(stats["min_window_length"], window.shape[0])
-            stats["max_window_length"] = max(stats["max_window_length"], window.shape[0])
-            
-            # Get window start and end timestamps
-            window_start = window_df['TimeStamp'].iloc[0]
-            window_end = window_df['TimeStamp'].iloc[-1]
-            
-            # Check for anomaly overlap
-            is_anomaly = 0
-            for station, tree in anomaly_trees.items():
-                # Calculate window overlap using the same method as in labeling_slidingWindow.py
-                window_start_int = int(window_start.timestamp())
-                window_end_int = int(window_end.timestamp())
+            if not window_df.empty:
+                # Get window features
+                window = window_df[feature_cols].values
                 
-                # Find overlapping intervals
-                overlapping_intervals = tree[window_start_int:window_end_int]
+                # Check for anomaly overlap using the imported function
+                max_overlap = 0
+                for station, tree in anomaly_trees.items():
+                    overlap_ratio = calculate_window_overlap(
+                        start_time,
+                        end_time,
+                        tree
+                    )
+                    max_overlap = max(max_overlap, overlap_ratio)
                 
-                if overlapping_intervals:
-                    # Calculate total overlap duration
-                    total_overlap = 0
-                    for interval in overlapping_intervals:
-                        overlap_start = max(window_start_int, interval.begin)
-                        overlap_end = min(window_end_int, interval.end)
-                        total_overlap += overlap_end - overlap_start
-                    
-                    # Calculate overlap ratio
-                    window_duration = window_end_int - window_start_int
-                    overlap_ratio = total_overlap / window_duration
-                    
-                    # Mark as anomaly if overlap ratio exceeds threshold
-                    if overlap_ratio >= anomaly_threshold:
-                        is_anomaly = 1
-                        break
+                # Label window based on overlap threshold
+                is_anomaly = 1 if max_overlap >= anomaly_threshold else 0
+                
+                # Store window data
+                windows.append(window)
+                labels.append(is_anomaly)
+                segment_ids.append(segment_id)
+                timestamps.append(start_time.strftime('%Y-%m-%d %H:%M:%S'))
+                
+                # Update statistics
+                stats["total_windows"] += 1
+                if is_anomaly:
+                    stats["anomaly_windows"] += 1
+                stats["min_window_length"] = min(stats["min_window_length"], window.shape[0])
+                stats["max_window_length"] = max(stats["max_window_length"], window.shape[0])
             
-            # Store window, label, segment_id, and start timestamp
-            windows.append(window)
-            labels.append(is_anomaly)
-            segment_ids.append(segment_id)
-            timestamps.append(window_start.strftime('%Y-%m-%d %H:%M:%S'))
-            
-            # Update statistics
-            stats["total_windows"] += 1
-            if is_anomaly:
-                stats["anomaly_windows"] += 1
+            # Move to next window
+            start_time += timedelta(seconds=step_size)
+            end_time = start_time + timedelta(seconds=window_size)
     
     return windows, labels, segment_ids, timestamps, stats
 
@@ -370,18 +404,31 @@ def process_split(
     df = load_data(input_path)
     log_memory(f"After loading {split}")
     
-    # Split by component type
-    component_dfs = split_by_component(df)
-    
+    # Split by component type and save to temp files
+    component_names = split_by_component(df, config['paths']['temp_dir'])
+    print("component_names", component_names)
     # Free memory
     del df
-    gc.collect()
     log_memory(f"After splitting {split}")
     
-    # Process each component
-    for component, component_df in component_dfs.items():
-        logger.info(f"Processing component: {component}")
+    # # Process components in specified order
+    # desired_order = config['components']['processing_order']
+    
+    # # Verify all desired components exist in the data
+    # missing_components = set(desired_order) - set(component_names)
+    # if missing_components:
+    #     logger.warning(f"Some specified components not found in data: {missing_components}")
+    
+    # Process each component in the desired order
+    for component in component_names:
         
+        # Get component DataFrame
+        try:
+            component_df = get_component_df(component, config['paths']['temp_dir'])
+        except FileNotFoundError as e:
+            logger.error(f"Error loading component {component}: {e}")
+            continue
+        log_memory(f"before create windows for {component}")
         # Create sliding windows
         windows, labels, segment_ids, timestamps, stats = create_sliding_windows(
             component_df,
@@ -412,7 +459,7 @@ def process_split(
         )
         
         # Free memory
-        del windows, labels, segment_ids, timestamps, stats
+        del windows, labels, segment_ids, timestamps, stats, component_df
         gc.collect()
         log_memory(f"After saving {component} ({split})")
         
@@ -423,34 +470,53 @@ def process_split(
             logger.info(f"Successfully created dataset with {len(dataset)} samples")
         except Exception as e:
             logger.error(f"Error creating dataset: {e}")
+    
+    # Cleanup temporary files
+    cleanup_temp_files(config['paths']['temp_dir'])
 
 
 def main():
     """Main function to process all data splits."""
-    logger.info("Starting sliding window preprocessing")
     
     # Load configuration
-    config = load_config()
-    logger.info(f"Loaded configuration: {config}")
-    
+    try:
+        config = load_config()
+        logger.info("Configuration loaded successfully")
+    except FileNotFoundError:
+        logger.error("Configuration file not found at configs/lsmt_preprocessing.yaml")
+        raise
+    except Exception as e:
+        logger.error(f"Error loading configuration: {str(e)}")
+        raise
+ 
     # Create output directories
     os.makedirs(config['paths']['output_dir'], exist_ok=True)
     os.makedirs(config['paths']['reports_dir'], exist_ok=True)
+    os.makedirs(config['paths']['temp_dir'], exist_ok=True)
     
-    # Create a temporary config for loading anomaly dict
-    anomaly_config = {'paths': {'anomaly_dict': config['paths']['anomaly_dict']}}
-    
-    # Load anomaly dictionary
-    anomaly_dict = load_anomaly_dict(anomaly_config)
-    
-    # Convert to interval trees
-    anomaly_trees = {station: create_interval_tree(periods) for station, periods in anomaly_dict.items()}
-    
-    # Process each split
-    for split in ['train', 'val', 'test']:
-        process_split(split, config, anomaly_trees)
-    
-    logger.info("Sliding window preprocessing completed")
+    try:
+        # Load anomaly dictionary
+        anomaly_dict = load_anomaly_dict(config)
+        
+        # Convert to interval trees
+        anomaly_trees = {station: create_interval_tree(periods) 
+                        for station, periods in anomaly_dict.items()}
+        
+        # Process each split
+        for split in ['train', 'val', 'test']:
+            process_split(split, config, anomaly_trees)
+        
+        logger.info("Sliding window preprocessing completed successfully")
+        
+    except Exception as e:
+        logger.error(f"Error during processing: {str(e)}")
+        raise
+    finally:
+        # Cleanup
+        try:
+            cleanup_temp_files(config['paths']['temp_dir'])
+        except Exception as e:
+            logger.warning(f"Error during cleanup: {str(e)}")
 
 
 if __name__ == "__main__":
