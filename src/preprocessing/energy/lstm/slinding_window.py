@@ -13,24 +13,26 @@ import pickle
 import pandas as pd
 import numpy as np
 import dask.dataframe as dd
-import pyarrow.parquet as pq
-from datetime import datetime, timedelta
 from pathlib import Path
 from intervaltree import IntervalTree
 from tqdm import tqdm
 import torch
-import logging
 from typing import Dict, List, Tuple, Union, Optional
+from datetime import datetime
+import glob
 from joblib import Parallel, delayed
-from glob import glob
+
 from src.utils.logger import logger
 from src.utils.memory_left import log_memory
 from src.preprocessing.energy.lstm.dataset import LSTMWindowDataset
+
 from src.preprocessing.energy.labeling_slidingWindow import (
     load_anomaly_dict, 
     create_interval_tree,
     calculate_window_overlap
 )
+
+
 
 
 def load_config() -> dict:
@@ -41,608 +43,594 @@ def load_config() -> dict:
     return config
 
 
-def is_valid_parquet(file_path: str) -> bool:
-    """Check if a file is a valid parquet file."""
-    try:
-        pq.ParquetFile(file_path)
-        return True
-    except Exception:
-        return False
-
-def load_data(path: str) -> pd.DataFrame:
+def process_segment(
+    segment_data: Tuple[str, pd.DataFrame],
+    component: str,
+    window_size: int,
+    step_size: int,
+    anomaly_trees: Dict[str, IntervalTree],
+    anomaly_threshold: float = 0.3
+) -> Tuple[List, List, List, List, dict]:
     """
-    Load data from a directory of part-files or a single .parquet file, with corruption check.
-    """
-    logger.info(f"Loading data from {path}")
-    try:
-        if os.path.isdir(path):
-            logger.info(f"Path is a directory: {path}")
-            part_files = [f for f in os.listdir(path) if f.endswith('.parquet')]
-            full_paths = [os.path.join(path, f) for f in part_files]
-
-            # 检查哪些是合法 parquet 文件
-            valid_files = [f for f in full_paths if is_valid_parquet(f)]
-
-            if not valid_files:
-                raise RuntimeError("No valid .parquet files found in directory.")
-
-            logger.info(f"Found {len(valid_files)} valid parquet files in directory")
-
-            # 用 Dask 读多个文件
-            ddf = dd.read_parquet(valid_files, engine="pyarrow")
-
-        else:
-            logger.info(f"Path is a file: {path}")
-            if not is_valid_parquet(path):
-                raise ValueError(f"File {path} is not a valid parquet file.")
-            ddf = dd.read_parquet(path, engine="pyarrow")
-
-        logger.info(f"Dask dataframe has {len(ddf.columns)} columns and {len(ddf.divisions)-1} partitions")
-        logger.info("Computing Dask dataframe into Pandas...")
-        df = ddf.compute()
-        logger.info(f"Loaded DataFrame with shape: {df.shape}")
-        return df
-
-    except Exception as e:
-        logger.error(f"Error loading data from {path}: {e}")
-        raise
-
-
-
-def split_by_component(df: pd.DataFrame, temp_dir: str) -> List[str]:
-    """
-    Split data by component type and save each component to a temporary parquet file.
+    Process a single segment for sliding window creation (for parallel processing).
     
     Args:
-        df: Input DataFrame
-        temp_dir: Directory to save temporary component files
+        segment_data: Tuple of (segment_id, segment_df)
+        component: Component type (e.g., 'contact', 'pcb', 'ring')
+        window_size: Size of sliding window in seconds
+        step_size: Step size for window sliding in seconds
+        anomaly_trees: Dictionary mapping station IDs to IntervalTree objects
+        anomaly_threshold: Threshold for anomaly labeling
         
     Returns:
-        List of component names in order they were processed
+        Tuple of (windows, labels, segment_ids, timestamps, stats)
     """
-    logger.info("Splitting data by component type")
+    segment_id, segment_df = segment_data
     
-    # Create temp directory if it doesn't exist
-    os.makedirs(temp_dir, exist_ok=True)
+    windows = []
+    labels = []
+    segment_ids = []
+    timestamps = []
     
-    component_names = []
-    
-    # Check which component type columns exist
-    component_cols = [col for col in df.columns if col.startswith('component_type_')]
-    logger.info(f"Found component columns: {component_cols}")
-    
-    for col in component_cols:
-        # Extract component name from column name
-        component = col.replace('component_type_', '')
-        
-        # Filter rows where this component type is 1
-        component_df = df[df[col] == 1].copy()
-        
-        if not component_df.empty:
-            # Sort by timestamp
-            component_df = component_df.sort_values('TimeStamp')
-            
-            # Save to temporary parquet file
-            temp_file = os.path.join("Data/processed/lsmt/split_by_component", f"{component}_train.parquet")
-            component_df.to_parquet(temp_file)
-            
-            component_names.append(component)
-            logger.info(f"Saved {len(component_df)} rows for component {component} to {temp_file}")
-            
-            # Free memory
-            del component_df
-            gc.collect()
-    
-    return component_names
-
-
-def get_component_df(component: str, temp_dir: str) -> pd.DataFrame:
-    """
-    Load a specific component's DataFrame from temporary storage.
-    
-    Args:
-        component: Component name to load
-        temp_dir: Directory containing temporary component files
-        
-    Returns:
-        DataFrame for the specified component
-    """
-    temp_file = os.path.join(temp_dir, f"{component}_temp.parquet")
-    logger.info(f"Loading component data from {temp_file}")
-    
-    if not os.path.exists(temp_file):
-        raise FileNotFoundError(f"Temporary file for component {component} not found")
-    
-    return pd.read_parquet(temp_file)
-
-
-def cleanup_temp_files(temp_dir: str):
-    """
-    Clean up temporary component files.
-    
-    Args:
-        temp_dir: Directory containing temporary files to clean up
-    """
-    logger.info(f"Cleaning up temporary files in {temp_dir}")
-    for file in os.listdir(temp_dir):
-        if file.endswith("_temp.parquet"):
-            os.remove(os.path.join(temp_dir, file))
-    try:
-        os.rmdir(temp_dir)
-    except OSError:
-        logger.warning(f"Could not remove temp directory {temp_dir} - it may not be empty")
-
-
-def interpolate_segments(df: pd.DataFrame, output_dir: str) -> None:
-    """
-    Interpolate segments using Dask and save the results.
-    
-    Args:
-        df: Input DataFrame
-        output_dir: Directory to save interpolated segments
-    """
-    logger.info("Interpolating segments using Dask")
-    
-    # Get list of unique segment IDs
-    unique_segments = df['segment_id'].unique()
-    logger.info(f"Processing {len(unique_segments)} unique segments")
-    
-    # Get feature columns (exclude non-feature columns)
-    exclude_cols = ['TimeStamp', 'segment_id'] + [col for col in df.columns if col.startswith('component_type_')]
-    feature_cols = [col for col in df.columns if col not in exclude_cols]
-    
-    # Create a list to store processed segments
-    batch_size = 50  # Process 50 segments at a time
-    
-    for batch_start in range(0, len(unique_segments), batch_size):
-        batch_segments = unique_segments[batch_start:batch_start + batch_size]
-        logger.info(f"Processing batch of segments {batch_start} to {batch_start + len(batch_segments)}")
-        
-        batch_dfs = []
-        for segment_id in tqdm(batch_segments, desc="Processing segments in batch"):
-            segment_df = df[df['segment_id'] == segment_id].copy()
-            
-            # Sort by timestamp
-            segment_df = segment_df.sort_values('TimeStamp')
-            
-            # Check for time continuity
-            segment_df['prev_timestamp'] = segment_df['TimeStamp'].shift(1)
-            segment_df['time_diff'] = (segment_df['TimeStamp'] - segment_df['prev_timestamp']).dt.total_seconds()
-            
-            # If there are gaps, fill them using linear interpolation
-            has_gaps = (segment_df['time_diff'].fillna(1) > 1).any()
-            if has_gaps:
-                # Create a continuous time range with 1-second intervals
-                start_time = segment_df['TimeStamp'].min()
-                end_time = segment_df['TimeStamp'].max()
-                time_range = pd.date_range(start=start_time, end=end_time, freq='1s')
-                
-                # Create a new DataFrame with the continuous time range
-                continuous_df = pd.DataFrame({'TimeStamp': time_range})
-                
-                # Merge with the original data
-                continuous_df = pd.merge_asof(
-                    continuous_df,
-                    segment_df[['TimeStamp'] + feature_cols],
-                    on='TimeStamp',
-                    direction='nearest'
-                )
-                
-                # Set segment_id
-                continuous_df['segment_id'] = segment_id
-                
-                # Replace original segment DataFrame
-                segment_df = continuous_df
-            
-            # Remove unnecessary columns
-            segment_df = segment_df.drop(columns=['prev_timestamp', 'time_diff'], errors='ignore')
-            batch_dfs.append(segment_df)
-        
-        # Combine batch DataFrames
-        if batch_dfs:
-            batch_df = pd.concat(batch_dfs, ignore_index=True)
-            # Convert to Dask DataFrame
-            ddf = dd.from_pandas(batch_df, npartitions=min(20, len(batch_segments)))
-            
-            # Save batch using Dask
-            batch_output_dir = os.path.join(output_dir, f'batch_{batch_start}')
-            ddf.to_parquet(
-                batch_output_dir,
-                engine='pyarrow',
-                write_index=False,
-            )
-            
-            # Clean up memory
-            del batch_dfs, batch_df, ddf
-            gc.collect()
-            log_memory(f"after interpolating segments batch")
-
-    logger.info("All segments processed and saved")
-
-
-def sliding_windows(segment_df: pd.DataFrame, anomaly_tree: IntervalTree, config: dict, component: str, split: str, output_dir: str) -> Tuple[pd.DataFrame, dict]:
-    """
-    Create sliding windows from a segment DataFrame and label them based on anomaly overlap.
-    
-    Args:
-        segment_df: DataFrame for a single segment
-        anomaly_tree: IntervalTree of anomaly intervals for the component
-        config: Configuration dictionary
-        component: Component type
-        split: Data split (train/val/test)
-        output_dir: Directory to save sliding window results
-        
-    Returns:
-        Tuple[pd.DataFrame, dict]: DataFrame with window data and statistics dictionary
-    """
-    logger.info(f"Creating sliding windows for segment {segment_df['segment_id'].iloc[0]}")
-    
-    window_data = []
-    
-    # Get feature columns (exclude non-feature columns)
-    exclude_cols = ['TimeStamp', 'segment_id'] + [col for col in segment_df.columns if col.startswith('component_type_')]
-    feature_cols = [col for col in segment_df.columns if col not in exclude_cols]
-    
-    # Sort by timestamp
-    segment_df = segment_df.sort_values('TimeStamp')
-    
-    # Create sliding windows
-    start_time = segment_df['TimeStamp'].min()
-    end_time = start_time + timedelta(seconds=config['sliding_window']['window_size'])
-    
+    # Statistics tracking
     stats = {
+        "total_segments": 1,
         "total_windows": 0,
         "anomaly_windows": 0,
-        "skipped_segments": 0,
-        "min_window_length": float('inf'),
-        "max_window_length": 0,
+        "normal_windows": 0,
+        "segments_with_anomalies": 0,
+        "segments_without_anomalies": 0
     }
     
-    while end_time <= segment_df['TimeStamp'].max():
-        # Get window data
-        window_mask = (segment_df['TimeStamp'] >= start_time) & (segment_df['TimeStamp'] < end_time)
-        window_df = segment_df.loc[window_mask]
-        
-        if not window_df.empty:
-            # Get window features
-            window = window_df[feature_cols].values
-            
-            # Check for anomaly overlap
-            overlap_ratio = calculate_window_overlap(
-                start_time,
-                end_time,
-                anomaly_tree
-            )
-            
-            # Label window based on overlap threshold
-            is_anomaly = 1 if overlap_ratio >= config['sliding_window']['anomaly_threshold'] else 0
-            
-            # Store window data as a dictionary
-            window_data.append({
-                'window': window.tobytes(),
-                'window_shape': str(window.shape),
-                'label': is_anomaly,
-                'segment_id': segment_df['segment_id'].iloc[0],
-                'start_timestamp': start_time.strftime('%Y-%m-%d %H:%M:%S')
-            })
-            
-            # Update statistics
-            stats["total_windows"] += 1
-            if is_anomaly:
-                stats["anomaly_windows"] += 1
-            stats["min_window_length"] = min(stats["min_window_length"], window.shape[0])
-            stats["max_window_length"] = max(stats["max_window_length"], window.shape[0])
-        
-        # Move to next window
-        start_time += timedelta(seconds=config['sliding_window']['step_size'])
-        end_time = start_time + timedelta(seconds=config['sliding_window']['window_size'])
-    
-    # Convert window data to DataFrame
-    windows_df = pd.DataFrame(window_data)
-    return windows_df, stats
-
-
-def save_batch_results(
-    windows_df: pd.DataFrame,
-    temp_dir: str,
-    batch_id: int,
-    component: str,
-    split: str
-) -> str:
-    """
-    Save a single batch of results to a temporary directory.
-    
-    Args:
-        windows_df: DataFrame containing window data for one batch
-        temp_dir: Temporary directory path
-        batch_id: ID of the current batch
-        component: Component type
-        split: Data split (train/val/test)
-        
-    Returns:
-        str: Path to the saved temporary file
-    """
-    logger.info(f"Saving batch {batch_id} for {component} ({split})")
-    
-    # Create temp directory if it doesn't exist
-    os.makedirs(temp_dir, exist_ok=True)
-    
-    # Add batch_id to DataFrame
-    windows_df['batch_id'] = batch_id
-    
-    # Save as parquet
-    temp_file = os.path.join(temp_dir, f"temp_batch_{component}_{split}_{batch_id}.parquet")
-    windows_df.to_parquet(temp_file, engine='pyarrow', index=False)
-    
-    logger.info(f"Saved batch {batch_id} to {temp_file}")
-    return temp_file
-
-
-def save_results(
-    windows_batch: List[pd.DataFrame],
-    output_path: str,
-    component: str,
-    split: str
-) -> None:
-    """
-    Combine temporary batch files and save final results.
-    
-    Args:
-        windows_batch: List of paths to temporary batch files
-        output_path: Output directory path
-        component: Component type
-        split: Data split (train/val/test)
-    """
-    logger.info(f"Combining and saving all results for {component} ({split})")
-    
-    # Create output directory if it doesn't exist
-    os.makedirs(output_path, exist_ok=True)
-    
-    # Create a Dask DataFrame from all temporary files
-    ddf = dd.read_parquet(windows_batch)
-    
-    # Save combined results using Dask
-    output_file = os.path.join(output_path, f"window_{component}_{split}.parquet")
-    ddf.to_parquet(
-        output_file,
-        engine='pyarrow',
-        write_index=False,
-        partition_on=['batch_id']
-    )
-    
-    logger.info(f"Saved combined results to {output_file}")
-    
-    # Clean up temporary files
-    for temp_file in windows_batch:
-        try:
-            os.remove(temp_file)
-            logger.debug(f"Removed temporary file: {temp_file}")
-        except Exception as e:
-            logger.warning(f"Failed to remove temporary file {temp_file}: {e}")
-    
-    # Clean up memory
-    del ddf
-    gc.collect()
-
-
-def save_stats(stats: Dict[str, int], output_path: str, component: str, split: str) -> None:
-    """
-    Save statistics as markdown.
-    
-    Args:
-        stats: Statistics dictionary
-        output_path: Output directory path
-        component: Component type
-        split: Data split (train/val/test)
-    """
-    logger.info(f"Saving statistics for {component} ({split})")
-    
-    # Create output directory if it doesn't exist
-    os.makedirs(output_path, exist_ok=True)
-    
-    # Create markdown content
-    markdown = f"# Sliding Window Statistics - {component.capitalize()} - {split.capitalize()}\n\n"
-    markdown += f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-    markdown += "## Summary\n\n"
-    markdown += f"- Total windows: {stats['total_windows']}\n"
-    markdown += f"- Anomaly windows: {stats['anomaly_windows']} ({stats['anomaly_windows']/max(stats['total_windows'], 1)*100:.2f}%)\n"
-    markdown += f"- Skipped segments: {stats['skipped_segments']}\n"
-    markdown += f"- Min window length: {stats['min_window_length']}\n"
-    markdown += f"- Max window length: {stats['max_window_length']}\n"
-    
-    # Save as markdown
-    output_file = os.path.join(output_path, f"{split}.md")
-    with open(output_file, "w") as f:
-        f.write(markdown)
-    logger.info(f"Statistics saved to {output_file}")
-
-
-def process_split(
-    split: str,
-    config: dict,
-    anomaly_dict
-) -> None:
-    """
-    Process a single data split (train/val/test).
-    
-    Args:
-        split: Data split name (train/val/test)
-        config: Configuration dictionary
-        anomaly_dict: Dictionary of anomaly periods
-    """
-    logger.info(f"Processing {split} data")
-    log_memory(f"Before {split}")
-    
-    # Load data
-    input_path = os.path.join(config['paths']['input_dir'], f"{split}.parquet")
-    df = load_data(input_path)
-    log_memory(f"After loading {split}")
-    
-    # Split by component type and save to temp files
-    component_names = split_by_component(df, config['paths']['temp_dir'])
-    
-    # Free memory
-    del df
-    gc.collect()
-    log_memory(f"After splitting {split}")
-    
-    # Define a mapping from components to stations
     component_to_station = {
         'contact': 'Kontaktieren',
         'ring': 'Ringmontage',
         'pcb': 'Pcb'
     }
     
-    # Process components in specified order
-    for component in component_names:
-        logger.info(f"Processing component: {component}")
+    # Exclude non-feature columns
+    exclude_cols = ['TimeStamp', 'segment_id'] + [col for col in segment_df.columns if col.startswith('component_type_')]
+    feature_cols = [col for col in segment_df.columns if col not in exclude_cols]
+    
+    # Sort by timestamp
+    segment_df = segment_df.sort_values('TimeStamp')
+    
+    # Get station
+    station = component_to_station.get(component)
+    interval_tree = anomaly_trees[station]
+    segment_has_anomalies = False
+    
+    # Create sliding windows
+    start_idx = 0
+    segment_timestamps = pd.to_datetime(segment_df['TimeStamp'])
+    segment_features = segment_df[feature_cols].values
+    
+    while start_idx + window_size <= len(segment_df):
+        window_start = segment_timestamps.iloc[start_idx]
+        window_end = window_start + pd.Timedelta(seconds=window_size)
         
-        # Get the corresponding station for the component
-        station = component_to_station.get(component)
-        if not station:
-            logger.warning(f"No station mapping found for component: {component}")
-            continue
-
-        # Convert to interval tree for the specific station
-        anomaly_tree = create_interval_tree(anomaly_dict[station])
+        # Check if window exceeds segment timestamps
+        if window_end > segment_timestamps.iloc[-1]:
+            break
         
-        # Get component DataFrame
-        component_df = get_component_df(component, config['paths']['temp_dir'])
+        # Extract the window data
+        window_mask = (segment_timestamps >= window_start) & (segment_timestamps < window_end)
+        window_data = segment_features[window_mask]
         
-        # Define paths for interpolated and sliding window data
-        interpolated_output_dir = os.path.join(config['paths']['output_dir'], 'segment_fixe')
-        sliding_window_output_dir = config['paths']['output_dir']
-        temp_batch_dir = os.path.join(config['paths']['temp_dir'], f'batch_results_{component}_{split}')
-        log_memory(f"Before interpolating segments for {component} ({split})")
-        # Interpolate segments
-        #interpolate_segments(component_df, interpolated_output_dir)
-        log_memory(f"After interpolating segments for {component} ({split})")
-
-        # Read interpolated data
-        base_dir = "Data/processed/lsmt/sliding_window/segment_fixe"
-        segment_files = glob(f"{base_dir}/batch_*/*.parquet")
-        log_memory(f"After reading interpolated data for {component} ({split})")
+        # Ensure the window has the right number of time steps
+        if len(window_data) == window_size:
+            # Calculate overlap with anomalies
+            overlap_ratio = calculate_window_overlap(window_start, window_end, interval_tree)
+            label = 1 if overlap_ratio >= anomaly_threshold else 0
+            
+            if label == 1:
+                segment_has_anomalies = True
+                stats["anomaly_windows"] += 1
+            else:
+                stats["normal_windows"] += 1
+            
+            windows.append(window_data)
+            labels.append(label)
+            segment_ids.append(segment_id)
+            timestamps.append(window_start)
+            
+            stats["total_windows"] += 1
         
-        # Prepare for batch processing
-        batch_size = 30
-        n_jobs = 6
-        logger.info(f"Using batch processing with {batch_size} segments per batch and {n_jobs} processes per batch")
+        # Move to next window position
+        start_idx += step_size
+    
+    if segment_has_anomalies:
+        stats["segments_with_anomalies"] = 1
+    else:
+        stats["segments_without_anomalies"] = 1
+    
+    return windows, labels, segment_ids, timestamps, stats
+
+
+def create_sliding_windows(
+    df: pd.DataFrame,
+    component: str,
+    window_size: int,
+    step_size: int,
+    anomaly_trees: Dict[str, IntervalTree],
+    anomaly_threshold: float = 0.3,
+    n_jobs: int = 6,
+    batch_size: int = 60
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
+    """
+    Create sliding windows from segment data and label them based on anomaly overlap.
+    Uses parallel processing for efficiency.
+    
+    Args:
+        df: DataFrame containing the segment data
+        component: Component type (e.g., 'contact', 'pcb', 'ring')
+        window_size: Size of sliding window in seconds
+        step_size: Step size for window sliding in seconds
+        anomaly_trees: Dictionary mapping station IDs to IntervalTree objects
+        anomaly_threshold: Threshold for anomaly labeling (default: 0.3)
+        n_jobs: Number of parallel jobs to run (default: 6)
+        batch_size: Number of segments to process in one batch (default: 60)
         
-        # Lists to store batch results and stats
-        temp_batch_files = []
-        all_stats = []
+    Returns:
+        Tuple containing:
+        - windows: Array of sliding windows with shape (n_windows, window_size, n_features)
+        - labels: Array of window labels (0 for normal, 1 for anomaly)
+        - segment_ids: Array of segment IDs for each window
+        - timestamps: Array of window start timestamps
+        - stats: Dictionary with statistics about the windowing process
+    """
+    all_windows = []
+    all_labels = []
+    all_segment_ids = []
+    all_timestamps = []
+    
+    # Aggregate statistics
+    total_stats = {
+        "total_segments": 0,
+        "total_windows": 0,
+        "anomaly_windows": 0,
+        "normal_windows": 0,
+        "skipped_segments": 0,
+        "segments_with_anomalies": 0,
+        "segments_without_anomalies": 0
+    }
+    
+    # Group by segment_id
+    segments = list(df.groupby('segment_id'))
+    total_segments = len(segments)
+    logger.info(f"Processing {total_segments} segments in batches of {batch_size}")
+    
+    # Process segments in batches to manage memory
+    for batch_start in range(0, total_segments, batch_size):
+        batch_end = min(batch_start + batch_size, total_segments)
+        batch_segments = segments[batch_start:batch_end]
         
-        # Process each batch
-        for batch_idx in range(0, len(segment_files), batch_size):
-
-
-
-            current_batch_files = segment_files[batch_idx:batch_idx + batch_size]
-            logger.info(f"Processing batch {batch_idx // batch_size + 1} with {len(current_batch_files)} segments")
-            
-            # Load batch data
-            batch_dfs = [pd.read_parquet(f) for f in current_batch_files]
-            batch_df = pd.concat(batch_dfs, ignore_index=True)
-
-            if 'segment_id' not in batch_df.columns:
-                raise KeyError("列 'segment_id' 不存在，请检查数据！")
-            if batch_df.empty:
-                raise ValueError("batch_df 是空的，请检查数据加载！")
-            
-            # Process batch using joblib
-            batch_results = Parallel(n_jobs=n_jobs, prefer='processes')(
-                delayed(sliding_windows)(segment_df, anomaly_tree, config, component, split, sliding_window_output_dir)
-                for segment_id, segment_df in batch_df.groupby('segment_id')
-            )
-
-
-            
-            
-            
-             
-
-            # Unpack batch results
-            batch_windows, batch_stats = zip(*batch_results)
-            
-            # Combine windows for this batch
-            combined_batch_windows = pd.concat(batch_windows, ignore_index=True)
-            
-            # Save batch results to temporary file
-            temp_file = save_batch_results(
-                combined_batch_windows,
-                temp_batch_dir,
-                batch_idx // batch_size,
+        logger.info(f"Processing batch {batch_start//batch_size + 1}/{(total_segments-1)//batch_size + 1} with {len(batch_segments)} segments")
+        
+        # Process segments in parallel
+        results = Parallel(n_jobs=n_jobs)(
+            delayed(process_segment)(
+                segment_data,
                 component,
-                split
-            )
-            temp_batch_files.append(temp_file)
-            
-            # Store stats
-            all_stats.extend(batch_stats)
-            
-            # Clean up
-            del batch_dfs, batch_df, batch_results, combined_batch_windows
-            gc.collect()
-            log_memory(f"After processing batch {batch_idx // batch_size + 1} for {component} ({split})")
-        # Save all results by combining temporary files
-        save_results(temp_batch_files, sliding_window_output_dir, component, split)
+                window_size, 
+                step_size,
+                anomaly_trees,
+                anomaly_threshold
+            ) for segment_data in batch_segments
+        )
         
-        # Combine and save statistics
-        combined_stats = {
-            "total_windows": sum(s["total_windows"] for s in all_stats),
-            "anomaly_windows": sum(s["anomaly_windows"] for s in all_stats),
-            "skipped_segments": sum(s["skipped_segments"] for s in all_stats),
-            "min_window_length": min(s["min_window_length"] for s in all_stats),
-            "max_window_length": max(s["max_window_length"] for s in all_stats)
-        }
-        save_stats(combined_stats, sliding_window_output_dir, component, split)
-
-        # Free memory
-        del component_df, all_stats
+        # Collect results
+        for windows, labels, segment_ids, timestamps, stats in results:
+            all_windows.extend(windows)
+            all_labels.extend(labels)
+            all_segment_ids.extend(segment_ids)
+            all_timestamps.extend(timestamps)
+            
+            # Update statistics
+            for key in total_stats:
+                if key in stats:
+                    total_stats[key] += stats[key]
+        
+        # Force garbage collection between batches
         gc.collect()
-        log_memory(f"After processing {component} ({split})")
+        log_memory(f"After processing batch {batch_start//batch_size + 1}")
+    
+    if not all_windows:
+        return np.array([]), np.array([]), np.array([]), np.array([]), total_stats
+    
+    # Convert lists to numpy arrays
+    windows_array = np.array(all_windows)
+    labels_array = np.array(all_labels)
+    segment_ids_array = np.array(all_segment_ids)
+    timestamps_array = np.array(all_timestamps)
+    
+    return windows_array, labels_array, segment_ids_array, timestamps_array, total_stats
+
+
+def save_results(
+    windows: np.ndarray,
+    labels: np.ndarray,
+    segment_ids: np.ndarray,
+    timestamps: np.ndarray,
+    output_dir: str,
+    component: str,
+    data_type: str
+) -> str:
+    """
+    Save the windowed data to parquet format and PyTorch dataset.
+    
+    Args:
+        windows: Array of sliding windows
+        labels: Array of window labels
+        segment_ids: Array of segment IDs for each window
+        timestamps: Array of window start timestamps
+        output_dir: Directory to save results
+        component: Component type (e.g., 'contact', 'pcb', 'ring')
+        data_type: Data type ('train', 'val', or 'test')
+        
+    Returns:
+        Path to the saved PyTorch dataset file
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Save as PyTorch dataset
+    dataset = LSTMWindowDataset(windows, labels)
+    dataset_path = os.path.join(output_dir, f"{component}_{data_type}_dataset.pt")
+    dataset.to_file(dataset_path)
+    
+    # Save as Parquet for future reference
+    df = pd.DataFrame({
+        'segment_id': segment_ids,
+        'timestamp': timestamps,
+        'label': labels
+    })
+    
+    # Save windows as serialized numpy arrays
+    df['window'] = [w.tobytes() for w in windows]
+    
+    parquet_path = os.path.join(output_dir, f"window_{component}_{data_type}.parquet")
+    df.to_parquet(parquet_path, index=False)
+    
+    logger.info(f"Saved {len(windows)} windows to {parquet_path} and {dataset_path}")
+    return dataset_path
+
+
+def save_stats(stats: dict, output_dir: str, component: str, data_type: str) -> str:
+    """
+    Save statistics about the windowing process.
+    
+    Args:
+        stats: Dictionary with statistics
+        output_dir: Directory to save results
+        component: Component type
+        data_type: Data type ('train', 'val', or 'test')
+        
+    Returns:
+        Path to the saved statistics file
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Add percentages
+    if stats["total_windows"] > 0:
+        stats["anomaly_percentage"] = (stats["anomaly_windows"] / stats["total_windows"]) * 100
+        stats["normal_percentage"] = (stats["normal_windows"] / stats["total_windows"]) * 100
+    else:
+        stats["anomaly_percentage"] = 0
+        stats["normal_percentage"] = 0
+    
+    if stats["total_segments"] > 0:
+        stats["segments_with_anomalies_percentage"] = (stats["segments_with_anomalies"] / stats["total_segments"]) * 100
+    else:
+        stats["segments_with_anomalies_percentage"] = 0
+    
+    # Save as JSON
+    import json
+    stats_path = os.path.join(output_dir, f"stats_{component}_{data_type}.json")
+    with open(stats_path, 'w') as f:
+        json.dump(stats, f, indent=4)
+    
+    logger.info(f"Saved statistics to {stats_path}")
+    return stats_path
+
+
+def process_component_data(
+    input_dir: str,
+    output_dir: str,
+    component: str, 
+    data_type: str,
+    config: dict,
+    anomaly_dict: Dict[str, List[Tuple[str, str]]]
+) -> None:
+    """
+    Process data for a specific component and data type.
+    
+    Args:
+        input_dir: Input directory containing segment data
+        output_dir: Output directory for processed data
+        component: Component type ('contact', 'pcb', or 'ring')
+        data_type: Data type ('train', 'val', or 'test')
+        config: Configuration dictionary
+        anomaly_dict: Dictionary mapping station IDs to lists of anomaly period tuples
+    """
+    logger.info(f"Processing {component} {data_type} data")
+    log_memory(f"Before loading {component} {data_type}")
+    
+    # Prepare paths
+    component_dir = os.path.join(input_dir, data_type, component)
+    output_component_dir = os.path.join(output_dir, data_type, component)
+    
+    # Check if component directory exists
+    if not os.path.exists(component_dir):
+        logger.warning(f"Component directory {component_dir} does not exist. Skipping.")
+        return
+        
+    os.makedirs(output_component_dir, exist_ok=True)
+    
+    # Create interval trees for each station
+    anomaly_trees = {station: create_interval_tree(periods) for station, periods in anomaly_dict.items()}
+    
+    # Process data in batches by directory
+    batch_dirs = glob.glob(os.path.join(component_dir, "batch_*"))
+    
+    if not batch_dirs:
+        logger.warning(f"No batch directories found for {component} {data_type}. Skipping.")
+        return
+        
+    logger.info(f"Found {len(batch_dirs)} batch directories for {component} {data_type}")
+    
+    # Create temporary directory for storing intermediate results
+    temp_dir = os.path.join(config['paths']['temp_dir'], data_type, component)
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    # Keep track of temporary files
+    temp_files = []
+    
+    combined_stats = {
+        "total_segments": 0,
+        "total_windows": 0,
+        "anomaly_windows": 0,
+        "normal_windows": 0,
+        "skipped_segments": 0,
+        "segments_with_anomalies": 0,
+        "segments_without_anomalies": 0
+    }
+    
+    # Process each batch directory
+    for batch_idx, batch_dir in enumerate(batch_dirs):
+        batch_name = os.path.basename(batch_dir)
+        logger.info(f"Processing {batch_name} for {component} {data_type}")
+        
+        # Load data for this batch using Dask
+        ddf = dd.read_parquet(os.path.join(batch_dir, "*.parquet"))
+        df = ddf.compute()
+        
+        log_memory(f"After loading {batch_name} for {component} {data_type}")
+        
+        if df.empty:
+            logger.warning(f"No data found in {batch_name} for {component} {data_type}")
+            continue
+        
+        # Process this batch
+        logger.info(f"Creating sliding windows for {batch_name} {component} {data_type}")
+        windows, labels, segment_ids, timestamps, stats = create_sliding_windows(
+            df,
+            component,
+            config['sliding_window']['window_size'],
+            config['sliding_window']['step_size'],
+            anomaly_trees,
+            config['sliding_window']['anomaly_threshold'],
+            n_jobs=6,
+            batch_size=60
+        )
+        
+        # Update combined stats
+        for key in combined_stats:
+            if key in stats:
+                combined_stats[key] += stats[key]
+        
+        # Save intermediate results to temporary files if there are windows
+        if len(windows) > 0:
+            temp_batch_file = os.path.join(temp_dir, f"batch_{batch_idx}.npz")
+            np.savez_compressed(
+                temp_batch_file,
+                windows=windows,
+                labels=labels,
+                segment_ids=segment_ids,
+                timestamps=timestamps
+            )
+            temp_files.append(temp_batch_file)
+            logger.info(f"Saved {len(windows)} windows to temporary file {temp_batch_file}")
+        
+        # Free memory
+        del df, windows, labels, segment_ids, timestamps
+        gc.collect()
+        log_memory(f"After processing {batch_name} for {component} {data_type}")
+        
+    # Combine results from all batches by loading from temporary files
+    if temp_files:
+        logger.info(f"Combining results from {len(temp_files)} batch files")
+        all_windows = []
+        all_labels = []
+        all_segment_ids = []
+        all_timestamps = []
+        
+        # Load each temporary file and concatenate data
+        for temp_file in temp_files:
+            try:
+                data = np.load(temp_file)
+                all_windows.append(data['windows'])
+                all_labels.append(data['labels'])
+                all_segment_ids.append(data['segment_ids'])
+                all_timestamps.append(data['timestamps'])
+                logger.info(f"Loaded data from {temp_file}")
+            except Exception as e:
+                logger.error(f"Error loading temporary file {temp_file}: {str(e)}")
+        
+        # Concatenate all data
+        try:
+            if all_windows:
+                windows = np.concatenate(all_windows)
+                labels = np.concatenate(all_labels)
+                segment_ids = np.concatenate(all_segment_ids)
+                timestamps = np.concatenate(all_timestamps)
+                
+                logger.info(f"Saving {len(windows)} windows for {component} {data_type}")
+                
+                # Save results
+                save_results(
+                    windows,
+                    labels,
+                    segment_ids,
+                    timestamps,
+                    output_component_dir,
+                    component,
+                    data_type
+                )
+                
+                # Free memory after saving
+                del windows, labels, segment_ids, timestamps, all_windows, all_labels, all_segment_ids, all_timestamps
+                gc.collect()
+            else:
+                logger.warning(f"No windows to combine for {component} {data_type}")
+        except Exception as e:
+            logger.error(f"Error combining data for {component} {data_type}: {str(e)}")
+        
+        # Save statistics
+        save_stats(
+            combined_stats,
+            os.path.join(output_dir, "reports"),
+            component,
+            data_type
+        )
+        
+        # Clean up temporary files
+        for temp_file in temp_files:
+            try:
+                os.remove(temp_file)
+                logger.info(f"Removed temporary file {temp_file}")
+            except Exception as e:
+                logger.warning(f"Could not remove temporary file {temp_file}: {str(e)}")
+    else:
+        logger.warning(f"No windows created for {component} {data_type}")
+    
+    log_memory(f"After saving {component} {data_type}")
+    
+    # Try to remove the temporary directory if it's empty
+    try:
+        os.rmdir(temp_dir)
+        logger.info(f"Removed temporary directory {temp_dir}")
+    except:
+        pass
+
+
+def verify_dataset(output_dir: str, component: str, data_type: str) -> bool:
+    """
+    Verify that the dataset was created properly by loading it and checking basic properties.
+    
+    Args:
+        output_dir: Path to the output directory
+        component: Component type
+        data_type: Data type (train, val, test)
+        
+    Returns:
+        True if verification passed, False otherwise
+    """
+    dataset_path = os.path.join(output_dir, data_type, component, f"{component}_{data_type}_dataset.pt")
+    parquet_path = os.path.join(output_dir, data_type, component, f"window_{component}_{data_type}.parquet")
+    
+    if not os.path.exists(dataset_path) or not os.path.exists(parquet_path):
+        logger.error(f"Dataset files not found for {component} {data_type}")
+        return False
+        
+    try:
+        # Load dataset
+        dataset = LSTMWindowDataset.from_file(dataset_path)
+        
+        # Check dataset properties
+        n_samples = len(dataset)
+        logger.info(f"Dataset {component}_{data_type} contains {n_samples} samples")
+        
+        if n_samples == 0:
+            logger.warning(f"Dataset {component}_{data_type} is empty")
+            return False
+            
+        # Check if we can retrieve an item
+        window, label = dataset[0]
+        logger.info(f"First window shape: {window.shape}, label: {label.item()}")
+        
+        # Check parquet file
+        df = pd.read_parquet(parquet_path)
+        logger.info(f"Parquet file contains {len(df)} rows")
+        
+        if len(df) != n_samples:
+            logger.error(f"Dataset and parquet file have different sample counts: {n_samples} vs {len(df)}")
+            return False
+            
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error verifying dataset {component}_{data_type}: {str(e)}")
+        return False
 
 
 def main():
-    """Main function to process all data splits."""
+    """
+    Main function to process all data types and components.
+    """
+    start_time = datetime.now()
+    logger.info(f"Starting sliding window processing at {start_time}")
     
     # Load configuration
-    try:
-        config = load_config()
-        logger.info("Configuration loaded successfully")
-    except FileNotFoundError:
-        logger.error("Configuration file not found at configs/lsmt_preprocessing.yaml")
-        raise
-    except Exception as e:
-        logger.error(f"Error loading configuration: {str(e)}")
-        raise
- 
-    # Create output directories
-    os.makedirs(config['paths']['output_dir'], exist_ok=True)
-    os.makedirs(config['paths']['reports_dir'], exist_ok=True)
-    os.makedirs(config['paths']['temp_dir'], exist_ok=True)
+    config = load_config()
     
-    try:
-        # Load anomaly dictionary
-        anomaly_dict = load_anomaly_dict(config)
-        
-
-        
-        # Process each split
-        for split in ['train', 'val', 'test']:
-            process_split(split, config,anomaly_dict)
-        
-        logger.info("Sliding window preprocessing completed successfully")
-        
-    except Exception as e:
-        logger.error(f"Error during processing: {str(e)}")
-        raise
-    finally:
-        # Cleanup
-        try:
-            cleanup_temp_files(config['paths']['temp_dir'])
-        except Exception as e:
-            logger.warning(f"Error during cleanup: {str(e)}")
+    # Load anomaly dictionary
+    anomaly_dict = load_anomaly_dict(config)
+    
+    # Get paths from config
+    input_dir = config['paths']['input_dir']
+    output_dir = config['paths']['output_dir']
+    
+    # Get components from config
+    components = config['components']['processing_order']
+    
+    # Create output directory
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Process each data type and component
+    for data_type in ['train', 'val', 'test']:
+        for component in components:
+            process_component_data(
+                input_dir,
+                output_dir,
+                component,
+                data_type,
+                config,
+                anomaly_dict
+            )
+            
+            # Force garbage collection
+            if config['memory']['gc_collect_frequency'] > 0:
+                gc.collect()
+                log_memory(f"After GC for {component} {data_type}")
+    
+    # Verify datasets
+    logger.info("Verifying created datasets...")
+    verification_results = {}
+    
+    for data_type in ['train', 'val', 'test']:
+        for component in components:
+            result = verify_dataset(output_dir, component, data_type)
+            verification_results[f"{component}_{data_type}"] = result
+    
+    # Report verification results
+    logger.info("Dataset verification results:")
+    for dataset_name, result in verification_results.items():
+        status = "PASSED" if result else "FAILED"
+        logger.info(f"{dataset_name}: {status}")
+    
+    end_time = datetime.now()
+    processing_time = end_time - start_time
+    logger.info(f"Completed sliding window processing in {processing_time}")
 
 
 if __name__ == "__main__":

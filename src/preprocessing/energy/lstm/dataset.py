@@ -1,87 +1,117 @@
 """
-PyTorch Dataset implementations for LSTM sliding window data.
+PyTorch Dataset classes for LSTM model training.
 
-This module provides dataset classes for loading and accessing
-sliding window data for LSTM model training.
+This module provides PyTorch Dataset implementations for handling 
+sliding window data for LSTM models in energy anomaly detection.
 """
 
-import torch
 import numpy as np
-import pandas as pd
+import torch
 from torch.utils.data import Dataset, DataLoader
-from typing import Dict, List, Tuple, Union, Optional
-
-from src.utils.logger import logger
+from typing import Tuple, Optional, Union
 
 
 class LSTMWindowDataset(Dataset):
-    """PyTorch Dataset for LSTM sliding windows."""
+    """
+    PyTorch Dataset for LSTM sliding window data.
     
-    def __init__(self, parquet_path: str):
+    This dataset handles windows of time series data prepared for LSTM models,
+    with each window having shape (window_size, num_features) and a corresponding label.
+    
+    Attributes:
+        X (np.ndarray): Array of sliding windows with shape (n_samples, window_size, n_features)
+        y (np.ndarray): Array of labels with shape (n_samples,)
+        transform (callable, optional): Optional transform to be applied to each sample
+    """
+    
+    def __init__(
+        self, 
+        X: np.ndarray, 
+        y: np.ndarray, 
+        transform: Optional[callable] = None
+    ):
         """
-        Initialize the dataset.
+        Initialize the LSTM Window Dataset.
         
         Args:
-            parquet_path: Path to parquet file containing window data
+            X: Array of sliding windows with shape (n_samples, window_size, n_features)
+            y: Array of labels with shape (n_samples,)
+            transform: Optional transform to be applied to each sample
         """
-        logger.info(f"Loading dataset from {parquet_path}")
-        self.data = pd.read_parquet(parquet_path)
-        logger.info(f"Loaded {len(self.data)} samples")
+        self.X = torch.FloatTensor(X)
+        self.y = torch.FloatTensor(y)
+        self.transform = transform
+        
+        # Validate shapes
+        assert len(self.X) == len(self.y), f"X and y must have same length, got {len(self.X)} and {len(self.y)}"
+        assert len(self.X.shape) == 3, f"X must have shape (n_samples, window_size, n_features), got {self.X.shape}"
+        assert len(self.y.shape) == 1, f"y must have shape (n_samples,), got {self.y.shape}"
     
     def __len__(self) -> int:
-        return len(self.data)
+        """Return the number of samples in the dataset."""
+        return len(self.X)
     
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Get item at index.
+        Get a sample from the dataset.
         
         Args:
-            idx: Index
+            idx: Index of the sample to retrieve
             
         Returns:
-            Tuple containing:
-            - Window features as torch.Tensor (shape: [window_size, num_features])
-            - Label as torch.Tensor (shape: [1])
+            Tuple containing the window data and its label
         """
-        row = self.data.iloc[idx]
+        window = self.X[idx]
+        label = self.y[idx]
         
-        # Deserialize window
-        window = np.frombuffer(row['window'], dtype=np.float32).reshape(eval(row['window_shape']))
-        window_tensor = torch.tensor(window, dtype=torch.float32)
+        if self.transform:
+            window = self.transform(window)
         
-        label = torch.tensor(row['label'], dtype=torch.float32)
+        return window, label
+    
+    def get_dataloader(
+        self, 
+        batch_size: int = 32, 
+        shuffle: bool = True, 
+        num_workers: int = 4
+    ) -> DataLoader:
+        """
+        Create a DataLoader for this dataset.
         
-        return window_tensor, label
-
-
-def create_dataloader(
-    dataset_path: str,
-    batch_size: int = 32,
-    shuffle: bool = True,
-    num_workers: int = 4
-) -> DataLoader:
-    """
-    Create a DataLoader for the LSTM window dataset.
+        Args:
+            batch_size: Number of samples in each batch
+            shuffle: Whether to shuffle the data
+            num_workers: Number of worker processes for data loading
+            
+        Returns:
+            PyTorch DataLoader configured with this dataset
+        """
+        return DataLoader(
+            self,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            num_workers=num_workers,
+            pin_memory=torch.cuda.is_available()
+        )
     
-    Args:
-        dataset_path: Path to parquet file containing window data
-        batch_size: Batch size
-        shuffle: Whether to shuffle the dataset
-        num_workers: Number of worker processes for data loading
+    @classmethod
+    def from_file(cls, file_path: str) -> 'LSTMWindowDataset':
+        """
+        Load a dataset from a PyTorch saved file.
         
-    Returns:
-        PyTorch DataLoader
-    """
-    dataset = LSTMWindowDataset(dataset_path)
+        Args:
+            file_path: Path to the saved dataset file
+            
+        Returns:
+            Loaded LSTMWindowDataset instance
+        """
+        return torch.load(file_path)
     
-    dataloader = DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=shuffle,
-        num_workers=num_workers,
-        pin_memory=True
-    )
-    
-    logger.info(f"Created DataLoader with {len(dataset)} samples, batch_size={batch_size}")
-    
-    return dataloader
+    def to_file(self, file_path: str) -> None:
+        """
+        Save the dataset to a file.
+        
+        Args:
+            file_path: Path where to save the dataset
+        """
+        torch.save(self, file_path)
