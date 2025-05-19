@@ -35,7 +35,7 @@ from src.preprocessing.energy.labeling_slidingWindow import (
 
 def load_config() -> dict:
     """Load configuration from YAML file."""
-    config_path = Path("configs/lsmt_preprocessing.yaml")
+    config_path = Path("configs/interpolat.yaml")
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
     return config
@@ -283,7 +283,7 @@ def process_split(
         component_df = get_component_df(component, 'Data/processed/lsmt/split_by_component', split)
         
         # Define paths for interpolated and sliding window data
-        interpolated_output_dir = os.path.join(config['paths']['output_dir'], 'segment_fixe')
+        interpolated_output_dir = os.path.join(config['paths']['output_dir'], 'interpolated')
         log_memory(f"Before interpolating segments for {component} ({split})")
         # Interpolate segments
         interpolate_segments(component_df, interpolated_output_dir,split,component)
@@ -310,8 +310,6 @@ def main():
  
     # Create output directories
     os.makedirs(config['paths']['output_dir'], exist_ok=True)
-    os.makedirs(config['paths']['reports_dir'], exist_ok=True)
-    os.makedirs(config['paths']['temp_dir'], exist_ok=True)
     
     try:      
         # Process each split

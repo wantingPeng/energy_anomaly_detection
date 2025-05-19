@@ -1,0 +1,161 @@
+[2025-05-19 20:41:20,123] [INFO] [<frozen importlib] - Configuration loaded successfully
+[2025-05-19 20:41:20,129] [INFO] [<frozen importlib] - Processing train data
+[2025-05-19 20:41:20,129] [INFO] [<frozen importlib] - [Before train] Memory used: 4.08 GB | Available: 57.73 GB
+[2025-05-19 20:41:20,129] [INFO] [<frozen importlib] - Loading data from Data/processed/lsmt/standerScaler/train.parquet
+[2025-05-19 20:41:20,129] [INFO] [<frozen importlib] - Path is a directory: Data/processed/lsmt/standerScaler/train.parquet
+[2025-05-19 20:41:20,155] [INFO] [<frozen importlib] - Found 67 valid parquet files in directory
+[2025-05-19 20:41:20,162] [INFO] [<frozen importlib] - Dask dataframe has 36 columns and 67 partitions
+[2025-05-19 20:41:20,162] [INFO] [<frozen importlib] - Computing Dask dataframe into Pandas...
+[2025-05-19 20:41:44,313] [INFO] [<frozen importlib] - Loaded DataFrame with shape: (71102416, 36)
+[2025-05-19 20:41:44,319] [INFO] [<frozen importlib] - [After loading train] Memory used: 40.86 GB | Available: 20.95 GB
+[2025-05-19 20:41:44,320] [INFO] [<frozen importlib] - Splitting data by component type
+[2025-05-19 20:41:44,320] [INFO] [<frozen importlib] - Found component columns: ['component_type_contact', 'component_type_pcb', 'component_type_ring']
+[2025-05-19 20:41:56,752] [INFO] [<frozen importlib] - Saved 22514574 rows for component contact to Data/processed/lsmt/split_by_component/contact_train.parquet
+[2025-05-19 20:42:10,317] [INFO] [<frozen importlib] - Saved 24303288 rows for component pcb to Data/processed/lsmt/split_by_component/pcb_train.parquet
+[2025-05-19 20:42:23,698] [INFO] [<frozen importlib] - Saved 24284554 rows for component ring to Data/processed/lsmt/split_by_component/ring_train.parquet
+[2025-05-19 20:42:24,315] [INFO] [<frozen importlib] - [After splitting train] Memory used: 19.61 GB | Available: 42.20 GB
+[2025-05-19 20:42:24,316] [INFO] [<frozen importlib] - Processing component: contact
+[2025-05-19 20:42:24,316] [INFO] [<frozen importlib] - Loading component data from Data/processed/lsmt/split_by_component/contact_train.parquet
+[2025-05-19 20:42:26,076] [INFO] [<frozen importlib] - [Before interpolating segments for contact (train)] Memory used: 29.48 GB | Available: 32.33 GB
+[2025-05-19 20:42:26,076] [INFO] [<frozen importlib] - Interpolating segments using Dask
+[2025-05-19 20:42:26,151] [INFO] [<frozen importlib] - Processing 261 unique segments
+[2025-05-19 20:42:26,151] [INFO] [<frozen importlib] - Processing batch of segments 0 to 50
+[2025-05-19 20:42:30,094] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 30.68 GB | Available: 31.13 GB
+[2025-05-19 20:42:30,094] [INFO] [<frozen importlib] - Processing batch of segments 50 to 100
+[2025-05-19 20:42:33,349] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 30.96 GB | Available: 30.85 GB
+[2025-05-19 20:42:33,349] [INFO] [<frozen importlib] - Processing batch of segments 100 to 150
+[2025-05-19 20:42:35,712] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 31.15 GB | Available: 30.65 GB
+[2025-05-19 20:42:35,712] [INFO] [<frozen importlib] - Processing batch of segments 150 to 200
+[2025-05-19 20:42:41,099] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 31.00 GB | Available: 30.80 GB
+[2025-05-19 20:42:41,099] [INFO] [<frozen importlib] - Processing batch of segments 200 to 250
+[2025-05-19 20:42:44,585] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 30.70 GB | Available: 31.11 GB
+[2025-05-19 20:42:44,585] [INFO] [<frozen importlib] - Processing batch of segments 250 to 261
+[2025-05-19 20:42:45,844] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 30.68 GB | Available: 31.13 GB
+[2025-05-19 20:42:45,844] [INFO] [<frozen importlib] - All segments processed and saved
+[2025-05-19 20:42:45,845] [INFO] [<frozen importlib] - [After interpolating segments for contact (train)] Memory used: 30.47 GB | Available: 31.34 GB
+[2025-05-19 20:42:46,087] [INFO] [<frozen importlib] - [After processing contact (train)] Memory used: 24.24 GB | Available: 37.57 GB
+[2025-05-19 20:42:46,087] [INFO] [<frozen importlib] - Processing component: pcb
+[2025-05-19 20:42:46,087] [INFO] [<frozen importlib] - Loading component data from Data/processed/lsmt/split_by_component/pcb_train.parquet
+[2025-05-19 20:42:47,860] [INFO] [<frozen importlib] - [Before interpolating segments for pcb (train)] Memory used: 30.76 GB | Available: 31.05 GB
+[2025-05-19 20:42:47,860] [INFO] [<frozen importlib] - Interpolating segments using Dask
+[2025-05-19 20:42:47,942] [INFO] [<frozen importlib] - Processing 121 unique segments
+[2025-05-19 20:42:47,942] [INFO] [<frozen importlib] - Processing batch of segments 0 to 50
+[2025-05-19 20:42:55,319] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 30.43 GB | Available: 31.38 GB
+[2025-05-19 20:42:55,319] [INFO] [<frozen importlib] - Processing batch of segments 50 to 100
+[2025-05-19 20:43:04,416] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 30.24 GB | Available: 31.57 GB
+[2025-05-19 20:43:04,416] [INFO] [<frozen importlib] - Processing batch of segments 100 to 121
+[2025-05-19 20:43:07,131] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 30.25 GB | Available: 31.56 GB
+[2025-05-19 20:43:07,131] [INFO] [<frozen importlib] - All segments processed and saved
+[2025-05-19 20:43:07,132] [INFO] [<frozen importlib] - [After interpolating segments for pcb (train)] Memory used: 30.13 GB | Available: 31.67 GB
+[2025-05-19 20:43:07,389] [INFO] [<frozen importlib] - [After processing pcb (train)] Memory used: 23.42 GB | Available: 38.38 GB
+[2025-05-19 20:43:07,389] [INFO] [<frozen importlib] - Processing component: ring
+[2025-05-19 20:43:07,389] [INFO] [<frozen importlib] - Loading component data from Data/processed/lsmt/split_by_component/ring_train.parquet
+[2025-05-19 20:43:09,088] [INFO] [<frozen importlib] - [Before interpolating segments for ring (train)] Memory used: 30.92 GB | Available: 30.89 GB
+[2025-05-19 20:43:09,088] [INFO] [<frozen importlib] - Interpolating segments using Dask
+[2025-05-19 20:43:09,177] [INFO] [<frozen importlib] - Processing 269 unique segments
+[2025-05-19 20:43:09,177] [INFO] [<frozen importlib] - Processing batch of segments 0 to 50
+[2025-05-19 20:43:13,482] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 30.96 GB | Available: 30.84 GB
+[2025-05-19 20:43:13,482] [INFO] [<frozen importlib] - Processing batch of segments 50 to 100
+[2025-05-19 20:43:16,599] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 31.07 GB | Available: 30.74 GB
+[2025-05-19 20:43:16,599] [INFO] [<frozen importlib] - Processing batch of segments 100 to 150
+[2025-05-19 20:43:20,269] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 31.42 GB | Available: 30.39 GB
+[2025-05-19 20:43:20,269] [INFO] [<frozen importlib] - Processing batch of segments 150 to 200
+[2025-05-19 20:43:24,719] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 31.31 GB | Available: 30.50 GB
+[2025-05-19 20:43:24,719] [INFO] [<frozen importlib] - Processing batch of segments 200 to 250
+[2025-05-19 20:43:28,114] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 31.23 GB | Available: 30.58 GB
+[2025-05-19 20:43:28,114] [INFO] [<frozen importlib] - Processing batch of segments 250 to 269
+[2025-05-19 20:43:30,438] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 31.19 GB | Available: 30.62 GB
+[2025-05-19 20:43:30,438] [INFO] [<frozen importlib] - All segments processed and saved
+[2025-05-19 20:43:30,439] [INFO] [<frozen importlib] - [After interpolating segments for ring (train)] Memory used: 31.17 GB | Available: 30.64 GB
+[2025-05-19 20:43:30,675] [INFO] [<frozen importlib] - [After processing ring (train)] Memory used: 24.46 GB | Available: 37.35 GB
+[2025-05-19 20:43:30,675] [INFO] [<frozen importlib] - Processing val data
+[2025-05-19 20:43:30,675] [INFO] [<frozen importlib] - [Before val] Memory used: 24.46 GB | Available: 37.35 GB
+[2025-05-19 20:43:30,675] [INFO] [<frozen importlib] - Loading data from Data/processed/lsmt/standerScaler/val.parquet
+[2025-05-19 20:43:30,675] [INFO] [<frozen importlib] - Path is a directory: Data/processed/lsmt/standerScaler/val.parquet
+[2025-05-19 20:43:30,691] [INFO] [<frozen importlib] - Found 14 valid parquet files in directory
+[2025-05-19 20:43:30,695] [INFO] [<frozen importlib] - Dask dataframe has 36 columns and 14 partitions
+[2025-05-19 20:43:30,695] [INFO] [<frozen importlib] - Computing Dask dataframe into Pandas...
+[2025-05-19 20:43:32,593] [INFO] [<frozen importlib] - Loaded DataFrame with shape: (15236232, 36)
+[2025-05-19 20:43:32,593] [INFO] [<frozen importlib] - [After loading val] Memory used: 33.24 GB | Available: 28.57 GB
+[2025-05-19 20:43:32,593] [INFO] [<frozen importlib] - Splitting data by component type
+[2025-05-19 20:43:32,593] [INFO] [<frozen importlib] - Found component columns: ['component_type_contact', 'component_type_pcb', 'component_type_ring']
+[2025-05-19 20:43:35,352] [INFO] [<frozen importlib] - Saved 4824552 rows for component contact to Data/processed/lsmt/split_by_component/contact_val.parquet
+[2025-05-19 20:43:38,366] [INFO] [<frozen importlib] - Saved 5207847 rows for component pcb to Data/processed/lsmt/split_by_component/pcb_val.parquet
+[2025-05-19 20:43:41,164] [INFO] [<frozen importlib] - Saved 5203833 rows for component ring to Data/processed/lsmt/split_by_component/ring_val.parquet
+[2025-05-19 20:43:41,286] [INFO] [<frozen importlib] - [After splitting val] Memory used: 27.37 GB | Available: 34.44 GB
+[2025-05-19 20:43:41,286] [INFO] [<frozen importlib] - Processing component: contact
+[2025-05-19 20:43:41,286] [INFO] [<frozen importlib] - Loading component data from Data/processed/lsmt/split_by_component/contact_val.parquet
+[2025-05-19 20:43:41,575] [INFO] [<frozen importlib] - [Before interpolating segments for contact (val)] Memory used: 27.16 GB | Available: 34.65 GB
+[2025-05-19 20:43:41,575] [INFO] [<frozen importlib] - Interpolating segments using Dask
+[2025-05-19 20:43:41,591] [INFO] [<frozen importlib] - Processing 21 unique segments
+[2025-05-19 20:43:41,591] [INFO] [<frozen importlib] - Processing batch of segments 0 to 21
+[2025-05-19 20:43:45,285] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 26.91 GB | Available: 34.90 GB
+[2025-05-19 20:43:45,285] [INFO] [<frozen importlib] - All segments processed and saved
+[2025-05-19 20:43:45,286] [INFO] [<frozen importlib] - [After interpolating segments for contact (val)] Memory used: 26.63 GB | Available: 35.18 GB
+[2025-05-19 20:43:45,382] [INFO] [<frozen importlib] - [After processing contact (val)] Memory used: 25.29 GB | Available: 36.51 GB
+[2025-05-19 20:43:45,382] [INFO] [<frozen importlib] - Processing component: pcb
+[2025-05-19 20:43:45,382] [INFO] [<frozen importlib] - Loading component data from Data/processed/lsmt/split_by_component/pcb_val.parquet
+[2025-05-19 20:43:45,676] [INFO] [<frozen importlib] - [Before interpolating segments for pcb (val)] Memory used: 26.16 GB | Available: 35.65 GB
+[2025-05-19 20:43:45,677] [INFO] [<frozen importlib] - Interpolating segments using Dask
+[2025-05-19 20:43:45,694] [INFO] [<frozen importlib] - Processing 15 unique segments
+[2025-05-19 20:43:45,694] [INFO] [<frozen importlib] - Processing batch of segments 0 to 15
+[2025-05-19 20:43:49,608] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 26.50 GB | Available: 35.31 GB
+[2025-05-19 20:43:49,608] [INFO] [<frozen importlib] - All segments processed and saved
+[2025-05-19 20:43:49,609] [INFO] [<frozen importlib] - [After interpolating segments for pcb (val)] Memory used: 26.10 GB | Available: 35.71 GB
+[2025-05-19 20:43:49,719] [INFO] [<frozen importlib] - [After processing pcb (val)] Memory used: 24.67 GB | Available: 37.14 GB
+[2025-05-19 20:43:49,719] [INFO] [<frozen importlib] - Processing component: ring
+[2025-05-19 20:43:49,719] [INFO] [<frozen importlib] - Loading component data from Data/processed/lsmt/split_by_component/ring_val.parquet
+[2025-05-19 20:43:50,001] [INFO] [<frozen importlib] - [Before interpolating segments for ring (val)] Memory used: 25.83 GB | Available: 35.98 GB
+[2025-05-19 20:43:50,001] [INFO] [<frozen importlib] - Interpolating segments using Dask
+[2025-05-19 20:43:50,020] [INFO] [<frozen importlib] - Processing 22 unique segments
+[2025-05-19 20:43:50,020] [INFO] [<frozen importlib] - Processing batch of segments 0 to 22
+[2025-05-19 20:43:53,957] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 26.24 GB | Available: 35.57 GB
+[2025-05-19 20:43:53,957] [INFO] [<frozen importlib] - All segments processed and saved
+[2025-05-19 20:43:53,959] [INFO] [<frozen importlib] - [After interpolating segments for ring (val)] Memory used: 25.65 GB | Available: 36.15 GB
+[2025-05-19 20:43:54,071] [INFO] [<frozen importlib] - [After processing ring (val)] Memory used: 24.22 GB | Available: 37.59 GB
+[2025-05-19 20:43:54,071] [INFO] [<frozen importlib] - Processing test data
+[2025-05-19 20:43:54,071] [INFO] [<frozen importlib] - [Before test] Memory used: 24.22 GB | Available: 37.59 GB
+[2025-05-19 20:43:54,071] [INFO] [<frozen importlib] - Loading data from Data/processed/lsmt/standerScaler/test.parquet
+[2025-05-19 20:43:54,071] [INFO] [<frozen importlib] - Path is a directory: Data/processed/lsmt/standerScaler/test.parquet
+[2025-05-19 20:43:54,084] [INFO] [<frozen importlib] - Found 14 valid parquet files in directory
+[2025-05-19 20:43:54,088] [INFO] [<frozen importlib] - Dask dataframe has 36 columns and 14 partitions
+[2025-05-19 20:43:54,088] [INFO] [<frozen importlib] - Computing Dask dataframe into Pandas...
+[2025-05-19 20:43:56,492] [INFO] [<frozen importlib] - Loaded DataFrame with shape: (15236234, 36)
+[2025-05-19 20:43:56,492] [INFO] [<frozen importlib] - [After loading test] Memory used: 29.13 GB | Available: 32.68 GB
+[2025-05-19 20:43:56,492] [INFO] [<frozen importlib] - Splitting data by component type
+[2025-05-19 20:43:56,492] [INFO] [<frozen importlib] - Found component columns: ['component_type_contact', 'component_type_pcb', 'component_type_ring']
+[2025-05-19 20:43:59,280] [INFO] [<frozen importlib] - Saved 4824552 rows for component contact to Data/processed/lsmt/split_by_component/contact_test.parquet
+[2025-05-19 20:44:02,399] [INFO] [<frozen importlib] - Saved 5207848 rows for component pcb to Data/processed/lsmt/split_by_component/pcb_test.parquet
+[2025-05-19 20:44:05,375] [INFO] [<frozen importlib] - Saved 5203834 rows for component ring to Data/processed/lsmt/split_by_component/ring_test.parquet
+[2025-05-19 20:44:05,523] [INFO] [<frozen importlib] - [After splitting test] Memory used: 24.15 GB | Available: 37.66 GB
+[2025-05-19 20:44:05,523] [INFO] [<frozen importlib] - Processing component: contact
+[2025-05-19 20:44:05,523] [INFO] [<frozen importlib] - Loading component data from Data/processed/lsmt/split_by_component/contact_test.parquet
+[2025-05-19 20:44:05,796] [INFO] [<frozen importlib] - [Before interpolating segments for contact (test)] Memory used: 24.60 GB | Available: 37.21 GB
+[2025-05-19 20:44:05,796] [INFO] [<frozen importlib] - Interpolating segments using Dask
+[2025-05-19 20:44:05,814] [INFO] [<frozen importlib] - Processing 14 unique segments
+[2025-05-19 20:44:05,814] [INFO] [<frozen importlib] - Processing batch of segments 0 to 14
+[2025-05-19 20:44:09,356] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 24.91 GB | Available: 36.90 GB
+[2025-05-19 20:44:09,357] [INFO] [<frozen importlib] - All segments processed and saved
+[2025-05-19 20:44:09,357] [INFO] [<frozen importlib] - [After interpolating segments for contact (test)] Memory used: 24.91 GB | Available: 36.90 GB
+[2025-05-19 20:44:09,469] [INFO] [<frozen importlib] - [After processing contact (test)] Memory used: 23.57 GB | Available: 38.23 GB
+[2025-05-19 20:44:09,469] [INFO] [<frozen importlib] - Processing component: pcb
+[2025-05-19 20:44:09,469] [INFO] [<frozen importlib] - Loading component data from Data/processed/lsmt/split_by_component/pcb_test.parquet
+[2025-05-19 20:44:09,792] [INFO] [<frozen importlib] - [Before interpolating segments for pcb (test)] Memory used: 24.77 GB | Available: 37.04 GB
+[2025-05-19 20:44:09,792] [INFO] [<frozen importlib] - Interpolating segments using Dask
+[2025-05-19 20:44:09,812] [INFO] [<frozen importlib] - Processing 11 unique segments
+[2025-05-19 20:44:09,812] [INFO] [<frozen importlib] - Processing batch of segments 0 to 11
+[2025-05-19 20:44:13,752] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 24.82 GB | Available: 36.99 GB
+[2025-05-19 20:44:13,752] [INFO] [<frozen importlib] - All segments processed and saved
+[2025-05-19 20:44:13,752] [INFO] [<frozen importlib] - [After interpolating segments for pcb (test)] Memory used: 24.79 GB | Available: 37.02 GB
+[2025-05-19 20:44:13,865] [INFO] [<frozen importlib] - [After processing pcb (test)] Memory used: 23.34 GB | Available: 38.47 GB
+[2025-05-19 20:44:13,865] [INFO] [<frozen importlib] - Processing component: ring
+[2025-05-19 20:44:13,865] [INFO] [<frozen importlib] - Loading component data from Data/processed/lsmt/split_by_component/ring_test.parquet
+[2025-05-19 20:44:14,143] [INFO] [<frozen importlib] - [Before interpolating segments for ring (test)] Memory used: 24.81 GB | Available: 37.00 GB
+[2025-05-19 20:44:14,143] [INFO] [<frozen importlib] - Interpolating segments using Dask
+[2025-05-19 20:44:14,162] [INFO] [<frozen importlib] - Processing 12 unique segments
+[2025-05-19 20:44:14,162] [INFO] [<frozen importlib] - Processing batch of segments 0 to 12
+[2025-05-19 20:44:18,028] [INFO] [<frozen importlib] - [after interpolating segments batch] Memory used: 24.44 GB | Available: 37.37 GB
+[2025-05-19 20:44:18,028] [INFO] [<frozen importlib] - All segments processed and saved
+[2025-05-19 20:44:18,028] [INFO] [<frozen importlib] - [After interpolating segments for ring (test)] Memory used: 24.41 GB | Available: 37.40 GB
+[2025-05-19 20:44:18,151] [INFO] [<frozen importlib] - [After processing ring (test)] Memory used: 22.97 GB | Available: 38.84 GB
+[2025-05-19 20:44:18,151] [INFO] [<frozen importlib] - Sliding window preprocessing completed successfully

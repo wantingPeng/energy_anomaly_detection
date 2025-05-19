@@ -94,6 +94,26 @@ class LSTMWindowDataset(Dataset):
             pin_memory=torch.cuda.is_available()
         )
     
+    @property
+    def windows(self) -> torch.Tensor:
+        """
+        Get the window data.
+        
+        Returns:
+            Window data tensor
+        """
+        return self.X
+    
+    @property
+    def labels(self) -> torch.Tensor:
+        """
+        Get the label data.
+        
+        Returns:
+            Label data tensor
+        """
+        return self.y
+
     @classmethod
     def from_file(cls, file_path: str) -> 'LSTMWindowDataset':
         """
@@ -105,7 +125,8 @@ class LSTMWindowDataset(Dataset):
         Returns:
             Loaded LSTMWindowDataset instance
         """
-        return torch.load(file_path)
+        data = torch.load(file_path)
+        return cls(data['windows'].numpy(), data['labels'].numpy())
     
     def to_file(self, file_path: str) -> None:
         """
@@ -114,4 +135,7 @@ class LSTMWindowDataset(Dataset):
         Args:
             file_path: Path where to save the dataset
         """
-        torch.save(self, file_path)
+        torch.save({
+            'windows': self.X,
+            'labels': self.y
+        }, file_path)
