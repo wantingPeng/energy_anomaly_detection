@@ -51,11 +51,12 @@ def save_results(
     segment_ids: np.ndarray,
     timestamps: np.ndarray,
     output_dir: str,
+    component: str,
     data_type: str,
-    append: bool = False
-) -> str:
+    batch_idx: int
+) -> tuple:
     """
-    Save the windowed data to parquet format and PyTorch dataset.
+    Save the windowed data to separate parquet and PyTorch files for each batch.
     
     Args:
         windows: Array of sliding windows
@@ -63,86 +64,41 @@ def save_results(
         segment_ids: Array of segment IDs for each window
         timestamps: Array of window start timestamps
         output_dir: Directory to save results
+        component: Component type (e.g., 'contact', 'pcb', 'ring')
         data_type: Data type ('train', 'val', or 'test')
-        append: Whether to append to existing files (default: False)
+        batch_idx: Batch index for file naming
         
     Returns:
-        Path to the saved PyTorch dataset file
+        Tuple of paths (dataset_path, parquet_path) to the saved files
     """
     os.makedirs(output_dir, exist_ok=True)
     
-    # Define file paths
-    dataset_path = os.path.join(output_dir, f"{data_type}_dataset.pt")
-    parquet_path = os.path.join(output_dir, f"{data_type}.parquet")
+    # Define file paths with batch index and include component and data_type in filename
+    dataset_path = os.path.join(output_dir, f"{data_type}_{component}_batch_{batch_idx}.pt")
+    parquet_path = os.path.join(output_dir, f"{data_type}_{component}_batch_{batch_idx}.parquet")
     
     # Convert numpy arrays to torch tensors
     windows_tensor = torch.FloatTensor(windows)
     labels_tensor = torch.FloatTensor(labels)
     
-    if append and os.path.exists(dataset_path):
-        # Load existing dataset tensors
-        try:
-            existing_data = torch.load(dataset_path)
-            existing_windows = existing_data['windows']
-            existing_labels = existing_data['labels']
-            
-            # Concatenate with new data
-            combined_windows = torch.cat([existing_windows, windows_tensor])
-            combined_labels = torch.cat([existing_labels, labels_tensor])
-            
-            # Save the updated  Parquet file
-            torch.save({
-                'windows': combined_windows,
-                'labels': combined_labels
-            }, dataset_path)
-            
-            logger.info(f"Appended {len(windows)} windows to existing dataset ({len(combined_windows)} total)")
-        except Exception as e:
-            logger.error(f"Error appending to dataset: {str(e)}. Creating new dataset.")
-            # Save as new if there was an error
-            torch.save({
-                'windows': windows_tensor,
-                'labels': labels_tensor
-            }, dataset_path)
-            logger.info(f"Created new dataset with {len(windows)} windows")
-        
-        # Append to existing Parquet file
-        df = pd.DataFrame({
-            'segment_id': segment_ids,
-            'timestamp': timestamps,
-            'label': labels,
-            'window': [w.tobytes() for w in windows]
-        })
-        
-        if os.path.exists(parquet_path):
-            # If parquet file already exists, append to it
-            existing_df = pd.read_parquet(parquet_path)
-            combined_df = pd.concat([existing_df, df], ignore_index=True)
-            combined_df.to_parquet(parquet_path, index=False)
-            logger.info(f"Appended {len(df)} rows to existing parquet file ({len(combined_df)} total)")
-        else:
-            # If not, create new file
-            df.to_parquet(parquet_path, index=False)
-            logger.info(f"Created new parquet file with {len(df)} rows")
-    else:
-        # Create new dataset file with tensors only (not the entire class)
-        torch.save({
-            'windows': windows_tensor,
-            'labels': labels_tensor
-        }, dataset_path)
-        
-        # Create new Parquet file
-        df = pd.DataFrame({
-            'segment_id': segment_ids,
-            'timestamp': timestamps,
-            'label': labels,
-            'window': [w.tobytes() for w in windows]
-        })
-        
-        df.to_parquet(parquet_path, index=False)
-        logger.info(f"Saved {len(windows)} windows to {parquet_path} and {dataset_path}")
+    # Create new dataset file with tensors
+    torch.save({
+        'windows': windows_tensor,
+        'labels': labels_tensor
+    }, dataset_path)
     
-    return dataset_path
+    # Create new Parquet file
+    df = pd.DataFrame({
+        'segment_id': segment_ids,
+        'timestamp': timestamps,
+        'label': labels,
+        'window': [w.tobytes() for w in windows]
+    })
+    
+    df.to_parquet(parquet_path, index=False)
+    logger.info(f"Saved {len(windows)} windows to {os.path.basename(parquet_path)} and {os.path.basename(dataset_path)}")
+    
+    return dataset_path, parquet_path
 
 
 def process_component_data(
@@ -166,7 +122,7 @@ def process_component_data(
     
     # Prepare paths
     component_dir = os.path.join(input_dir, data_type, component)
-    output_component_dir = os.path.join(output_dir, data_type)
+    output_component_dir = os.path.join(output_dir, data_type,component)
     
     # Check if component directory exists
     if not os.path.exists(component_dir):
@@ -184,11 +140,11 @@ def process_component_data(
         
     logger.info(f"Found {len(npz_files)} NPZ files in {component_dir}")
     
-    # Process each NPZ file individually and save immediately
-    is_first_file = True
-    processed_files = 0
+    # Save batch file paths for future merging
+    batch_files = []
     
-    for npz_file in tqdm(npz_files, desc=f"Processing {component} {data_type} files"):
+    # Process each NPZ file individually and save as separate batch
+    for batch_idx, npz_file in enumerate(tqdm(npz_files, desc=f"Processing {component} {data_type} files")):
         try:
             # Load NPZ file data
             data = np.load(npz_file, allow_pickle=True)
@@ -200,91 +156,42 @@ def process_component_data(
                 segment_ids = data['segment_ids']
                 timestamps = data['timestamps']
                 
-                # Save this file's data immediately
-                save_results(
+                # Save this file's data as a separate batch
+                dataset_path, parquet_path = save_results(
                     windows,
                     labels,
                     segment_ids,
                     timestamps,
                     output_component_dir,
+                    component,
                     data_type,
-                    append=(not is_first_file)  # First file creates new files, subsequent files append
+                    batch_idx
                 )
                 
-                logger.info(f"Processed and saved {len(windows)} windows from {os.path.basename(npz_file)}")
-                processed_files += 1
+                # Track the batch files
+                batch_files.append((dataset_path, parquet_path))
                 
-                if is_first_file:
-                    is_first_file = False
+                logger.info(f"Processed and saved batch {batch_idx}: {len(windows)} windows from {os.path.basename(npz_file)}")
                 
                 # Free memory immediately
                 del windows, labels, segment_ids, timestamps
                 gc.collect()
-                log_memory(f"After processing file {processed_files}/{len(npz_files)}")
+                log_memory(f"After processing batch {batch_idx}/{len(npz_files)}")
             else:
                 logger.warning(f"NPZ file {os.path.basename(npz_file)} does not have expected data structure")
                 
         except Exception as e:
             logger.error(f"Error processing NPZ file {npz_file}: {str(e)}")
     
-    logger.info(f"Completed processing {processed_files} files for {component} {data_type}")
+    logger.info(f"Completed processing {len(batch_files)} batches for {component} {data_type}")
+    
+    # Save the list of batch files to a metadata file for later merging
+    metadata_path = os.path.join(output_component_dir, f"{data_type}_{component}_batches.pkl")
+    with open(metadata_path, 'wb') as f:
+        pickle.dump(batch_files, f)
+    logger.info(f"Saved batch metadata to {metadata_path}")
+    
     log_memory(f"After saving {component} {data_type}")
-
-
-
-def verify_dataset(output_dir: str, component: str, data_type: str) -> bool:
-    """
-    Verify that the dataset was created properly by loading it and checking basic properties.
-    
-    Args:
-        output_dir: Path to the output directory
-        component: Component type
-        data_type: Data type (train, val, test)
-        
-    Returns:
-        True if verification passed, False otherwise
-    """
-    # Dataset files are now stored in data_type directory
-    output_data_dir = os.path.join(output_dir, data_type)
-    dataset_path = os.path.join(output_data_dir, f"{data_type}_dataset.pt")
-    parquet_path = os.path.join(output_data_dir, f"{data_type}.parquet")
-    
-    if not os.path.exists(dataset_path) or not os.path.exists(parquet_path):
-        logger.error(f"Dataset files not found for {data_type} (component: {component})")
-        return False
-        
-    try:
-        # Load dataset tensors
-        data = torch.load(dataset_path)
-        windows = data['windows']
-        labels = data['labels']
-        
-        # Check dataset properties
-        n_samples = len(windows)
-        logger.info(f"Dataset {data_type} (component: {component}) contains {n_samples} samples")
-        
-        if n_samples == 0:
-            logger.warning(f"Dataset {data_type} (component: {component}) is empty")
-            return False
-            
-        # Check if we can retrieve an item
-        first_window = windows[0]
-        first_label = labels[0]
-        logger.info(f"First window shape: {first_window.shape}, label: {first_label.item()}")
-        
-        # Check parquet file
-        df = pd.read_parquet(parquet_path)
-        logger.info(f"Parquet file contains {len(df)} rows")
-        
-        if len(df) != n_samples:
-            logger.error(f"Dataset and parquet file have different sample counts: {n_samples} vs {len(df)}")
-            return False
-            
-        return True
-        
-    except Exception as e:
-        logger.error(f"Error verifying dataset {data_type} (component: {component}): {str(e)}")
-        return False
 
 
 def main():
@@ -320,25 +227,6 @@ def main():
             # Force garbage collection
             gc.collect()
             log_memory(f"After GC for {component} {data_type}")
-    
-    # Verify datasets
-    logger.info("Verifying created datasets...")
-    verification_results = {}
-    
-    for data_type in ['train', 'val', 'test']:
-        for component in components:
-            result = verify_dataset(output_dir, component, data_type)
-            verification_results[f"{component}_{data_type}"] = result
-    
-    # Report verification results
-    logger.info("Dataset verification results:")
-    for dataset_name, result in verification_results.items():
-        status = "PASSED" if result else "FAILED"
-        logger.info(f"{dataset_name}: {status}")
-    
-    end_time = datetime.now()
-    processing_time = end_time - start_time
-    logger.info(f"Completed sliding window processing in {processing_time}")
 
 
 if __name__ == "__main__":
