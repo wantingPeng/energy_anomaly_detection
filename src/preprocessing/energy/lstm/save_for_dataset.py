@@ -37,7 +37,7 @@ from src.preprocessing.energy.labeling_slidingWindow import (
 
 def load_config() -> dict:
     """Load configuration from YAML file."""
-    config_path = Path("configs/lsmt_preprocessing.yaml")
+    config_path = Path("configs/save_for_dataset.yaml")
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
     return config
@@ -51,7 +51,6 @@ def save_results(
     segment_ids: np.ndarray,
     timestamps: np.ndarray,
     output_dir: str,
-    component: str,
     data_type: str,
     append: bool = False
 ) -> str:
@@ -64,7 +63,6 @@ def save_results(
         segment_ids: Array of segment IDs for each window
         timestamps: Array of window start timestamps
         output_dir: Directory to save results
-        component: Component type (e.g., 'contact', 'pcb', 'ring')
         data_type: Data type ('train', 'val', or 'test')
         append: Whether to append to existing files (default: False)
         
@@ -74,8 +72,8 @@ def save_results(
     os.makedirs(output_dir, exist_ok=True)
     
     # Define file paths
-    dataset_path = os.path.join(output_dir, f"{component}_{data_type}_dataset.pt")
-    parquet_path = os.path.join(output_dir, f"window_{component}_{data_type}.parquet")
+    dataset_path = os.path.join(output_dir, f"{data_type}_dataset.pt")
+    parquet_path = os.path.join(output_dir, f"{data_type}.parquet")
     
     # Convert numpy arrays to torch tensors
     windows_tensor = torch.FloatTensor(windows)
@@ -92,7 +90,7 @@ def save_results(
             combined_windows = torch.cat([existing_windows, windows_tensor])
             combined_labels = torch.cat([existing_labels, labels_tensor])
             
-            # Save the updated tensors
+            # Save the updated  Parquet file
             torch.save({
                 'windows': combined_windows,
                 'labels': combined_labels
@@ -147,51 +145,11 @@ def save_results(
     return dataset_path
 
 
-def save_stats(stats: dict, output_dir: str, component: str, data_type: str) -> str:
-    """
-    Save statistics about the windowing process.
-    
-    Args:
-        stats: Dictionary with statistics
-        output_dir: Directory to save results
-        component: Component type
-        data_type: Data type ('train', 'val', or 'test')
-        
-    Returns:
-        Path to the saved statistics file
-    """
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # Add percentages
-    if stats["total_windows"] > 0:
-        stats["anomaly_percentage"] = (stats["anomaly_windows"] / stats["total_windows"]) * 100
-        stats["normal_percentage"] = (stats["normal_windows"] / stats["total_windows"]) * 100
-    else:
-        stats["anomaly_percentage"] = 0
-        stats["normal_percentage"] = 0
-    
-    if stats["total_segments"] > 0:
-        stats["segments_with_anomalies_percentage"] = (stats["segments_with_anomalies"] / stats["total_segments"]) * 100
-    else:
-        stats["segments_with_anomalies_percentage"] = 0
-    
-    # Save as JSON
-    import json
-    stats_path = os.path.join(output_dir, f"stats_{component}_{data_type}.json")
-    with open(stats_path, 'w') as f:
-        json.dump(stats, f, indent=4)
-    
-    logger.info(f"Saved statistics to {stats_path}")
-    return stats_path
-
-
 def process_component_data(
     input_dir: str,
     output_dir: str,
     component: str, 
     data_type: str,
-    config: dict,
-    anomaly_dict: Dict[str, List[Tuple[str, str]]]
 ) -> None:
     """
     Process data for a specific component and data type.
@@ -201,8 +159,6 @@ def process_component_data(
         output_dir: Output directory for processed data
         component: Component type ('contact', 'pcb', or 'ring')
         data_type: Data type ('train', 'val', or 'test')
-        config: Configuration dictionary
-        anomaly_dict: Dictionary mapping station IDs to lists of anomaly period tuples
     """
     
     logger.info(f"Processing {component} {data_type} data")
@@ -210,7 +166,7 @@ def process_component_data(
     
     # Prepare paths
     component_dir = os.path.join(input_dir, data_type, component)
-    output_component_dir = os.path.join(output_dir, data_type, component)
+    output_component_dir = os.path.join(output_dir, data_type)
     
     # Check if component directory exists
     if not os.path.exists(component_dir):
@@ -218,89 +174,61 @@ def process_component_data(
         return
         
     os.makedirs(output_component_dir, exist_ok=True)
-    # Create interval trees for each station
     
-    # Create temporary directory for storing intermediate results
-    temp_dir = os.path.join(config['paths']['temp_dir'], data_type, component)
-    os.makedirs(temp_dir, exist_ok=True)
+    # Find all NPZ files in the component directory
+    npz_files = glob.glob(os.path.join(component_dir, "*.npz"))
     
-    # Keep track of temporary files
-    temp_files = []
-    
-    combined_stats = {
-        "total_segments": 0,
-        "total_windows": 0,
-        "anomaly_windows": 0,
-        "normal_windows": 0,
-        "skipped_segments": 0,
-        "segments_with_anomalies": 0,
-        "segments_without_anomalies": 0
-    }
-  
-    # Combine results from all batches by loading from temporary files
-    if temp_files:
-        logger.info(f"Processing {len(temp_files)} batch files one by one")
+    if not npz_files:
+        logger.warning(f"No NPZ files found in {component_dir}. Skipping.")
+        return
         
-        # Initialize combined stats tracking
-        windows_processed = 0
-        first_file = True
-        
-        # Process each temporary file individually to avoid OOM issues
-        for temp_idx, temp_file in enumerate(temp_files):
-            try:
-                logger.info(f"Processing file {temp_idx+1}/{len(temp_files)}: {temp_file}")
-                # Load a single temporary file
-                data = np.load(temp_file, allow_pickle=True)
-                
-                # Get data from this file
+    logger.info(f"Found {len(npz_files)} NPZ files in {component_dir}")
+    
+    # Process each NPZ file individually and save immediately
+    is_first_file = True
+    processed_files = 0
+    
+    for npz_file in tqdm(npz_files, desc=f"Processing {component} {data_type} files"):
+        try:
+            # Load NPZ file data
+            data = np.load(npz_file, allow_pickle=True)
+            
+            # Extract data from NPZ file
+            if 'windows' in data and 'labels' in data and 'segment_ids' in data and 'timestamps' in data:
                 windows = data['windows']
                 labels = data['labels']
                 segment_ids = data['segment_ids']
                 timestamps = data['timestamps']
                 
-                file_windows_count = len(windows)
-                windows_processed += file_windows_count
-                
-                logger.info(f"Loaded {file_windows_count} windows from {temp_file}")
-                log_memory(f"After loading file {temp_idx+1}/{len(temp_files)}")
-                
-                # Save results (append mode for all except the first file)
+                # Save this file's data immediately
                 save_results(
                     windows,
                     labels,
                     segment_ids,
                     timestamps,
                     output_component_dir,
-                    component,
                     data_type,
-                    append=(not first_file)  # First file creates new files, subsequent files append
+                    append=(not is_first_file)  # First file creates new files, subsequent files append
                 )
                 
-                if first_file:
-                    first_file = False
+                logger.info(f"Processed and saved {len(windows)} windows from {os.path.basename(npz_file)}")
+                processed_files += 1
                 
-                # Free memory immediately after saving
-                del windows, labels, segment_ids, timestamps, data
+                if is_first_file:
+                    is_first_file = False
+                
+                # Free memory immediately
+                del windows, labels, segment_ids, timestamps
                 gc.collect()
-                log_memory(f"After saving and clearing file {temp_idx+1}/{len(temp_files)}")
+                log_memory(f"After processing file {processed_files}/{len(npz_files)}")
+            else:
+                logger.warning(f"NPZ file {os.path.basename(npz_file)} does not have expected data structure")
                 
-            except Exception as e:
-                logger.error(f"Error processing temporary file {temp_file}: {str(e)}")
-        
-        logger.info(f"Total windows processed: {windows_processed}")
-        
-        #Save statistics
-        save_stats(
-            combined_stats,
-            os.path.join(output_dir, "reports"),
-            component,
-            data_type
-        )
-    else:
-        logger.warning(f"No windows created for {component} {data_type}")
+        except Exception as e:
+            logger.error(f"Error processing NPZ file {npz_file}: {str(e)}")
     
+    logger.info(f"Completed processing {processed_files} files for {component} {data_type}")
     log_memory(f"After saving {component} {data_type}")
-    
 
 
 
@@ -316,11 +244,13 @@ def verify_dataset(output_dir: str, component: str, data_type: str) -> bool:
     Returns:
         True if verification passed, False otherwise
     """
-    dataset_path = os.path.join(output_dir, data_type, component, f"{component}_{data_type}_dataset.pt")
-    parquet_path = os.path.join(output_dir, data_type, component, f"window_{component}_{data_type}.parquet")
+    # Dataset files are now stored in data_type directory
+    output_data_dir = os.path.join(output_dir, data_type)
+    dataset_path = os.path.join(output_data_dir, f"{data_type}_dataset.pt")
+    parquet_path = os.path.join(output_data_dir, f"{data_type}.parquet")
     
     if not os.path.exists(dataset_path) or not os.path.exists(parquet_path):
-        logger.error(f"Dataset files not found for {component} {data_type}")
+        logger.error(f"Dataset files not found for {data_type} (component: {component})")
         return False
         
     try:
@@ -331,10 +261,10 @@ def verify_dataset(output_dir: str, component: str, data_type: str) -> bool:
         
         # Check dataset properties
         n_samples = len(windows)
-        logger.info(f"Dataset {component}_{data_type} contains {n_samples} samples")
+        logger.info(f"Dataset {data_type} (component: {component}) contains {n_samples} samples")
         
         if n_samples == 0:
-            logger.warning(f"Dataset {component}_{data_type} is empty")
+            logger.warning(f"Dataset {data_type} (component: {component}) is empty")
             return False
             
         # Check if we can retrieve an item
@@ -353,7 +283,7 @@ def verify_dataset(output_dir: str, component: str, data_type: str) -> bool:
         return True
         
     except Exception as e:
-        logger.error(f"Error verifying dataset {component}_{data_type}: {str(e)}")
+        logger.error(f"Error verifying dataset {data_type} (component: {component}): {str(e)}")
         return False
 
 
@@ -366,16 +296,13 @@ def main():
     
     # Load configuration
     config = load_config()
-    
-    # Load anomaly dictionary
-    anomaly_dict = load_anomaly_dict(config)
-    
+
     # Get paths from config
     input_dir = config['paths']['input_dir']
     output_dir = config['paths']['output_dir']
     
-    # Get components from config
-    components = config['components']['processing_order']
+    # Get components to process
+    components = ['contact', 'pcb', 'ring']
     
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)
@@ -388,14 +315,11 @@ def main():
                 output_dir,
                 component,
                 data_type,
-                config,
-                anomaly_dict
             )
             
             # Force garbage collection
-            if config['memory']['gc_collect_frequency'] > 0:
-                gc.collect()
-                log_memory(f"After GC for {component} {data_type}")
+            gc.collect()
+            log_memory(f"After GC for {component} {data_type}")
     
     # Verify datasets
     logger.info("Verifying created datasets...")
