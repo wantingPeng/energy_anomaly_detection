@@ -18,7 +18,7 @@ def get_component_dataloaders(
     Args:
         component_names (list): List of component names to load. If None, load all available components.
         data_dir (str): Directory containing the processed data
-        batch_size (int): Batch size for DataLoader
+        batch_size (int): Batch size for DataLoader，即每次从数据集中加载 128 个样本（windows 和对应的 labels）
         shuffle (bool): Whether to shuffle the data
         num_workers (int): Number of workers for DataLoader
         pin_memory (bool): Whether to pin memory in DataLoader
@@ -62,7 +62,7 @@ def get_component_dataloaders(
                     
                 # Load batch data
                 batch_data = torch.load(batch_path)
-                
+                print('batch_data', batch_data['windows'].shape, batch_data['labels'].shape) 
                 if 'windows' not in batch_data or 'labels' not in batch_data:
                     logger.warning(f"Batch file {batch_path} missing required keys")
                     continue
@@ -90,7 +90,7 @@ def get_component_dataloaders(
                 pin_memory=pin_memory
             )
             
-            yield component_name, dataloader
+            yield component_name, dataloader  #逐个生成 DataLoader 对象，而不是一次性返回所有 DataLoader。
             
         except Exception as e:
             logger.error(f"Error loading data for component {component_name}: {str(e)}")

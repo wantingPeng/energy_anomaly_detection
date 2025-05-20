@@ -1,0 +1,54 @@
+# LSTM Model Configuration for Energy Anomaly Detection
+
+# Model parameters
+model:
+  input_size: 1          # Number of input features (adjust based on your data dimensions)
+  hidden_size: 128       # Size of LSTM hidden states
+  num_layers: 2          # Number of LSTM layers
+  dropout: 0.2           # Dropout rate
+  bidirectional: false   # Whether to use bidirectional LSTM
+  output_size: 1         # Output size (1 for binary classification)
+  task_type: "binary_classification"  # binary_classification or regression
+  
+# Training parameters
+training:
+  epochs: 100            # Maximum number of training epochs
+  batch_size: 64         # Batch size for training
+  learning_rate: 0.001   # Learning rate
+  weight_decay: 0.0001   # L2 regularization
+  early_stopping: 10     # Number of epochs to wait before early stopping
+  optimizer: "adam"      # Optimizer (adam, sgd, rmsprop)
+  
+  # Learning rate scheduler
+  lr_scheduler:
+    use: true
+    type: "reduce_on_plateau"  # reduce_on_plateau, step, cosine
+    patience: 5                # For reduce_on_plateau
+    factor: 0.5                # Factor to reduce learning rate
+    min_lr: 0.00001            # Minimum learning rate
+    
+  # Loss function
+  loss_function: "bce_with_logits"  # bce_with_logits, mse, mae, focal_loss
+  
+  # For imbalanced datasets
+  class_weights: null      # Set to null for no weighting, or provide a list of weights
+  
+# Data parameters
+data:
+  sequence_length: 50     # Length of time series sequences
+  train_ratio: 0.7        # Ratio of data to use for training
+  val_ratio: 0.15         # Ratio of data to use for validation
+  test_ratio: 0.15        # Ratio of data to use for testing
+  normalize: true         # Whether to normalize the data
+  
+# GPU settings
+device:
+  use_gpu: true           # Whether to use GPU
+  precision: "mixed"      # Precision: full, mixed, or half
+  
+# Logging and checkpoints
+logging:
+  log_interval: 10         # Log training stats every N batches
+  save_checkpoint: true    # Whether to save model checkpoints
+  checkpoint_dir: "experiments/checkpoints/lstm"  # Directory to save checkpoints
+  tensorboard: true        # Whether to use tensorboard for logging
