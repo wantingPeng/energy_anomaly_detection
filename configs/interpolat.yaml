@@ -1,3 +1,0 @@
-paths:
-  input_dir: 'Data/processed/lsmt/standerScaler'
-  output_dir: 'Data/processed/lsmt/interpolated'

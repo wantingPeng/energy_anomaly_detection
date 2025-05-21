@@ -22,15 +22,10 @@ import torch
 import logging
 from typing import Dict, List, Tuple, Union, Optional
 from joblib import Parallel, delayed
-from glob import glob
+import glob
 from src.utils.logger import logger
 from src.utils.memory_left import log_memory
 from src.preprocessing.energy.lstm.dataset import LSTMWindowDataset
-from src.preprocessing.energy.labeling_slidingWindow import (
-    load_anomaly_dict, 
-    create_interval_tree,
-    calculate_window_overlap
-)
 
 
 def load_config() -> dict:
@@ -88,72 +83,29 @@ def load_data(path: str) -> pd.DataFrame:
         raise
 
 
-
-def split_by_component(df: pd.DataFrame, dir: str, split: str) -> List[str]:
+def get_component_df(component: str, dir: str) -> pd.DataFrame:
     """
-    Split data by component type and save each component to a temporary parquet file.
-    
-    Args:
-        df: Input DataFrame
-        temp_dir: Directory to save temporary component files
-        
-    Returns:
-        List of component names in order they were processed
-    """
-    logger.info("Splitting data by component type")
-    
-    # Create temp directory if it doesn't exist
-    os.makedirs(dir, exist_ok=True)
-    
-    component_names = []
-    
-    # Check which component type columns exist
-    component_cols = [col for col in df.columns if col.startswith('component_type_')]
-    logger.info(f"Found component columns: {component_cols}")
-    
-    for col in component_cols:
-        # Extract component name from column name
-        component = col.replace('component_type_', '')
-        
-        # Filter rows where this component type is 1
-        component_df = df[df[col] == 1].copy()
-        
-        if not component_df.empty:
-            # Sort by timestamp
-            component_df = component_df.sort_values('TimeStamp')
-            
-            # Save to temporary parquet file
-            file = os.path.join("Data/processed/lsmt/split_by_component", f"{component}_{split}.parquet")
-            component_df.to_parquet(file)
-            
-            component_names.append(component)
-            logger.info(f"Saved {len(component_df)} rows for component {component} to {file}")
-            
-            # Free memory
-            del component_df
-            gc.collect()
-    
-    return component_names
-
-
-def get_component_df(component: str, dir: str, split: str) -> pd.DataFrame:
-    """
-    Load a specific component's DataFrame from temporary storage.
+    Load a specific component's DataFrame from the specified directory.
     
     Args:
         component: Component name to load
-        temp_dir: Directory containing temporary component files
+        dir: Directory containing component files
         
     Returns:
         DataFrame for the specified component
     """
-    temp_file = os.path.join(dir, f"{component}_{split}.parquet")
-    logger.info(f"Loading component data from {temp_file}")
+    file_paths = glob.glob(os.path.join(dir, component, "*.parquet"))
     
-    if not os.path.exists(temp_file):
-        raise FileNotFoundError(f"Temporary file for component {component} not found")
+    if not file_paths:
+        raise FileNotFoundError(f"No files found for component {component} in {dir}")
     
-    return pd.read_parquet(temp_file)
+    # Use Dask to read multiple parquet files
+    ddf = dd.read_parquet(file_paths, engine="pyarrow")
+    logger.info(f"Dask dataframe has {len(ddf.columns)} columns and {len(ddf.divisions)-1} partitions")
+    logger.info("Computing Dask dataframe into Pandas...")
+    df = ddf.compute()
+    logger.info(f"Loaded DataFrame with shape: {df.shape}")
+    return df
 
 
 def interpolate_segments(df: pd.DataFrame, output_dir: str, split: str, component: str) -> None:
@@ -171,7 +123,7 @@ def interpolate_segments(df: pd.DataFrame, output_dir: str, split: str, componen
     logger.info(f"Processing {len(unique_segments)} unique segments")
     
     # Get feature columns (exclude non-feature columns)
-    exclude_cols = ['TimeStamp', 'segment_id'] + [col for col in df.columns if col.startswith('component_type_')]
+    exclude_cols = ['TimeStamp', 'segment_id']
     feature_cols = [col for col in df.columns if col not in exclude_cols]
     
     # Create a list to store processed segments
@@ -245,49 +197,35 @@ def interpolate_segments(df: pd.DataFrame, output_dir: str, split: str, componen
     logger.info("All segments processed and saved")
 
 
-
-
-
 def process_split(
     split: str,
-    config: dict
+    input_dir: str,
+    output_dir: str
 ) -> None:
     """
     Process a single data split (train/val/test).
     
     Args:
         split: Data split name (train/val/test)
-        config: Configuration dictionary
     """
-    logger.info(f"Processing {split} data")
-    log_memory(f"Before {split}")
+    # Define the directory for the components
+    component_dir = os.path.join(input_dir, split)
     
-    # Load data
-    input_path = os.path.join(config['paths']['input_dir'], f"{split}.parquet")
-    df = load_data(input_path)
-    log_memory(f"After loading {split}")
+    # List all component files in the directory
+    component_names =['contact', 'pcb', 'ring']
     
-    # Split by component type and save to temp files
-    component_names = split_by_component(df, 'Data/processed/lsmt/split_by_component', split)
     
-    # Free memory
-    del df
-    gc.collect()
-    log_memory(f"After splitting {split}")
-    
-
     # Process components in specified order
     for component in component_names:
-        logger.info(f"Processing component: {component}")
+        logger.info(f"Processing component: {split}/{component}")
         # Get component DataFrame
-        component_df = get_component_df(component, 'Data/processed/lsmt/split_by_component', split)
+        component_df = get_component_df(component, component_dir)
         
         # Define paths for interpolated and sliding window data
-        interpolated_output_dir = os.path.join(config['paths']['output_dir'], 'interpolated')
         log_memory(f"Before interpolating segments for {component} ({split})")
         # Interpolate segments
-        interpolate_segments(component_df, interpolated_output_dir,split,component)
-        log_memory(f"After interpolating segments for {component} ({split})")
+        interpolate_segments(component_df, output_dir, split, component)
+        log_memory(f"After interpolating segments for {split}/{component} )")
 
         del component_df
         gc.collect()
@@ -296,25 +234,13 @@ def process_split(
 
 def main():
     """Main function to process all data splits."""
-    
-    # Load configuration
-    try:
-        config = load_config()
-        logger.info("Configuration loaded successfully")
-    except FileNotFoundError:
-        logger.error("Configuration file not found at configs/lsmt_preprocessing.yaml")
-        raise
-    except Exception as e:
-        logger.error(f"Error loading configuration: {str(e)}")
-        raise
+    input_dir = 'Data/processed/lsmt/standerScaler'
+    output_dir = 'Data/processed/lsmt/interpolated'
  
-    # Create output directories
-    os.makedirs(config['paths']['output_dir'], exist_ok=True)
-    
     try:      
         # Process each split
         for split in ['train', 'val', 'test']:
-            process_split(split, config)
+            process_split(split, input_dir, output_dir)
         
         logger.info("Sliding window preprocessing completed successfully")
         

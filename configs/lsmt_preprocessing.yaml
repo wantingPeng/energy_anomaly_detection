@@ -1,9 +1,8 @@
 # Data paths
 paths:
-  input_dir: 'Data/processed/lsmt/segment_fixe'
+  input_dir: 'Data/processed/lsmt/interpolated'
   output_dir: 'Data/processed/lsmt/sliding_window'
   anomaly_dict: 'Data/interim/Anomaly_Data/anomaly_dict.pkl'
-  temp_dir: 'Data/processed/lsmt/sliding_window'
 
 # Sliding window parameters
 sliding_window:

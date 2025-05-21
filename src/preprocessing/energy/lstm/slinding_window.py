@@ -259,7 +259,6 @@ def process_component_data(
     
     # Prepare paths
     component_dir = os.path.join(input_dir, data_type, component)
-    #output_component_dir = os.path.join(output_dir, data_type, component)
     
     # Check if component directory exists
     if not os.path.exists(component_dir):
@@ -279,12 +278,8 @@ def process_component_data(
         
     logger.info(f"Found {len(batch_dirs)} batch directories for {component} {data_type}")
     
-    # Create temporary directory for storing intermediate results
-    temp_dir = os.path.join(config['paths']['temp_dir'], data_type, component)
-    os.makedirs(temp_dir, exist_ok=True)
-    
-    # Keep track of temporary files
-    temp_files = []
+    output_dir = os.path.join(config['paths']['output_dir'], data_type, component)
+    os.makedirs(output_dir, exist_ok=True)
     
     combined_stats = {
         "total_segments": 0,
@@ -330,7 +325,7 @@ def process_component_data(
         
         # Save intermediate results to temporary files if there are windows
         if len(windows) > 0:
-            temp_batch_file = os.path.join(temp_dir, f"batch_{batch_idx}.npz")
+            temp_batch_file = os.path.join(output_dir, f"batch_{batch_idx}.npz")
             np.savez_compressed(
                 temp_batch_file,
                 windows=windows,
@@ -338,7 +333,6 @@ def process_component_data(
                 segment_ids=segment_ids,
                 timestamps=timestamps
             )
-            temp_files.append(temp_batch_file)
             logger.info(f"Saved {len(windows)} windows to temporary file {temp_batch_file}")
         
         # Free memory
@@ -367,9 +361,6 @@ def main():
     
     # Get components from config
     components = config['components']['processing_order']
-    
-    # Create output directory
-    os.makedirs(output_dir, exist_ok=True)
     
     # Process each data type and component
     for data_type in ['train', 'val', 'test']:

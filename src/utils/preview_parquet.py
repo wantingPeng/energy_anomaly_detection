@@ -38,8 +38,8 @@ def preview_parquet(parquet_path, sample_size=1000, output_csv_path=None):
 
 if __name__ == "__main__":
     # ====== Customize below ======
-    parquet_file = "Data/processed/lsmt/sliding_window/segment_fixe/batch_250/part.9.parquet"
-    sample_output_csv = "Data/data_preview/interpolated_preview.csv"
+    parquet_file = "Data/processed/lsmt/standerScaler/train/contact/part.0.parquet"
+    sample_output_csv = "Data/data_preview/standerScaler_preview.csv"
     # ====== ================== ======
 
     preview_parquet(parquet_file, sample_size=1000, output_csv_path=sample_output_csv)
