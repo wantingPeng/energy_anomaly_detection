@@ -29,12 +29,12 @@ class LSTMModel(nn.Module):
              raise ValueError("No configuration provided and default config not found")
         
         # Extract model parameters from config
-        self.input_size = config.get('input_size', 1)
-        self.hidden_size = config.get('hidden_size', 64)
+        self.input_size = config.get('input_size', 31)  # Updated default to match dataset dimensions
+        self.hidden_size = config.get('hidden_size', 128)
         self.num_layers = config.get('num_layers', 2)
         self.dropout = config.get('dropout', 0.2)
         self.bidirectional = config.get('bidirectional', False)
-        self.output_size = config.get('output_size', 1)
+        self.output_size = config.get('output_size', 2)
         
         # Calculate the output dimension from LSTM (accounting for bidirectional)
         lstm_output_dim = self.hidden_size * 2 if self.bidirectional else self.hidden_size
@@ -50,22 +50,38 @@ class LSTMModel(nn.Module):
         )
         
         # Fully connected layers for output
-        self.fc = nn.Sequential(
-            nn.Linear(lstm_output_dim, lstm_output_dim // 2),
-            nn.ReLU(),
-            nn.Dropout(self.dropout),
-            nn.Linear(lstm_output_dim // 2, self.output_size)
-        )
+        fc_layers = []
+        
+        # First FC layer
+        fc_layers.append(nn.Linear(lstm_output_dim, lstm_output_dim // 2))
+        fc_layers.append(nn.ReLU())
+        fc_layers.append(nn.Dropout(self.dropout))
+        
+        # Optional middle layer for larger hidden dimensions
+        if lstm_output_dim > 128:
+            middle_dim = lstm_output_dim // 4
+            fc_layers.append(nn.Linear(lstm_output_dim // 2, middle_dim))
+            fc_layers.append(nn.ReLU())
+            fc_layers.append(nn.Dropout(self.dropout))
+            fc_layers.append(nn.Linear(middle_dim, self.output_size))
+        else:
+            fc_layers.append(nn.Linear(lstm_output_dim // 2, self.output_size))
+        
+        self.fc = nn.Sequential(*fc_layers)
         
         # Add sigmoid if binary classification
-        if config.get('task_type', 'binary_classification') == 'binary_classification':
+        if config.get('task_type', 'binary_classification') == 'binary_classification' and self.output_size == 1:
             self.output_activation = nn.Sigmoid()
         else:
+            # For CrossEntropyLoss, don't use sigmoid activation
             self.output_activation = nn.Identity()
             
         logger.info(f"Initialized LSTM model with input_size={self.input_size}, "
                    f"hidden_size={self.hidden_size}, num_layers={self.num_layers}, "
                    f"bidirectional={self.bidirectional}, output_size={self.output_size}")
+        
+        # Initialize weights
+        self._init_weights()
             
     def forward(self, x):
         """
@@ -77,6 +93,14 @@ class LSTMModel(nn.Module):
         Returns:
             Output tensor
         """
+        # Check input shape
+        batch_size, seq_len, features = x.size()
+        if features != self.input_size:
+            logger.warning(f"Expected input size {self.input_size}, got {features}. Attempting to reshape.")
+            if features == 1:
+                # If single feature, assume it's a univariate series and the features are combined
+                x = x.reshape(batch_size, seq_len // self.input_size, self.input_size)
+        
         # LSTM forward pass
         lstm_out, _ = self.lstm(x)
         
@@ -90,6 +114,24 @@ class LSTMModel(nn.Module):
         out = self.output_activation(out)
         
         return out
+    
+    def _init_weights(self):
+        """
+        Initialize the weights for LSTM and linear layers
+        """
+        for name, param in self.named_parameters():
+            if 'lstm' in name:
+                if 'weight_ih' in name:
+                    nn.init.xavier_uniform_(param)
+                elif 'weight_hh' in name:
+                    nn.init.orthogonal_(param)
+                elif 'bias' in name:
+                    nn.init.zeros_(param)
+            elif 'fc' in name:
+                if 'weight' in name:
+                    nn.init.xavier_uniform_(param)
+                elif 'bias' in name:
+                    nn.init.zeros_(param)
     
     def _load_config(self, config_path):
         """
