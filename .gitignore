@@ -1,6 +1,6 @@
 Data/
 .cursorignore
 .venv/
-
+*.pt
 *.joblib
 experiments/logs

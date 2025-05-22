@@ -6,7 +6,7 @@ from src.utils.logger import logger
 
 def get_component_dataloaders(
     component_names=None,
-    data_dir="Data/processed/lsmt/dataset/train",
+    data_dir=None,
     batch_size=128,
     shuffle=True,
     num_workers=4,
@@ -85,11 +85,7 @@ def get_component_dataloaders(
                         
                     windows = batch_data['windows']
                     labels = batch_data['labels']
-                    
-                    # Log shape information for debugging
-                    logger.debug(f"Batch {batch_file} - windows: {windows.shape}, labels: {labels.shape}")
-                    
-                   
+                
                         
                     # Ensure labels are appropriate for binary classification (0 or 1)
                     if labels.dtype != torch.long:

@@ -33,11 +33,10 @@ class LSTMModel(nn.Module):
         self.hidden_size = config.get('hidden_size', 128)
         self.num_layers = config.get('num_layers', 2)
         self.dropout = config.get('dropout', 0.2)
-        self.bidirectional = config.get('bidirectional', False)
         self.output_size = config.get('output_size', 2)
         
         # Calculate the output dimension from LSTM (accounting for bidirectional)
-        lstm_output_dim = self.hidden_size * 2 if self.bidirectional else self.hidden_size
+        lstm_output_dim = self.hidden_size
         
         # LSTM layers
         self.lstm = nn.LSTM(
@@ -46,14 +45,13 @@ class LSTMModel(nn.Module):
             num_layers=self.num_layers,
             batch_first=True,
             dropout=self.dropout if self.num_layers > 1 else 0,
-            bidirectional=self.bidirectional
-        )
+            )
         
         # Fully connected layers for output
         fc_layers = []
         
         # First FC layer
-        fc_layers.append(nn.Linear(lstm_output_dim, lstm_output_dim // 2))
+        fc_layers.append(nn.Linear(lstm_output_dim, lstm_output_dim // 2))   #nn.Linear(in_features, out_features)
         fc_layers.append(nn.ReLU())
         fc_layers.append(nn.Dropout(self.dropout))
         
@@ -67,18 +65,12 @@ class LSTMModel(nn.Module):
         else:
             fc_layers.append(nn.Linear(lstm_output_dim // 2, self.output_size))
         
-        self.fc = nn.Sequential(*fc_layers)
+        self.fc = nn.Sequential(*fc_layers)   #层列表组合成一个“模块链”，让你可以像函数一样一次性调用它
         
-        # Add sigmoid if binary classification
-        if config.get('task_type', 'binary_classification') == 'binary_classification' and self.output_size == 1:
-            self.output_activation = nn.Sigmoid()
-        else:
-            # For CrossEntropyLoss, don't use sigmoid activation
-            self.output_activation = nn.Identity()
+        self.output_activation = nn.Identity()
             
         logger.info(f"Initialized LSTM model with input_size={self.input_size}, "
-                   f"hidden_size={self.hidden_size}, num_layers={self.num_layers}, "
-                   f"bidirectional={self.bidirectional}, output_size={self.output_size}")
+                   f"hidden_size={self.hidden_size}, num_layers={self.num_layers}," f"output_size={self.output_size}")
         
         # Initialize weights
         self._init_weights()
@@ -97,10 +89,7 @@ class LSTMModel(nn.Module):
         batch_size, seq_len, features = x.size()
         if features != self.input_size:
             logger.warning(f"Expected input size {self.input_size}, got {features}. Attempting to reshape.")
-            if features == 1:
-                # If single feature, assume it's a univariate series and the features are combined
-                x = x.reshape(batch_size, seq_len // self.input_size, self.input_size)
-        
+
         # LSTM forward pass
         lstm_out, _ = self.lstm(x)
         

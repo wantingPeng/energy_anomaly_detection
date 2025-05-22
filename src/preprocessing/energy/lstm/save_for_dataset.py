@@ -12,37 +12,13 @@ import yaml
 import pickle
 import pandas as pd
 import numpy as np
-import dask.dataframe as dd
 from pathlib import Path
-from intervaltree import IntervalTree
 from tqdm import tqdm
 import torch
-from typing import Dict, List, Tuple, Union, Optional
 from datetime import datetime
 import glob
-from joblib import Parallel, delayed
-
 from src.utils.logger import logger
 from src.utils.memory_left import log_memory
-from src.preprocessing.energy.lstm.dataset import LSTMWindowDataset
-
-from src.preprocessing.energy.labeling_slidingWindow import (
-    load_anomaly_dict, 
-    create_interval_tree,
-    calculate_window_overlap
-)
-
-
-
-
-def load_config() -> dict:
-    """Load configuration from YAML file."""
-    config_path = Path("configs/save_for_dataset.yaml")
-    with open(config_path, "r") as f:
-        config = yaml.safe_load(f)
-    return config
-
-
 
 
 def save_results(
@@ -51,8 +27,6 @@ def save_results(
     segment_ids: np.ndarray,
     timestamps: np.ndarray,
     output_dir: str,
-    component: str,
-    data_type: str,
     batch_idx: int
 ) -> tuple:
     """
@@ -74,8 +48,8 @@ def save_results(
     os.makedirs(output_dir, exist_ok=True)
     
     # Define file paths with batch index and include component and data_type in filename
-    dataset_path = os.path.join(output_dir, f"{data_type}_{component}_batch_{batch_idx}.pt")
-    parquet_path = os.path.join(output_dir, f"{data_type}_{component}_batch_{batch_idx}.parquet")
+    dataset_path = os.path.join(output_dir, f"batch_{batch_idx}.pt")
+    parquet_path = os.path.join(output_dir, f"batch_{batch_idx}.parquet")
     
     # Convert numpy arrays to torch tensors
     windows_tensor = torch.FloatTensor(windows)
@@ -163,8 +137,6 @@ def process_component_data(
                     segment_ids,
                     timestamps,
                     output_component_dir,
-                    component,
-                    data_type,
                     batch_idx
                 )
                 
@@ -199,14 +171,12 @@ def main():
     Main function to process all data types and components.
     """
     start_time = datetime.now()
-    logger.info(f"Starting sliding window processing at {start_time}")
-    
-    # Load configuration
-    config = load_config()
+    logger.info(f"Starting saving for dataset at {start_time}")
+
 
     # Get paths from config
-    input_dir = config['paths']['input_dir']
-    output_dir = config['paths']['output_dir']
+    input_dir = 'Data/processed/lsmt/sliding_window'
+    output_dir = 'Data/processed/lsmt/dataset'
     
     # Get components to process
     components = ['contact', 'pcb', 'ring']

@@ -5,7 +5,7 @@ model:
   input_size: 31         # Update from 1 to 31 based on data shape [X, 60, 31]
   hidden_size: 128       # Size of LSTM hidden states
   num_layers: 2          # Number of LSTM layers
-  dropout: 0.2           # Dropout rate
+  dropout: 0.5           # Dropout rate
   bidirectional: false   # Whether to use bidirectional LSTM
   output_size: 2         # Output size for binary classification
   task_type: "binary_classification"  # binary_classification or regression
@@ -23,15 +23,15 @@ training:
   lr_scheduler:
     use: true
     type: "reduce_on_plateau"  # reduce_on_plateau, step, cosine
-    patience: 5                # For reduce_on_plateau
+    patience: 3                # For reduce_on_plateau
     factor: 0.5                # Factor to reduce learning rate
     min_lr: 0.00001            # Minimum learning rate
     
   # Loss function
-  loss_function: "bce_with_logits"  # bce_with_logits, mse, mae, focal_loss
+  loss_function: "cross_entropy"  # Using CrossEntropyLoss for classification
   
   # For imbalanced datasets
-  class_weights: null      # Set to null for no weighting, or provide a list of weights
+  class_weights: [0.3, 0.7]    # Updated: Weights for classes [0, 1] to handle imbalance
   
 # Data parameters
 data:
@@ -41,7 +41,7 @@ data:
   test_ratio: 0.15        # Ratio of data to use for testing
   normalize: true         # Whether to normalize the data
   data_dir: "Data/processed/lsmt/dataset/train"  # Update path based on log file
-  
+  val_data_dir: "Data/processed/lsmt/dataset/val"
 # GPU settings
 device:
   use_gpu: true           # Whether to use GPU
