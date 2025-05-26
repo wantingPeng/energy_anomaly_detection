@@ -4,3 +4,4 @@ Data/
 *.pt
 *.joblib
 experiments/logs
+src/training/lsmt/checkpoints

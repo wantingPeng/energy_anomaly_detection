@@ -14,7 +14,7 @@ from sklearn.metrics import f1_score
 from src.training.lsmt.lstm_model import LSTMModel
 from src.training.lsmt.dataloader_from_batches import get_component_dataloaders
 from src.utils.logger import logger
-from src.training.lsmt.val_lsmt import validate_model, validate
+from src.training.lsmt.val_lsmt import validate
 
 def load_config(config_path):
     """
@@ -162,17 +162,15 @@ def train_epoch(config):
     # Data configuration
     data_config = config.get('data', {})
     train_data_dir = data_config.get('data_dir', 'Data/processed/lsmt/dataset/train')
-    val_data_dir = data_config.get('val_data_dir', 'Data/processed/lsmt/dataset/val')
     
     # Components to train on
     component_names = ["contact", "pcb", "ring"]
-    logger.info(f"Training on components: {component_names}")
     
     # Logging configuration
     logging_config = config.get('logging', {})
     log_interval = logging_config.get('log_interval', 10)
     save_checkpoint = logging_config.get('save_checkpoint', True)
-    checkpoint_dir = logging_config.get('checkpoint_dir', 'experiments/checkpoints/lstm')
+    checkpoint_dir = logging_config.get('checkpoint_dir', 'src/training/lsmt/checkpoints')
     
     # Create checkpoint directory if it doesn't exist
     os.makedirs(checkpoint_dir, exist_ok=True)
@@ -180,7 +178,7 @@ def train_epoch(config):
     
     # Set up TensorBoard
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    tensorboard_dir = os.path.join('experiments/tensorboard/lstm', f'run_{timestamp}')
+    tensorboard_dir = os.path.join('src/training/lsmt/tensorboard', f'run_{timestamp}')
     os.makedirs(tensorboard_dir, exist_ok=True)
     writer = SummaryWriter(log_dir=tensorboard_dir)
     logger.info(f"TensorBoard logs will be saved to {tensorboard_dir}")
@@ -206,6 +204,7 @@ def train_epoch(config):
             "train_losses": [],
             "val_losses": [],
             "val_f1_scores": []
+
         }
     
     # Training loop

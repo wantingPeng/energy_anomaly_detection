@@ -1,0 +1,24 @@
+[2025-05-26 17:17:48,657] [INFO] [<frozen importlib] - Calculating anomaly ratio for LSMT train dataset
+[2025-05-26 17:17:48,657] [INFO] [<frozen importlib] - Processing ring category with 6 parquet files
+[2025-05-26 17:17:58,875] [INFO] [<frozen importlib] -   batch_0.parquet: 488765 samples, 14416 anomalies, ratio: 0.029495
+[2025-05-26 17:18:05,694] [INFO] [<frozen importlib] -   batch_2.parquet: 349694 samples, 35962 anomalies, ratio: 0.102838
+[2025-05-26 17:18:14,901] [INFO] [<frozen importlib] -   batch_4.parquet: 517111 samples, 19749 anomalies, ratio: 0.038191
+[2025-05-26 17:18:21,860] [INFO] [<frozen importlib] -   batch_3.parquet: 395237 samples, 10989 anomalies, ratio: 0.027804
+[2025-05-26 17:18:28,901] [INFO] [<frozen importlib] -   batch_1.parquet: 416220 samples, 22415 anomalies, ratio: 0.053854
+[2025-05-26 17:18:34,099] [INFO] [<frozen importlib] -   batch_5.parquet: 281194 samples, 7004 anomalies, ratio: 0.024908
+[2025-05-26 17:18:34,099] [INFO] [<frozen importlib] - ring category: 2448221 samples, 110535 anomalies, ratio: 0.045149
+[2025-05-26 17:18:34,105] [INFO] [<frozen importlib] - Processing pcb category with 3 parquet files
+[2025-05-26 17:18:52,042] [INFO] [<frozen importlib] -   batch_0.parquet: 957741 samples, 52476 anomalies, ratio: 0.054791
+[2025-05-26 17:19:12,485] [INFO] [<frozen importlib] -   batch_2.parquet: 1183629 samples, 43539 anomalies, ratio: 0.036784
+[2025-05-26 17:19:18,866] [INFO] [<frozen importlib] -   batch_1.parquet: 310970 samples, 4130 anomalies, ratio: 0.013281
+[2025-05-26 17:19:18,866] [INFO] [<frozen importlib] - pcb category: 2452340 samples, 100145 anomalies, ratio: 0.040837
+[2025-05-26 17:19:18,866] [INFO] [<frozen importlib] - Processing contact category with 6 parquet files
+[2025-05-26 17:19:27,851] [INFO] [<frozen importlib] -   batch_0.parquet: 473706 samples, 52914 anomalies, ratio: 0.111702
+[2025-05-26 17:19:35,043] [INFO] [<frozen importlib] -   batch_2.parquet: 361397 samples, 58073 anomalies, ratio: 0.160690
+[2025-05-26 17:19:47,042] [INFO] [<frozen importlib] -   batch_4.parquet: 647464 samples, 49736 anomalies, ratio: 0.076817
+[2025-05-26 17:19:53,760] [INFO] [<frozen importlib] -   batch_3.parquet: 378691 samples, 26693 anomalies, ratio: 0.070488
+[2025-05-26 17:19:58,308] [INFO] [<frozen importlib] -   batch_1.parquet: 251679 samples, 27512 anomalies, ratio: 0.109314
+[2025-05-26 17:20:01,177] [INFO] [<frozen importlib] -   batch_5.parquet: 146149 samples, 11623 anomalies, ratio: 0.079528
+[2025-05-26 17:20:01,177] [INFO] [<frozen importlib] - contact category: 2259086 samples, 226551 anomalies, ratio: 0.100284
+[2025-05-26 17:20:01,177] [INFO] [<frozen importlib] - Overall dataset: 7159647 samples, 437231 anomalies, ratio: 0.061069
+[2025-05-26 17:20:01,177] [INFO] [<frozen importlib] - Anomaly percentage: 6.1069%

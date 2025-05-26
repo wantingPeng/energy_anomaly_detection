@@ -1,85 +1,61 @@
 import os
 import pandas as pd
-from glob import glob
-from tqdm import tqdm  # 进度条（可选）
+from src.utils.logger import logger
 
-def check_segment_id_in_parquets(directory):
+def calculate_anomaly_ratio():
     """
-    检查指定目录下所有Parquet文件是否每行都有segment_id值
-    
-    参数:
-        directory (str): 包含Parquet文件的根目录路径（支持递归搜索）
-    
-    返回:
-        dict: {
-            "valid_files": int,       # 完全合规的文件数量
-            "invalid_files": list,   # 有缺失segment_id的文件列表（含详细信息）
-            "total_files": int       # 总检查文件数
-        }
+    Calculate the ratio of anomalies to normal samples in the LSMT train dataset
     """
-    # 1. 获取所有Parquet文件路径（递归搜索）
-    parquet_files = glob(os.path.join(directory, "**/*.parquet"), recursive=True)
+    dataset_path = "Data/processed/lsmt/dataset/train"
+    categories = ["ring", "pcb", "contact"]
     
-    if not parquet_files:
-        raise ValueError(f"目录中未找到Parquet文件: {directory}")
+    total_samples = 0
+    total_anomalies = 0
     
-    # 2. 初始化结果统计
-    results = {
-        "valid_files": 0,
-        "invalid_files": [],
-        "total_files": len(parquet_files)
-    }
+    logger.info("Calculating anomaly ratio for LSMT train dataset")
     
-    # 3. 逐个检查文件（带进度条）
-    for file_path in tqdm(parquet_files, desc="检查文件中"):
-        try:
-            # 读取Parquet文件
-            df = pd.read_parquet(file_path)
+    # Process each category
+    for category in categories:
+        category_path = os.path.join(dataset_path, category)
+        category_samples = 0
+        category_anomalies = 0
+        
+        # Find all parquet files
+        parquet_files = [f for f in os.listdir(category_path) if f.endswith(".parquet")]
+        
+        logger.info(f"Processing {category} category with {len(parquet_files)} parquet files")
+        
+        # Process each parquet file
+        for file in parquet_files:
+            file_path = os.path.join(category_path, file)
+            df = pd.read_parquet(file_path, engine='pyarrow')
             
-            # 检查segment_id是否存在且无缺失
-            if "segment_id" not in df.columns:
-                results["invalid_files"].append({
-                    "file": file_path,
-                    "issue": "缺少segment_id列",
-                    "missing_rows": "全部"
-                })
-                continue
-                
-            # 检查缺失值
-            missing_mask = df["segment_id"].isna()
-            if missing_mask.any():
-                missing_count = missing_mask.sum()
-                results["invalid_files"].append({
-                    "file": file_path,
-                    "issue": f"{missing_count}行缺失segment_id",
-                    "missing_rows": df[missing_mask].index.tolist()[:10]  # 示例前10行
-                })
-            else:
-                results["valid_files"] += 1
-                
-        except Exception as e:
-            results["invalid_files"].append({
-                "file": file_path,
-                "issue": f"文件读取失败: {str(e)}",
-                "missing_rows": "N/A"
-            })
+            # Count samples and anomalies
+            file_samples = len(df)
+            file_anomalies = df['label'].sum()
+            
+            category_samples += file_samples
+            category_anomalies += file_anomalies
+            
+            logger.info(f"  {file}: {file_samples} samples, {file_anomalies} anomalies, ratio: {file_anomalies/file_samples:.6f}")
+        
+        # Calculate category ratio
+        category_ratio = category_anomalies / category_samples if category_samples > 0 else 0
+        logger.info(f"{category} category: {category_samples} samples, {category_anomalies} anomalies, ratio: {category_ratio:.6f}")
+        
+        total_samples += category_samples
+        total_anomalies += category_anomalies
     
-    return results
+    # Calculate overall ratio
+    overall_ratio = total_anomalies / total_samples if total_samples > 0 else 0
+    logger.info(f"Overall dataset: {total_samples} samples, {total_anomalies} anomalies, ratio: {overall_ratio:.6f}")
+    logger.info(f"Anomaly percentage: {overall_ratio * 100:.4f}%")
+    
+    return {
+        "total_samples": total_samples,
+        "total_anomalies": total_anomalies,
+        "anomaly_ratio": overall_ratio
+    }
 
-
-# 使用示例
 if __name__ == "__main__":
-    report = check_segment_id_in_parquets("Data/processed/lsmt/sliding_window/segment_fixe")
-    
-    print(f"\n检查完成！结果摘要：")
-    print(f"总文件数: {report['total_files']}")
-    print(f"合规文件: {report['valid_files']}")
-    print(f"问题文件: {len(report['invalid_files'])}")
-    
-    if report["invalid_files"]:
-        print("\n问题文件详情（前5个）：")
-        for item in report["invalid_files"][:5]:
-            print(f"- 文件: {item['file']}")
-            print(f"  问题: {item['issue']}")
-            if isinstance(item["missing_rows"], list):
-                print(f"  示例缺失行索引: {item['missing_rows']}")
+    calculate_anomaly_ratio()

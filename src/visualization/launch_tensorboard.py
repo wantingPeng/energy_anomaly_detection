@@ -4,7 +4,7 @@ import subprocess
 from pathlib import Path
 from src.utils.logger import logger
 
-def launch_tensorboard(log_dir="experiments/tensorboard", port=6006):
+def launch_tensorboard(log_dir="src/training/lsmt/tensorboard", port=6006):
     """
     Launch TensorBoard to visualize training metrics
     
@@ -33,7 +33,7 @@ def launch_tensorboard(log_dir="experiments/tensorboard", port=6006):
     except Exception as e:
         logger.error(f"Error launching TensorBoard: {str(e)}")
 
-def find_latest_run(base_dir="experiments/tensorboard/lstm"):
+def find_latest_run(base_dir="src/training/lsmt/tensorboard"):
     """
     Find the latest run directory in the TensorBoard logs
     
@@ -77,12 +77,12 @@ def main():
         if args.logdir:
             base_dir = args.logdir
         else:
-            base_dir = "experiments/tensorboard/lstm"
-            
+            base_dir = "src/training/lsmt/tensorboard"
+                
         log_dir = find_latest_run(base_dir)
     elif not log_dir:
         # Default log directory
-        log_dir = "experiments/tensorboard"
+        log_dir = "src/training/lsmt/tensorboard"
     
     # Launch TensorBoard
     launch_tensorboard(log_dir, args.port)

@@ -3,6 +3,7 @@ import pickle
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 from src.utils.logger import logger
+import glob
 
 def get_component_dataloaders(
     component_names=None,
@@ -38,7 +39,7 @@ def get_component_dataloaders(
             continue
             
         metadata_path = os.path.join(component_dir, "*.pkl")
-        
+        print('metadata_path', metadata_path)
         try:
             # Load metadata
             if not os.path.exists(metadata_path):
@@ -56,9 +57,9 @@ def get_component_dataloaders(
                 # Load metadata from file
                 with open(metadata_path, 'rb') as f:
                     metadata = pickle.load(f)
-                    
-                file_paths = metadata.get('file_paths', [])
-                if not file_paths:
+                    #print('metadata', metadata)
+                pt_file_paths = [item[0] for item in metadata]
+                if not pt_file_paths:
                     logger.warning(f"No file paths found in metadata for component {component_name}")
                     continue
             
@@ -68,8 +69,8 @@ def get_component_dataloaders(
             all_windows = []
             all_labels = []
             
-            for batch_file in file_paths:
-                batch_path = os.path.join(component_dir, batch_file)
+            for batch_path in file_paths:
+                batch_path = os.path.join(component_dir, batch_path)
                 
                 if not os.path.exists(batch_path):
                     logger.warning(f"Batch file not found: {batch_path}")
@@ -89,7 +90,6 @@ def get_component_dataloaders(
                         
                     # Ensure labels are appropriate for binary classification (0 or 1)
                     if labels.dtype != torch.long:
-                        logger.debug(f"Converting labels to torch.long for batch {batch_file}")
                         labels = labels.long()
                         
                     all_windows.append(windows)

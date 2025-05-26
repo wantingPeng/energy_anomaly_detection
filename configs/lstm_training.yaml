@@ -31,7 +31,7 @@ training:
   loss_function: "cross_entropy"  # Using CrossEntropyLoss for classification
   
   # For imbalanced datasets
-  class_weights: [0.3, 0.7]    # Updated: Weights for classes [0, 1] to handle imbalance
+  class_weights: [1.0, 15.0]    # Updated: Weights for classes [0, 1] to handle imbalance
   
 # Data parameters
 data:
@@ -40,7 +40,7 @@ data:
   val_ratio: 0.15         # Ratio of data to use for validation
   test_ratio: 0.15        # Ratio of data to use for testing
   normalize: true         # Whether to normalize the data
-  data_dir: "Data/processed/lsmt/dataset/train"  # Update path based on log file
+  data_dir: "Data/processed/lsmt/dataset/train_down_30%"  # Update path based on log file
   val_data_dir: "Data/processed/lsmt/dataset/val"
 # GPU settings
 device:
@@ -51,5 +51,5 @@ device:
 logging:
   log_interval: 10         # Log training stats every N batches
   save_checkpoint: true    # Whether to save model checkpoints
-  checkpoint_dir: "experiments/checkpoints/lstm"  # Directory to save checkpoints
+  checkpoint_dir: "src/training/lsmt/checkpoints"  # Directory to save checkpoints
   tensorboard: true        # Whether to use tensorboard for logging

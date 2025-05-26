@@ -91,7 +91,9 @@ def validate_model(model, dataloader, criterion, device):
             
             # Using CrossEntropyLoss with multi-class outputs
             loss = criterion(outputs, targets.long())
-            _, predictions = torch.max(outputs.data, 1)
+            #_, predictions = torch.max(outputs.data, 1)
+            probs = torch.softmax(outputs, dim=1)
+            predictions = (probs[:, 1] > 0.8).long()
             
             # Update total loss
             total_loss += loss.item()
@@ -159,7 +161,7 @@ def validate(config, model_path=None, model=None):
     # Load model if not provided
     if model is None:
         if model_path is None:
-            checkpoint_dir = config.get('logging', {}).get('checkpoint_dir', 'experiments/checkpoints/lstm')
+            checkpoint_dir = config.get('logging', {}).get('checkpoint_dir', 'src/training/lsmt/checkpoints')
             model_path = os.path.join(checkpoint_dir, "lstm_best_model.pt")
             if not os.path.exists(model_path):
                 logger.error(f"Best model checkpoint not found at {model_path}")
@@ -209,7 +211,7 @@ def validate(config, model_path=None, model=None):
     component_metrics = {}
     all_predictions = []
     all_targets = []
-    
+    overall_metrics = {}
     # Iterate over each component
     for component_name, dataloader in get_component_dataloaders(
         component_names=component_names,
@@ -274,7 +276,7 @@ def validate(config, model_path=None, model=None):
         
         return component_metrics, overall_metrics
     
-    return component_metrics, None
+    return component_metrics, overall_metrics
 
 def main():
     """Main function to run the validation script"""
