@@ -74,15 +74,14 @@ def process_single_dataset(file_path, output_dir):
     df = pd.read_parquet(file_path)
     if not df['TimeStamp'].is_monotonic_increasing:
         df = df.sort_values(by='TimeStamp')
-    df['component_type'] = 'contact'
     train_df, val_df, test_df = split_data([df])
     save_dataframes(train_df, val_df, test_df, output_dir)
 
 # Main function to execute the pipeline
 
 def main():
-    pcb_file = 'Data/interim/Energy_time_series/PCB_20250509_094113/part.0.parquet'
-    pcb_output_dir = 'Data/processed/lsmt/spilt/pcb'
+    pcb_file = 'Data/interim/Energy_Data_cleaned/PCB_20250509_085245/part.0.parquet'
+    pcb_output_dir = 'Data/processed/lsmt/spilt/pcb_cleaned'
     process_single_dataset(pcb_file, pcb_output_dir)
     # You can manually process the remaining datasets and merge them later
 
