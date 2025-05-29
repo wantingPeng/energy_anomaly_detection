@@ -277,9 +277,12 @@ def split_and_analyze_contact_data():
         logger.info("第四步：保存数据集")
         train_path, val_path, test_path = save_split_datasets(train_df, val_df, test_df, output_dir)
         
+
+
+        
         # 5. 分析分布漂移
         logger.info("第五步：分析验证集和测试集之间的分布漂移")
-        drift_results = analyze_distribution_shift(val_path, test_path)
+        drift_results = analyze_distribution_shift(val_path, val_path)
         
         logger.info("="*80)
         logger.info("接触区数据处理与分布漂移分析完成")
