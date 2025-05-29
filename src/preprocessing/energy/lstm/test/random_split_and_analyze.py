@@ -25,7 +25,7 @@ sys.path.append(str(Path(__file__).parents[4]))
 from src.utils.logger import logger
 
 # 导入分布漂移检测相关函数
-from scripts.raw_data_covariate_shift_detection import (
+from src.preprocessing.energy.lstm.test.raw_data_covariate_shift_detection import (
     preprocess_data,
     sample_data_for_analysis, 
     compare_distributions,
