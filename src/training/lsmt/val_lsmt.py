@@ -9,6 +9,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from src.training.lsmt.lstm_model import LSTMModel
 from src.training.lsmt.dataloader_from_batches import get_component_dataloaders
 from src.utils.logger import logger
+from src.training.lsmt.focal_loss import FocalLoss
 
 def load_config(config_path):
     """
@@ -92,9 +93,12 @@ def validate_model(model, dataloader, criterion, device):
             # Using CrossEntropyLoss with multi-class outputs
             loss = criterion(outputs, targets.long())
             #_, predictions = torch.max(outputs.data, 1)
+            # probs = torch.softmax(outputs, dim=1)
+            # predictions = (probs[:, 1] > 0.6).long()
             probs = torch.softmax(outputs, dim=1)
-            predictions = (probs[:, 1] > 0.8).long()
-            
+            #print("Max anomaly prob:", probs[:, 1].max().item())
+            #print("Mean anomaly prob:", probs[:, 1].mean().item())
+            predictions = (probs[:, 1] > 0.3).long()
             # Update total loss
             total_loss += loss.item()
             
@@ -190,16 +194,23 @@ def validate(config, model_path=None, model=None):
     if class_weights:
         class_weights = torch.tensor(class_weights).to(device)
     
-    # Always use CrossEntropyLoss for validation
-    criterion = torch.nn.CrossEntropyLoss(weight=class_weights)
-    logger.info("Using CrossEntropyLoss for validation")
+    # Loss function configuration
+    loss_config = train_config.get('loss', {})
+    alpha = loss_config.get('focal_alpha', 0.25)
+    gamma = loss_config.get('focal_gamma', 2.0)
+    
+    # Initialize FocalLoss for validation
+    criterion = FocalLoss(alpha=alpha, gamma=gamma)
+    logger.info(f"Using FocalLoss with alpha={alpha}, gamma={gamma} for validation")
     
     # Data configuration
     data_config = config.get('data', {})
     val_data_dir = data_config.get('val_data_dir', 'Data/processed/lsmt/dataset/val')
     
     # Components to validate on
-    component_names = ["contact", "pcb", "ring"]
+    #component_names = ["contact", "pcb", "ring"]
+    component_names = ["contact"]
+
     logger.info(f"Validating on components: {component_names}")
     
     # Batch size for validation

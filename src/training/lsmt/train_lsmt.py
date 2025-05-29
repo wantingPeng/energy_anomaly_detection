@@ -9,12 +9,13 @@ from datetime import datetime
 from tqdm import tqdm
 from pathlib import Path
 from torch.utils.tensorboard import SummaryWriter
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, precision_score, recall_score
 
 from src.training.lsmt.lstm_model import LSTMModel
 from src.training.lsmt.dataloader_from_batches import get_component_dataloaders
 from src.utils.logger import logger
 from src.training.lsmt.val_lsmt import validate
+from src.training.lsmt.focal_loss import FocalLoss
 
 def load_config(config_path):
     """
@@ -47,12 +48,15 @@ def train_model(model, dataloader, criterion, optimizer, device):
         device: Device to train on
         
     Returns:
-        float: Average loss for the epoch
+        tuple: (epoch_loss, epoch_accuracy, epoch_precision, epoch_recall, epoch_f1)
     """
     model.train()
     total_loss = 0
     correct = 0
     total = 0
+    
+    all_predictions = []
+    all_targets = []
     
     # Use tqdm for progress bar
     pbar = tqdm(dataloader, desc="Training")
@@ -79,6 +83,10 @@ def train_model(model, dataloader, criterion, optimizer, device):
         total += targets.size(0)
         correct += (predicted == targets).sum().item()
         
+        # Store predictions and targets for metric calculation
+        all_predictions.extend(predicted.cpu().numpy())
+        all_targets.extend(targets.cpu().numpy())
+        
         # Update total loss
         total_loss += loss.item()
         
@@ -87,11 +95,14 @@ def train_model(model, dataloader, criterion, optimizer, device):
         accuracy = 100. * correct / total
         pbar.set_postfix({'loss': f'{avg_loss:.4f}', 'accuracy': f'{accuracy:.2f}%'})
     
-    # Calculate average loss and accuracy for the epoch
+    # Calculate metrics
     epoch_loss = total_loss / len(dataloader)
     epoch_accuracy = 100. * correct / total
+    epoch_precision = precision_score(all_targets, all_predictions, average='weighted')
+    epoch_recall = recall_score(all_targets, all_predictions, average='weighted')
+    epoch_f1 = f1_score(all_targets, all_predictions, average='weighted')
     
-    return epoch_loss, epoch_accuracy
+    return epoch_loss, epoch_accuracy, epoch_precision, epoch_recall, epoch_f1
 
 def train_epoch(config):
     """
@@ -121,14 +132,19 @@ def train_epoch(config):
     learning_rate = train_config.get('learning_rate', 0.001)
     weight_decay = train_config.get('weight_decay', 0.0001)
     
+    # Loss function configuration
+    loss_config = train_config.get('loss', {})
+    alpha = loss_config.get('focal_alpha', 0.25)
+    gamma = loss_config.get('focal_gamma', 2.0)
+    
+    # Initialize FocalLoss
+    criterion = FocalLoss(alpha=alpha, gamma=gamma)
+    logger.info(f"Using FocalLoss with alpha={alpha}, gamma={gamma} for training")
+    
     # Class weights for imbalanced datasets
     class_weights = train_config.get('class_weights', None)
     if class_weights:
         class_weights = torch.tensor(class_weights).to(device)
-    
-    # Always use CrossEntropyLoss
-    criterion = nn.CrossEntropyLoss(weight=class_weights)
-    logger.info("Using CrossEntropyLoss for classification")
     
     # Optimizer
     optimizer_type = train_config.get('optimizer', 'adam')
@@ -164,8 +180,9 @@ def train_epoch(config):
     train_data_dir = data_config.get('data_dir', 'Data/processed/lsmt/dataset/train')
     
     # Components to train on
-    component_names = ["contact", "pcb", "ring"]
-    
+    #component_names = ["contact", "pcb", "ring"]
+    component_names = ["contact"]
+
     # Logging configuration
     logging_config = config.get('logging', {})
     log_interval = logging_config.get('log_interval', 10)
@@ -194,6 +211,10 @@ def train_epoch(config):
         "overall": {
             "train_losses": [],
             "val_losses": [],
+            "train_accuracies": [],
+            "train_precisions": [],
+            "train_recalls": [],
+            "train_f1_scores": [],
             "val_f1_scores": [],
             "learning_rates": []
         }
@@ -203,8 +224,11 @@ def train_epoch(config):
         history[component_name] = {
             "train_losses": [],
             "val_losses": [],
+            "train_accuracies": [],
+            "train_precisions": [],
+            "train_recalls": [],
+            "train_f1_scores": [],
             "val_f1_scores": []
-
         }
     
     # Training loop
@@ -234,6 +258,7 @@ def train_epoch(config):
             logger.info(f"Training on component: {component_name} with {len(train_dataloader.dataset)} samples")
             
             # Train for one epoch
+            '''
             if precision == 'mixed' and scaler:
                 # Implement mixed precision training
                 logger.info("Using mixed precision training")
@@ -271,12 +296,7 @@ def train_epoch(config):
                     if batch_idx % log_interval == 0:
                         pbar.set_postfix({'loss': f'{avg_loss:.4f}', 'accuracy': f'{accuracy:.2f}%'})
                 
-                train_loss = total_loss / len(train_dataloader)
-                train_accuracy = 100. * correct / total
-            else:
-                # Standard precision training
-                logger.info("Using standard precision training")
-                train_loss, train_accuracy = train_model(
+                train_loss, train_accuracy, train_precision, train_recall, train_f1 = train_model(
                     model=model,
                     dataloader=train_dataloader,
                     criterion=criterion,
@@ -286,11 +306,42 @@ def train_epoch(config):
                 
                 # Log to TensorBoard
                 writer.add_scalar(f'Loss/train/{component_name}', train_loss, epoch)
+                writer.add_scalar(f'Accuracy/train/{component_name}', train_accuracy, epoch)
+                writer.add_scalar(f'Precision/train/{component_name}', train_precision, epoch)
+                writer.add_scalar(f'Recall/train/{component_name}', train_recall, epoch)
+                writer.add_scalar(f'F1/train/{component_name}', train_f1, epoch)
+                
+            else:
+            '''
+                # Standard precision training
+            logger.info("Using standard precision training")
+            train_loss, train_accuracy, train_precision, train_recall, train_f1 = train_model(
+                model=model,
+                dataloader=train_dataloader,
+                criterion=criterion,
+                optimizer=optimizer,
+                device=device
+            )
             
-            # Store component training loss
+            # Log to TensorBoard
+            writer.add_scalar(f'Loss/train/{component_name}', train_loss, epoch)
+            writer.add_scalar(f'Accuracy/train/{component_name}', train_accuracy, epoch)
+            writer.add_scalar(f'Precision/train/{component_name}', train_precision, epoch)
+            writer.add_scalar(f'Recall/train/{component_name}', train_recall, epoch)
+            writer.add_scalar(f'F1/train/{component_name}', train_f1, epoch)
+            
+            # Store component training metrics
             history[component_name]["train_losses"].append(train_loss)
+            history[component_name]["train_accuracies"].append(train_accuracy)
+            history[component_name]["train_precisions"].append(float(train_precision))
+            history[component_name]["train_recalls"].append(float(train_recall))
+            history[component_name]["train_f1_scores"].append(float(train_f1))
             
-            logger.info(f"Component {component_name} - Training Loss: {train_loss:.4f}, Accuracy: {train_accuracy:.2f}%")
+            logger.info(f"Component {component_name} - Training Loss: {train_loss:.4f}, "
+                        f"Accuracy: {train_accuracy:.2f}%, "
+                        f"Precision: {train_precision:.4f}, "
+                        f"Recall: {train_recall:.4f}, "
+                        f"F1-score: {train_f1:.4f}")
             epoch_train_loss += train_loss
         
         # Calculate average training loss across all components

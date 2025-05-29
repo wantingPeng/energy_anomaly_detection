@@ -27,7 +27,7 @@ def undersample_normal_windows(dataset_path, seed=42):
         logger.info(f"Processing {category} category with {len(pt_files)} pt files")
         
         # Create output directory for each category
-        output_category_dir = os.path.join('Data/processed/lsmt/dataset/train_down_30%', category)
+        output_category_dir = os.path.join('Data/processed/lsmt/dataset/train_down_10%', category)
         os.makedirs(output_category_dir, exist_ok=True)
         
         for file in sorted(pt_files):  # Sort to process in order
@@ -46,7 +46,7 @@ def undersample_normal_windows(dataset_path, seed=42):
                 f"Anomaly={anomaly_ratio:.2f}% ({len(anomaly_indices)})"
             )
             # Undersample normal indices
-            undersampled_normal_indices = normal_indices[torch.randperm(len(normal_indices))[:int(0.3 * len(normal_indices))]]
+            undersampled_normal_indices = normal_indices[torch.randperm(len(normal_indices))[:int(0.1 * len(normal_indices))]]
             
             # Combine undersampled normals with all anomalies
             balanced_indices = torch.cat((undersampled_normal_indices, anomaly_indices))

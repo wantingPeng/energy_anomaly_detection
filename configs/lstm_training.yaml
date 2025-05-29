@@ -14,7 +14,7 @@ model:
 training:
   epochs: 100            # Maximum number of training epochs
   batch_size: 128        # Increase batch size for larger dataset
-  learning_rate: 0.001   # Learning rate
+  learning_rate: 0.0005   # Learning rate
   weight_decay: 0.0001   # L2 regularization
   early_stopping: 10     # Number of epochs to wait before early stopping
   optimizer: "adam"      # Optimizer (adam, sgd, rmsprop)
@@ -31,7 +31,7 @@ training:
   loss_function: "cross_entropy"  # Using CrossEntropyLoss for classification
   
   # For imbalanced datasets
-  class_weights: [1.0, 15.0]    # Updated: Weights for classes [0, 1] to handle imbalance
+  class_weights: [1.0, 20.0]    # Updated: Weights for classes [0, 1] to handle imbalance
   
 # Data parameters
 data:
@@ -40,7 +40,7 @@ data:
   val_ratio: 0.15         # Ratio of data to use for validation
   test_ratio: 0.15        # Ratio of data to use for testing
   normalize: true         # Whether to normalize the data
-  data_dir: "Data/processed/lsmt/dataset/train_down_30%"  # Update path based on log file
+  data_dir: "Data/processed/lsmt/dataset/train"  # Update path based on log file
   val_data_dir: "Data/processed/lsmt/dataset/val"
 # GPU settings
 device:
