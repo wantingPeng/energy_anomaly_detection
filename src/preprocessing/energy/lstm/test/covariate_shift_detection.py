@@ -105,8 +105,8 @@ def load_train_val_data(config: dict, component_name: str = "contact"):
     data_config = config.get('data', {})
     train_config = config.get('training', {})
     
-    train_data_dir = data_config.get('data_dir', 'Data/processed/lsmt/test/spilt_after_sliding/train')
-    val_data_dir = data_config.get('val_data_dir', 'Data/processed/lsmt/test/spilt_after_sliding/val')
+    train_data_dir = data_config.get('data_dir', 'Data/processed/lsmt/test/spilt_after_sliding_800s/train')
+    val_data_dir = data_config.get('val_data_dir', 'Data/processed/lsmt/test/spilt_after_sliding_800s/val')
     batch_size = train_config.get('batch_size', 128)
     
     logger.info(f"训练集路径: {train_data_dir}")

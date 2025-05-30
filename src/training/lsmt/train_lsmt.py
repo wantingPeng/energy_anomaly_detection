@@ -160,7 +160,7 @@ def train_epoch(config):
     
     # Learning rate scheduler
     lr_scheduler_config = train_config.get('lr_scheduler', {})
-    use_scheduler = lr_scheduler_config.get('use', False)
+    use_scheduler = lr_scheduler_config.get('use', True)
     scheduler = None
     
     if use_scheduler:
@@ -330,12 +330,6 @@ def train_epoch(config):
             writer.add_scalar(f'Recall/train/{component_name}', train_recall, epoch)
             writer.add_scalar(f'F1/train/{component_name}', train_f1, epoch)
             
-            # Store component training metrics
-            history[component_name]["train_losses"].append(train_loss)
-            history[component_name]["train_accuracies"].append(train_accuracy)
-            history[component_name]["train_precisions"].append(float(train_precision))
-            history[component_name]["train_recalls"].append(float(train_recall))
-            history[component_name]["train_f1_scores"].append(float(train_f1))
             
             logger.info(f"Component {component_name} - Training Loss: {train_loss:.4f}, "
                         f"Accuracy: {train_accuracy:.2f}%, "
@@ -359,8 +353,7 @@ def train_epoch(config):
             # Store component-specific metrics and log to TensorBoard
             for component_name, metrics in component_metrics.items():
                 if component_name in history:
-                    history[component_name]["val_losses"].append(metrics['loss'])
-                    history[component_name]["val_f1_scores"].append(metrics['f1_score'])
+
                     
                     # Log component metrics to TensorBoard
                     writer.add_scalar(f'Loss/val/{component_name}', metrics['loss'], epoch)
@@ -380,21 +373,11 @@ def train_epoch(config):
             logger.warning("Validation failed to return metrics, using training loss as fallback")
             avg_val_loss = avg_train_loss
             avg_val_f1 = 0.0
-            
-            # Use training loss as fallback for component validation losses
-            for component_name in component_names:
-                history[component_name]["val_losses"].append(avg_train_loss)
-                history[component_name]["val_f1_scores"].append(0.0)
         
         # Get current learning rate
         current_lr = optimizer.param_groups[0]['lr']
         
-        # Store overall losses, F1 scores and learning rate
-        history["overall"]["train_losses"].append(avg_train_loss)
-        history["overall"]["val_losses"].append(avg_val_loss)
-        history["overall"]["val_f1_scores"].append(avg_val_f1)
-        history["overall"]["learning_rates"].append(current_lr)
-        
+
         # Log overall metrics to TensorBoard
         writer.add_scalar('Loss/train', avg_train_loss, epoch)
         writer.add_scalar('LR', current_lr, epoch)
@@ -453,16 +436,6 @@ def train_epoch(config):
     # Close TensorBoard writer
     writer.close()
     
-    # Save training history
-    history_dir = os.path.join(checkpoint_dir, "history")
-    os.makedirs(history_dir, exist_ok=True)
-    
-    history_path = os.path.join(history_dir, f"lstm_training_history_{timestamp}.json")
-    
-    with open(history_path, 'w') as f:
-        json.dump(history, f, indent=4)
-    
-    logger.info(f"Training history saved to {history_path}")
     logger.info("Training completed")
     
     # Return final model and history

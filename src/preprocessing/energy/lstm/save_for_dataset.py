@@ -175,17 +175,19 @@ def main():
 
 
     # Get paths from config
-    input_dir = 'Data/processed/lsmt/sliding_window'
-    output_dir = 'Data/processed/lsmt/dataset'
+    input_dir = 'Data/processed/lsmt/sliding_window_800s'
+    output_dir = 'Data/processed/lsmt/dataset_800s'
     
     # Get components to process
-    components = ['contact', 'pcb', 'ring']
-    
+    #components = ['contact', 'pcb', 'ring']
+    components = ['contact']
+
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)
     
     # Process each data type and component
     for data_type in ['train', 'val', 'test']:
+    
         for component in components:
             process_component_data(
                 input_dir,

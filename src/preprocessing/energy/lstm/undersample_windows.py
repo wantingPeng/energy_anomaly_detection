@@ -16,8 +16,9 @@ def undersample_normal_windows(dataset_path, seed=42):
     np.random.seed(seed)
     torch.manual_seed(seed)
     
-    categories = ["ring", "pcb", "contact"]
-    
+    #categories = ["ring", "pcb", "contact"]
+    categories = ["contact"]
+
     logger.info("Starting undersampling of normal windows")
     
     for category in categories:
@@ -27,7 +28,7 @@ def undersample_normal_windows(dataset_path, seed=42):
         logger.info(f"Processing {category} category with {len(pt_files)} pt files")
         
         # Create output directory for each category
-        output_category_dir = os.path.join('Data/processed/lsmt/dataset/train_down_10%', category)
+        output_category_dir = os.path.join('Data/processed/lsmt/test/spilt_after_sliding_800s/train_down_25%', category)
         os.makedirs(output_category_dir, exist_ok=True)
         
         for file in sorted(pt_files):  # Sort to process in order
@@ -46,7 +47,9 @@ def undersample_normal_windows(dataset_path, seed=42):
                 f"Anomaly={anomaly_ratio:.2f}% ({len(anomaly_indices)})"
             )
             # Undersample normal indices
-            undersampled_normal_indices = normal_indices[torch.randperm(len(normal_indices))[:int(0.1 * len(normal_indices))]]
+            target_ratio = 0.25
+            desired_normals = int(len(anomaly_indices) / target_ratio - len(anomaly_indices))
+            undersampled_normal_indices = normal_indices[torch.randperm(len(normal_indices))[:desired_normals]]
             
             # Combine undersampled normals with all anomalies
             balanced_indices = torch.cat((undersampled_normal_indices, anomaly_indices))
@@ -73,5 +76,5 @@ def undersample_normal_windows(dataset_path, seed=42):
 
 
 if __name__ == "__main__":
-    dataset_path = "Data/processed/lsmt/dataset/train"
+    dataset_path = "Data/processed/lsmt/test/spilt_after_sliding_800s/train"
     undersample_normal_windows(dataset_path)

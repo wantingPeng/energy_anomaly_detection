@@ -24,7 +24,6 @@ from joblib import Parallel, delayed
 
 from src.utils.logger import logger
 from src.utils.memory_left import log_memory
-from src.preprocessing.energy.lstm.dataset import LSTMWindowDataset
 
 from src.preprocessing.energy.labeling_slidingWindow import (
     load_anomaly_dict, 
@@ -360,10 +359,12 @@ def main():
     output_dir = config['paths']['output_dir']
     
     # Get components from config
-    components = config['components']['processing_order']
-    
+    #components = ['contact', 'pcb', 'ring']
+    components = ['contact']
+
     # Process each data type and component
     for data_type in ['train', 'val', 'test']:
+
         for component in components:
             process_component_data(
                 input_dir,
