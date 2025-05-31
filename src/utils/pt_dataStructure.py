@@ -113,7 +113,7 @@ def print_pt_summary(analysis_result: Dict[str, List[Dict[str, Any]]]) -> None:
             else:
                 logger.info(f"  Type: {file_info['type']}")
 
-def analyze_and_print_pt_structure(base_dir: str = "Data/processed/lsmt/dataset/train") -> Dict[str, List[Dict[str, Any]]]:
+def analyze_and_print_pt_structure(base_dir: str = "Data/processed/lsmt/test/spilt_after_sliding_1200s/train_down_25%_2") -> Dict[str, List[Dict[str, Any]]]:
     """
     Convenience function to analyze PyTorch files and print a summary
     

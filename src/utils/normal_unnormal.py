@@ -116,7 +116,7 @@ def main():
     # file_path = "Data/processed/lsmt/sliding_window/val/contact/batch_0.npz"
     # analyze_normal_anomaly_distribution(file_path)
 
-    directory_path = "Data/processed/lsmt/dataset_1200s/train/contact"
+    directory_path = "Data/processed/lsmt/add_time_features/dataSet/contact/train"
     analyze_normal_anomaly_distribution_pt(directory_path)
 
 if __name__ == "__main__":

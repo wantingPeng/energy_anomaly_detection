@@ -5,7 +5,7 @@ model:
   input_size: 31         # Update from 1 to 31 based on data shape [X, 60, 31]
   hidden_size: 128       # Size of LSTM hidden states
   num_layers: 2          # Number of LSTM layers
-  dropout: 0.5           # Dropout rate
+  dropout: 0.2           # Dropout rate
   bidirectional: false   # Whether to use bidirectional LSTM
   output_size: 2         # Output size for binary classification
   task_type: "binary_classification"  # binary_classification or regression
@@ -14,7 +14,7 @@ model:
 training:
   epochs: 100            # Maximum number of training epochs
   batch_size: 128        # Increase batch size for larger dataset
-  learning_rate: 0.001   # Learning rate
+  learning_rate: 0.0001   # Learning rate
   weight_decay: 0.0001   # L2 regularization
   early_stopping: 10     # Number of epochs to wait before early stopping
   optimizer: "adam"      # Optimizer (adam, sgd, rmsprop)
@@ -40,7 +40,7 @@ data:
   val_ratio: 0.15         # Ratio of data to use for validation
   test_ratio: 0.15        # Ratio of data to use for testing
   normalize: true         # Whether to normalize the data
-  data_dir: "Data/processed/lsmt/add_time_features/dataSet/contact/train"  # Update path based on log file
+  data_dir: "Data/processed/lsmt/test/spilt_after_sliding_1200s/train_down_25%_2"  # Update path based on log file
   val_data_dir: "Data/processed/lsmt/add_time_features/dataSet/contact/val"
 # GPU settings
 device:
