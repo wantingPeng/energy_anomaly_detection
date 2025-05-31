@@ -24,8 +24,6 @@ from src.utils.memory_left import log_memory
 def save_results(
     windows: np.ndarray,
     labels: np.ndarray,
-    segment_ids: np.ndarray,
-    timestamps: np.ndarray,
     output_dir: str,
     batch_idx: int
 ) -> tuple:
@@ -49,7 +47,6 @@ def save_results(
     
     # Define file paths with batch index and include component and data_type in filename
     dataset_path = os.path.join(output_dir, f"batch_{batch_idx}.pt")
-    parquet_path = os.path.join(output_dir, f"batch_{batch_idx}.parquet")
     
     # Convert numpy arrays to torch tensors
     windows_tensor = torch.FloatTensor(windows)
@@ -61,18 +58,10 @@ def save_results(
         'labels': labels_tensor
     }, dataset_path)
     
-    # Create new Parquet file
-    df = pd.DataFrame({
-        'segment_id': segment_ids,
-        'timestamp': timestamps,
-        'label': labels,
-        'window': [w.tobytes() for w in windows]
-    })
+
+    logger.info(f"Saved {len(windows)} windows to {os.path.basename(dataset_path)}")
     
-    df.to_parquet(parquet_path, index=False)
-    logger.info(f"Saved {len(windows)} windows to {os.path.basename(parquet_path)} and {os.path.basename(dataset_path)}")
-    
-    return dataset_path, parquet_path
+    return dataset_path
 
 
 def process_component_data(
@@ -124,29 +113,25 @@ def process_component_data(
             data = np.load(npz_file, allow_pickle=True)
             
             # Extract data from NPZ file
-            if 'windows' in data and 'labels' in data and 'segment_ids' in data and 'timestamps' in data:
+            if 'windows' in data and 'labels' in data:
                 windows = data['windows']
                 labels = data['labels']
-                segment_ids = data['segment_ids']
-                timestamps = data['timestamps']
                 
                 # Save this file's data as a separate batch
-                dataset_path, parquet_path = save_results(
+                dataset_path = save_results(
                     windows,
                     labels,
-                    segment_ids,
-                    timestamps,
                     output_component_dir,
                     batch_idx
                 )
                 
                 # Track the batch files
-                batch_files.append((dataset_path, parquet_path))
+                batch_files.append(dataset_path)
                 
                 logger.info(f"Processed and saved batch {batch_idx}: {len(windows)} windows from {os.path.basename(npz_file)}")
                 
                 # Free memory immediately
-                del windows, labels, segment_ids, timestamps
+                del windows, labels
                 gc.collect()
                 log_memory(f"After processing batch {batch_idx}/{len(npz_files)}")
             else:
@@ -175,18 +160,18 @@ def main():
 
 
     # Get paths from config
-    input_dir = 'Data/processed/lsmt/sliding_window_800s'
-    output_dir = 'Data/processed/lsmt/dataset_800s'
+    input_dir = 'Data/processed/lsmt/add_time_features/spilt'
+    output_dir = 'Data/processed/lsmt/add_time_features/dataSet'
     
     # Get components to process
     #components = ['contact', 'pcb', 'ring']
-    components = ['contact']
+    components = ['train', 'val', 'test']
 
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)
     
     # Process each data type and component
-    for data_type in ['train', 'val', 'test']:
+    for data_type in ['contact']:
     
         for component in components:
             process_component_data(

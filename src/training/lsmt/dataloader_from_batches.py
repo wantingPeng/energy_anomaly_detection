@@ -31,7 +31,10 @@ def get_component_dataloaders(
         logger.info(f"Found components: {component_names}")
     
     for component_name in component_names:
-        component_dir = os.path.join(data_dir, component_name)
+        component_dir = data_dir
+
+        #component_dir = os.path.join(data_dir, component_name)
+        print('component_dir', component_dir)
         # Check if component directory exists
         if not os.path.exists(component_dir):
             logger.warning(f"Component directory not found: {component_dir}")

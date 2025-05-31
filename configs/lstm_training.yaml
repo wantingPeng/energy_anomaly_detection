@@ -40,8 +40,8 @@ data:
   val_ratio: 0.15         # Ratio of data to use for validation
   test_ratio: 0.15        # Ratio of data to use for testing
   normalize: true         # Whether to normalize the data
-  data_dir: "Data/processed/lsmt/test/spilt_after_sliding_800s/train_down_25%"  # Update path based on log file
-  val_data_dir: "Data/processed/lsmt/test/spilt_after_sliding_800s/val"
+  data_dir: "Data/processed/lsmt/add_time_features/dataSet/contact/train"  # Update path based on log file
+  val_data_dir: "Data/processed/lsmt/add_time_features/dataSet/contact/val"
 # GPU settings
 device:
   use_gpu: true           # Whether to use GPU
