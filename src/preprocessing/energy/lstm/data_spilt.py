@@ -10,30 +10,6 @@ input_dir = 'Data/interim/Energy_time_series'
 output_dir = 'Data/processed/lsmt/spilt'
 os.makedirs(output_dir, exist_ok=True)
 
-# Function to load and sort datasets
-
-def load_and_sort_datasets():
-    logger.info('Loading datasets from %s', input_dir)
-    if not os.path.exists(input_dir):
-        logger.error('Input directory does not exist: %s', input_dir)
-        return []
-    dataframes = []
-    for root, _, files in os.walk(input_dir):
-        for filename in files:
-            if filename.endswith('.parquet'):
-                file_path = os.path.join(root, filename)
-                df = pd.read_parquet(file_path)
-                if not df['TimeStamp'].is_monotonic_increasing:
-                    logger.warning('DataFrame %s is not monotonic increasing, sorting...', file_path)
-                    df = df.sort_values(by='TimeStamp')
-                dataframes.append(df)
-                logger.info('Loaded and sorted file: %s', file_path)
-    if not dataframes:
-        logger.error('No dataframes were loaded.')
-    return dataframes
-
-
-
 # Function to split data into train, val, test
 
 def split_data(dataframes):
@@ -61,7 +37,7 @@ def split_data(dataframes):
 # Function to save DataFrames
 
 def save_dataframes(train_df, val_df, test_df, output_dir):
-    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(output_dir,exist_ok=True)
     train_df.to_parquet(os.path.join(output_dir, 'train.parquet'))
     val_df.to_parquet(os.path.join(output_dir, 'val.parquet'))
     test_df.to_parquet(os.path.join(output_dir, 'test.parquet'))
@@ -80,9 +56,15 @@ def process_single_dataset(file_path, output_dir):
 # Main function to execute the pipeline
 
 def main():
-    pcb_file = 'Data/interim/Energy_Data_cleaned/PCB_20250509_085245/part.0.parquet'
-    pcb_output_dir = 'Data/processed/lsmt/spilt/pcb_cleaned'
-    process_single_dataset(pcb_file, pcb_output_dir)
+    #component = ['contact','pcb','ring']
+    component = ['contact']
+
+    file = 'Data/processed/lsmt/standerScaler_in_segment/spilt_after_sliding/standscaler/contact/normalized.parquet'
+    output_dir = 'Data/processed/lsmt/standerScaler_in_segment/spilt_before_sliding/spilt'
+    for comp in component:
+        full_output_dir = os.path.join(output_dir, comp)
+        os.makedirs(full_output_dir, exist_ok=True)
+        process_single_dataset(file, full_output_dir)
     # You can manually process the remaining datasets and merge them later
 
 # Execute the main function

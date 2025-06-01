@@ -180,13 +180,13 @@ def check_directory_for_nans(directory_path):
 
 def main():
     """Main function to run the preview."""
-    # NPZ file preview
-    # npz_file_path = "Data/processed/lsmt/add_time_features/sliding_window/contact/batch_0.parquet_windows.npz"
-    # preview_npz_data(npz_file_path)
+    #NPZ file preview
+    npz_file_path = "Data/processed/lsmt/sliding_window_800s/test/contact/batch_0.npz"
+    preview_npz_data(npz_file_path)
     
     # Parquet file NaN check
-    directory_path = "Data/processed/lsmt/add_time_features/align/contact"
-    check_directory_for_nans(directory_path)
+    # directory_path = "Data/processed/lsmt/sliding_window_800s/test/contact"
+    # check_directory_for_nans(directory_path)
 
 if __name__ == "__main__":
     main()

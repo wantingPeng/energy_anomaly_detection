@@ -10,14 +10,14 @@ model:
   eval_metric: "logloss"
   use_label_encoder: false
   early_stopping_rounds: 20
-  prediction_threshold: 0.2
+  #prediction_threshold: 0.54
 
 # Data paths
 data:
-  train_path: "Data/processed/splits_no_correlation/train.parquet"
-  val_path: "Data/processed/splits_no_correlation/val.parquet"
+  train_path: "Data/processed/machinen_learning/randomly_spilt/train.parquet"
+  val_path: "Data/processed/machinen_learning/randomly_spilt/val.parquet"
   model_save_path: "models/xgboost_model.json"
-  report_dir: "src/model_report/xgboost_no_correlation"
+  report_dir: "src/model_report/xgboost_randomly_spilt"
 
 # Feature engineering
 features:

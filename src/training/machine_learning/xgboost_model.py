@@ -59,7 +59,6 @@ class XGBoostAnomalyDetector:
         model_params = self.config['model'].copy()
         model_params['scale_pos_weight'] = self.scale_pos_weight
         early_stopping_rounds = model_params.pop('early_stopping_rounds', 20)
-        prediction_threshold = model_params.pop('prediction_threshold', 0.5)
         
         # Create DMatrix for training and validation
         dtrain = xgb.DMatrix(X_train, label=y_train)

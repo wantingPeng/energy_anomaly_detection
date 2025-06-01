@@ -9,7 +9,7 @@ if project_root not in sys.path:
 
 from src.utils.logger import logger
 from src.preprocessing.data_loader import data_loader
-from src.preprocessing.energy.cleaning import cleaning
+from src.preprocessing.energy.machine_learning.cleaning import cleaning
 import yaml
 
 def load_config():

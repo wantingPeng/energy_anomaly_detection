@@ -8,9 +8,9 @@ from sklearn.impute import SimpleImputer
 import joblib
 from itertools import product
 from src.utils.logger import logger
-from src.training.visualizations.random_forest import (
+from src.training.machine_learning.visualizations.random_forest import (
     plot_roc_curve,
-    plot_confusion_matrix,
+    plot_confusion_matrix,      
     plot_precision_recall_curve,
     plot_metrics_comparison,
     save_results,

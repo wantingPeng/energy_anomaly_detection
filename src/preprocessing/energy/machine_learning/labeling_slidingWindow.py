@@ -12,7 +12,7 @@ from src.utils.logger import logger
 import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy import stats
-from src.preprocessing.energy.calculate_window_features import calculate_window_features
+from src.preprocessing.energy.machine_learning.calculate_window_features import calculate_window_features
 from multiprocessing import Pool, cpu_count
 from functools import partial
 from joblib import Parallel, delayed

@@ -25,7 +25,7 @@ from joblib import Parallel, delayed
 from src.utils.logger import logger
 from src.utils.memory_left import log_memory
 
-from src.preprocessing.energy.labeling_slidingWindow import (
+from src.preprocessing.energy.machine_learning.labeling_slidingWindow import (
     load_anomaly_dict, 
     create_interval_tree,
     calculate_window_overlap

@@ -25,7 +25,7 @@ def split_data():
     
     # Remove unnecessary columns
     logger.info("Removing unnecessary columns...")
-    #df = df.drop(['window_start', 'window_end',"overlap_ratio","step_size"], axis=1)
+    df = df.drop(['window_start', 'window_end',"overlap_ratio","step_size"], axis=1)
     
     # Get feature columns (all columns except anomaly_label and component columns)
     component_cols = ['component_contact', 'component_pcb', 'component_ring']
