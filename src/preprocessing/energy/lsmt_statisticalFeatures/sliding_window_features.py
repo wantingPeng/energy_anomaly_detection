@@ -1,0 +1,229 @@
+"""
+Sliding window feature extraction for LSTM model training data.
+
+This script loads interpolated data, creates sliding windows with specified 
+window size and step size, and calculates statistical features for each window.
+It processes data batch by batch to conserve memory.
+"""
+
+import os
+import gc
+import pandas as pd
+import numpy as np
+from pathlib import Path
+from tqdm import tqdm
+import glob
+from datetime import datetime
+import dask.dataframe as dd
+
+from src.utils.logger import logger
+from src.preprocessing.energy.machine_learning.calculate_window_features import calculate_window_features
+
+
+def get_batch_dirs(data_type, component):
+    """
+    Get all batch directories for a specific data type and component.
+    
+    Args:
+        data_type: Data type ('train', 'val', or 'test')
+        component: Component type ('contact', 'pcb', or 'ring')
+        
+    Returns:
+        List of batch directory paths
+    """
+    base_dir = f"Data/processed/lsmt_statisticalFeatures/interpolate/{data_type}/{component}"
+    batch_dirs = sorted(glob.glob(os.path.join(base_dir, "batch_*")))
+    logger.info(f"Found {len(batch_dirs)} batch directories for {data_type}/{component}")
+    return batch_dirs
+
+
+def load_batch_data(batch_dir):
+    """
+    Load data from a batch directory.
+    
+    Args:
+        batch_dir: Path to batch directory
+        
+    Returns:
+        DataFrame containing batch data
+    """
+    # List all parquet files in the batch directory
+    parquet_files = glob.glob(os.path.join(batch_dir, "*.parquet"))
+    
+    # Read all parquet files into a list of DataFrames
+    dfs = []
+    for file in parquet_files:
+        try:
+            df = pd.read_parquet(file)
+            dfs.append(df)
+        except Exception as e:
+            logger.error(f"Error reading file {file}: {str(e)}")
+    
+    # Concatenate all DataFrames
+    if dfs:
+        return pd.concat(dfs, ignore_index=True)
+    else:
+        return pd.DataFrame()
+
+
+def create_sliding_windows(df, window_size=1200, step_size=300):
+    """
+    Create sliding windows from DataFrame.
+    
+    Args:
+        df: DataFrame containing time series data
+        window_size: Size of sliding window in seconds
+        step_size: Step size for window sliding in seconds
+        
+    Returns:
+        List of window DataFrames
+    """
+    # Sort by TimeStamp
+    df = df.sort_values('TimeStamp')
+    
+    # Convert TimeStamp to datetime if it's not already
+    if not pd.api.types.is_datetime64_any_dtype(df['TimeStamp']):
+        df['TimeStamp'] = pd.to_datetime(df['TimeStamp'])
+    
+    # Group by segment_id
+    segments = df.groupby('segment_id')
+    
+    windows = []
+    window_count = 0
+    
+    for segment_id, segment_df in segments:
+        # Sort by timestamp
+        segment_df = segment_df.sort_values('TimeStamp')
+        
+        # Get first and last timestamp
+        first_timestamp = segment_df['TimeStamp'].min()
+        last_timestamp = segment_df['TimeStamp'].max()
+        
+        # Create windows
+        start_time = first_timestamp
+        
+        while start_time + pd.Timedelta(seconds=window_size) <= last_timestamp:
+            end_time = start_time + pd.Timedelta(seconds=window_size)
+            
+            # Get data for this window
+            window_mask = (segment_df['TimeStamp'] >= start_time) & (segment_df['TimeStamp'] < end_time)
+            window_df = segment_df.loc[window_mask].copy()
+            
+            # Add window to list if it's not empty
+            if not window_df.empty:
+                windows.append(window_df)
+                window_count += 1
+            
+            # Move to next window
+            start_time += pd.Timedelta(seconds=step_size)
+    
+    logger.info(f"Created {window_count} windows from {len(segments)} segments")
+    return windows
+
+
+def process_batch(batch_dir, output_dir, window_size=1200, step_size=300):
+    """
+    Process a batch of data: load, create sliding windows, and calculate features.
+    
+    Args:
+        batch_dir: Path to batch directory
+        output_dir: Path to output directory
+        window_size: Size of sliding window in seconds
+        step_size: Step size for window sliding in seconds
+        
+    Returns:
+        Number of windows processed
+    """
+    try:
+        # Load batch data
+        logger.info(f"Loading data from {batch_dir}")
+        batch_df = load_batch_data(batch_dir)
+        
+        if batch_df.empty:
+            logger.warning(f"No data loaded from {batch_dir}")
+            return 0
+        
+        # Create sliding windows
+        logger.info(f"Creating sliding windows with window_size={window_size}s, step_size={step_size}s")
+        windows = create_sliding_windows(batch_df, window_size, step_size)
+        
+        # Free memory
+        del batch_df
+        gc.collect()
+        
+        if not windows:
+            logger.warning(f"No windows created from {batch_dir}")
+            return 0
+        
+        # Calculate features for each window
+        logger.info(f"Calculating features for {len(windows)} windows")
+        window_features = []
+        
+        for window in tqdm(windows, desc="Processing windows"):
+            features = calculate_window_features(window)
+            window_features.append(features)
+        
+        # Free memory
+        del windows
+        gc.collect()
+        
+        # Create DataFrame from features
+        features_df = pd.DataFrame(window_features)
+        
+        # Save features
+        batch_name = os.path.basename(batch_dir)
+        output_file = os.path.join(output_dir, f"{batch_name}_features.parquet")
+        logger.info(f"Saving features to {output_file}")
+        features_df.to_parquet(output_file)
+        
+        return len(features_df)
+    
+    except Exception as e:
+        logger.error(f"Error processing batch {batch_dir}: {str(e)}")
+        return 0
+
+
+def main():
+    """Main function to process all data."""
+    # Set window and step size
+    window_size = 1200  # seconds
+    step_size = 300     # seconds
+    
+    # Initialize counters
+    total_windows = 0
+    
+    # Process each data type and component
+    data_types = ['train', 'val', 'test']
+    components = ['contact']  # Add 'pcb', 'ring' if needed
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_file = f"experiments/logs/sliding_window_features_{timestamp}.log"
+    
+    logger.info(f"Starting sliding window feature extraction with window_size={window_size}s, step_size={step_size}s")
+    
+    for data_type in data_types:
+        for component in components:
+            # Get batch directories
+            batch_dirs = get_batch_dirs(data_type, component)
+            
+            # Create output directory
+            output_dir = f"Data/processed/lsmt_statisticalFeatures/statistic_features/{data_type}/{component}"
+            os.makedirs(output_dir, exist_ok=True)
+            
+            # Process each batch
+            batch_windows = 0
+            for batch_idx, batch_dir in enumerate(batch_dirs):
+                logger.info(f"Processing batch {batch_idx+1}/{len(batch_dirs)} for {data_type}/{component}")
+                
+                windows = process_batch(batch_dir, output_dir, window_size, step_size)
+                batch_windows += windows
+            
+            logger.info(f"Processed {batch_windows} windows for {data_type}/{component}")
+            total_windows += batch_windows
+    
+    logger.info(f"Total windows processed: {total_windows}")
+    logger.info(f"Processing complete. Results saved to Data/processed/lsmt_statisticalFeatures/statistic_features/")
+
+
+if __name__ == "__main__":
+    main() 

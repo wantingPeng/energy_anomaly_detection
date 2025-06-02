@@ -120,11 +120,11 @@ def interpolate_segments(df: pd.DataFrame, output_dir: str, split: str, componen
 
 def main():
     """Main function to process all data splits."""
-    input_dir = 'Data/processed/lsmt/standerScaler'
-    output_dir = 'Data/processed/lsmt/interpolated'
+    input_dir = 'Data/processed/lsmt/spilt'
+    output_dir = 'Data/processed/lsmt_statisticalFeatures/interpolate'
     
     # Define components to process
-    component_names = ['contact']  # Full list would be ['contact', 'pcb', 'ring']
+    component_names = ['contact']   # Full list would be ['contact', 'pcb', 'ring']
  
     try:      
         # Process each split and component
@@ -133,11 +133,11 @@ def main():
                 logger.info(f"Processing component: {split}/{component}")
                 
                 # Get component directory path
-                component_dir = os.path.join(input_dir, split, component)
+                component_dir = os.path.join(input_dir,component)
                 
                 # Find all parquet files in the component directory
-                file_paths = glob.glob(os.path.join(component_dir, "*.parquet"))
-                
+                file_paths = glob.glob(os.path.join(component_dir, f"{split}.parquet"))
+                logger.info(f"File paths: {file_paths}")
                 if not file_paths:
                     logger.warning(f"No parquet files found for {split}/{component}. Skipping.")
                     continue

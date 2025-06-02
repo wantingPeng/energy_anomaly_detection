@@ -343,7 +343,18 @@ def train_epoch(config):
         
         # Run full validation on all components at the end of each epoch
         logger.info(f"Running full validation for epoch {epoch+1}")
-        component_metrics, overall_metrics = validate(config, model_path=None, model=model)
+        
+        # Check if best model exists and load it for validation
+        best_model_path = os.path.join(checkpoint_dir, "lstm_best_model.pt")
+        
+        if epoch > 0 and os.path.exists(best_model_path):
+            logger.info(f"Loading best model from {best_model_path} for validation")
+            component_metrics, overall_metrics = validate(config, model_path=best_model_path, model=None)
+            logger.info(f"Validation performed using the best model")
+        else:
+            # First epoch or no best model saved yet, use current model
+            logger.info(f"Using current model for validation (no best model saved yet)")
+            component_metrics, overall_metrics = validate(config, model_path=None, model=model)
         
         # Store validation metrics in history
         if overall_metrics:

@@ -89,15 +89,15 @@ def validate_model(model, dataloader, criterion, device):
             
             # Forward pass
             outputs = model(data)
-            
             # Using CrossEntropyLoss with multi-class outputs
             loss = criterion(outputs, targets.long())
             #_, predictions = torch.max(outputs.data, 1)
             # probs = torch.softmax(outputs, dim=1)
             # predictions = (probs[:, 1] > 0.6).long()
             probs = torch.softmax(outputs, dim=1)
-            #print("Max anomaly prob:", probs[:, 1].max().item())
-            #print("Mean anomaly prob:", probs[:, 1].mean().item())
+            # print("Max anomaly prob:", probs[:, 1].max().item())
+            # print("Mean anomaly prob:", probs[:, 1].mean().item())
+            # print("Softmax output sample:", probs[0].tolist())
             predictions = (probs[:, 1] > 0.3).long()
             # Update total loss
             total_loss += loss.item()

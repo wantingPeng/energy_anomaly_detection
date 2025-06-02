@@ -96,7 +96,9 @@ def get_component_dataloaders(
                     
                 all_windows.append(windows)
                 all_labels.append(labels)
-                
+                print('batch_path', batch_path)
+                print('windows.shape', windows.shape)
+                print('labels.shape', labels.shape)
             except Exception as e:
                 logger.error(f"Error loading batch file {batch_path}: {str(e)}")
                 continue

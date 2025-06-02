@@ -321,18 +321,18 @@ def process_component_data(
         for key in combined_stats:
             if key in stats:
                 combined_stats[key] += stats[key]
-        
+        batch_name = os.path.basename(batch_dir)
         # Save intermediate results to temporary files if there are windows
         if len(windows) > 0:
-            temp_batch_file = os.path.join(output_dir, f"batch_{batch_idx}.npz")
+            batch_file = os.path.join(output_dir, f"{batch_name}.npz")
             np.savez_compressed(
-                temp_batch_file,
+                batch_file,
                 windows=windows,
                 labels=labels,
                 segment_ids=segment_ids,
                 timestamps=timestamps
             )
-            logger.info(f"Saved {len(windows)} windows to temporary file {temp_batch_file}")
+            logger.info(f"Saved {len(windows)} windows to temporary file {batch_file}")
         
         # Free memory
         del df, windows, labels, segment_ids, timestamps
