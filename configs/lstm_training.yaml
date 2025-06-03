@@ -31,7 +31,7 @@ training:
   loss_function: "cross_entropy"  # Using CrossEntropyLoss for classification
   
   # For imbalanced datasets
-  class_weights: [1.0, 1.0]    # Updated: Weights for classes [0, 1] to handle imbalance
+  class_weights: [1.0, 20.0]    # Updated: Weights for classes [0, 1] to handle imbalance
   
 # Data parameters
 data:
@@ -40,8 +40,8 @@ data:
   val_ratio: 0.15         # Ratio of data to use for validation
   test_ratio: 0.15        # Ratio of data to use for testing
   normalize: true         # Whether to normalize the data
-  data_dir: "Data/processed/lsmt/dataset_1200s/train"  # Update path based on log file
-  val_data_dir: "Data/processed/lsmt/dataset_1200s/val"
+  data_dir: "Data/processed/lsmt_statisticalFeatures/dataSet_1200s/train_down_25%"  # Update path based on log file
+  val_data_dir: "Data/processed/lsmt_statisticalFeatures/dataSet_1200s/val"
 # GPU settings
 device:
   use_gpu: true           # Whether to use GPU

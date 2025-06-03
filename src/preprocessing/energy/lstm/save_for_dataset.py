@@ -25,7 +25,7 @@ def save_results(
     windows: np.ndarray,
     labels: np.ndarray,
     output_dir: str,
-    batch_idx: int
+    batch_name: int
 ) -> tuple:
     """
     Save the windowed data to separate parquet and PyTorch files for each batch.
@@ -46,7 +46,7 @@ def save_results(
     os.makedirs(output_dir, exist_ok=True)
     
     # Define file paths with batch index and include component and data_type in filename
-    dataset_path = os.path.join(output_dir, f"batch_{batch_idx}.pt")
+    dataset_path = os.path.join(output_dir, f"{batch_name}.pt")
     
     # Convert numpy arrays to torch tensors
     windows_tensor = torch.FloatTensor(windows)
@@ -111,7 +111,8 @@ def process_component_data(
         try:
             # Load NPZ file data
             data = np.load(npz_file, allow_pickle=True)
-            
+            batch_name = os.path.basename(npz_file)
+            batch_name = batch_name.replace('.npz', '')
             # Extract data from NPZ file
             if 'windows' in data and 'labels' in data:
                 windows = data['windows']
@@ -122,7 +123,7 @@ def process_component_data(
                     windows,
                     labels,
                     output_component_dir,
-                    batch_idx
+                    batch_name
                 )
                 
                 # Track the batch files
@@ -160,18 +161,19 @@ def main():
 
 
     # Get paths from config
-    input_dir = 'Data/processed/lsmt/add_time_features/spilt'
-    output_dir = 'Data/processed/lsmt/add_time_features/dataSet'
+    input_dir = 'Data/processed/lsmt_statisticalFeatures/sliding_window_1200s'
+    output_dir = 'Data/processed/lsmt_statisticalFeatures/dataSet_1200s'
     
     # Get components to process
     #components = ['contact', 'pcb', 'ring']
-    components = ['train', 'val', 'test']
+    #components = ['train', 'val', 'test']
+    components = ['contact']
 
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)
     
     # Process each data type and component
-    for data_type in ['contact']:
+    for data_type in ['train', 'val', 'test']:
     
         for component in components:
             process_component_data(

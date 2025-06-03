@@ -38,8 +38,8 @@ def preview_parquet(parquet_path, sample_size=1000, output_csv_path=None):
 
 if __name__ == "__main__":
     # ====== Customize below ======
-    parquet_file = "Data/processed/lsmt/add_time_features/align/contact/aligned.parquet"
-    sample_output_csv = "Data/data_preview/add_time_features/contact_preview_align.csv"
+    parquet_file = "Data/processed/lsmt_statisticalFeatures/statistic_features_filtered/train/contact/batch_0.parquet"
+    sample_output_csv = "Data/data_preview/statistic_features_filtered/statistic_features_filtered_contact_batch_0.csv"
     # ====== ================== ======
 
     preview_parquet(parquet_file, sample_size=1000, output_csv_path=sample_output_csv)

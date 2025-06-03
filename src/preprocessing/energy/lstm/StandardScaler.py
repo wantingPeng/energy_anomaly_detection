@@ -21,21 +21,21 @@ def standardize_dataframes():
                                  'component_type_ring'
     """
     # Set input and output directories
-    input_dir = 'Data/processed/lsmt/merged'
-    output_dir = 'Data/processed/lsmt/standerScaler'
+    input_dir = 'Data/processed/lsmt_statisticalFeatures/statistic_features_filtered'
+    output_dir = 'Data/processed/lsmt_statisticalFeatures/statistic_features_standscaler'
     os.makedirs(output_dir, exist_ok=True)
     
     logger.info("Starting data standardization process with separate scalers for each component type")
     
     # Component types
-    component_types = ['contact', 'pcb', 'ring']
-    
+    #component_types = ['contact', 'pcb', 'ring']
+    component_types = ['contact']
+
     # Columns to delete
-    columns_to_delete = ['IsOutlier', 'ID', 'Station', 'time_diff','component_type']
-    
+    # columns_to_delete = ['IsOutlier', 'ID', 'Station', 'time_diff','component_type']
+    columns_to_delete = ['window_start', 'window_end', 'segment_id']
     # Columns to keep but not standardize
-    columns_to_skip = [
-        'segment_id', 'TimeStamp' ]
+    columns_to_skip = [ 'segment_id', 'TimeStamp' ]
     
     # Create a dictionary to store scalers for each component type
     scalers = {}

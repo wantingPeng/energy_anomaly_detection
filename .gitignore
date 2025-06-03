@@ -5,3 +5,4 @@ Data/
 *.joblib
 experiments/logs
 src/training/lsmt/checkpoints
+venv/

@@ -15,7 +15,6 @@ module_path="${script_path%.py}"
 # 替换路径中的 / 为 . （适配 Windows 的 \ 也处理一下）
 module_path="${module_path//\//.}"
 module_path="${module_path//\\/.}"
-
 # 执行 python -m xxx
-echo "▶️ Running: python -m $module_path"
-python -m "$module_path"
+echo "▶️ Running: python3 -m $module_path"
+python3 -m "$module_path"

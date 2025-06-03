@@ -68,9 +68,9 @@ def analyze_normal_anomaly_distribution_pt(directory_path):
     try:
         all_labels = []
         for file_name in os.listdir(directory_path):
-            if file_name.endswith('.pt'):
+            if file_name.endswith('.npz'):
                 file_path = os.path.join(directory_path, file_name)
-                data = torch.load(file_path)
+                data = np.load(file_path)
                 labels = data['labels']  # Assuming labels are stored under the key 'labels'
                 all_labels.extend(labels)
 
@@ -116,7 +116,7 @@ def main():
     # file_path = "Data/processed/lsmt/sliding_window/val/contact/batch_0.npz"
     # analyze_normal_anomaly_distribution(file_path)
 
-    directory_path = "Data/processed/lsmt/add_time_features/dataSet/contact/train"
+    directory_path = "Data/processed/lsmt_statisticalFeatures/sliding_window_1200s/train/contact"
     analyze_normal_anomaly_distribution_pt(directory_path)
 
 if __name__ == "__main__":

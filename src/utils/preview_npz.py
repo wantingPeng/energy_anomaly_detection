@@ -34,12 +34,14 @@ def preview_npz_data(npz_file_path, num_rows=100):
             logger.info(f"Shape: {array.shape}")
             logger.info(f"Data type: {array.dtype}")
             
-            # Check for NaN values
-            nan_count = np.isnan(array).sum()
-            total_elements = array.size
-            nan_percentage = (nan_count / total_elements) * 100 if total_elements > 0 else 0
-            
-            logger.info(f"NaN values: {nan_count} out of {total_elements} ({nan_percentage:.2f}%)")
+            # Check for NaN values if array is numeric
+            if np.issubdtype(array.dtype, np.number):
+                nan_count = np.isnan(array).sum()
+                total_elements = array.size
+                nan_percentage = (nan_count / total_elements) * 100 if total_elements > 0 else 0
+                logger.info(f"NaN values: {nan_count} out of {total_elements} ({nan_percentage:.2f}%)")
+            else:
+                logger.info("NaN check skipped (non-numeric data type)")
             
             # If array is multi-dimensional, reshape it for preview
             if array.ndim > 1:
@@ -74,12 +76,19 @@ def preview_npz_data(npz_file_path, num_rows=100):
                 # For 1D arrays, show the values directly
                 preview_count = min(num_rows, array.shape[0])
                 logger.info(f"\nFirst {preview_count} values:")
-                logger.info(array[:preview_count])
                 
-            # Check for infinite values
-            inf_count = np.isinf(array).sum()
-            if inf_count > 0:
-                logger.warning(f"Warning: {inf_count} infinite values detected in '{key}'")
+                # Specially handle object dtype (e.g., datetime, strings, etc.)
+                if array.dtype == np.dtype('O'):
+                    for i in range(preview_count):
+                        logger.info(f"[{i}] {array[i]}")
+                else:
+                    logger.info(array[:preview_count])
+                
+            # Check for infinite values if array is numeric
+            if np.issubdtype(array.dtype, np.number):
+                inf_count = np.isinf(array).sum()
+                if inf_count > 0:
+                    logger.warning(f"Warning: {inf_count} infinite values detected in '{key}'")
                 
     except Exception as e:
         logger.error(f"Error previewing NPZ file: {str(e)}")
@@ -147,7 +156,7 @@ def check_directory_for_nans(directory_path):
         parquet_files = []
         
         # Check if directory_path is a file or directory
-        if os.path.isfile(directory_path) and directory_path.endswith('.parquet'):
+        if os.path.isfile(directory_path) and directory_path.endswith('.npz'):
             parquet_files = [directory_path]
             logger.info(f"Found 1 parquet file: {directory_path}")
         else:
@@ -181,12 +190,11 @@ def check_directory_for_nans(directory_path):
 def main():
     """Main function to run the preview."""
     #NPZ file preview
-    npz_file_path = "Data/processed/lsmt/sliding_window_800s/test/contact/batch_0.npz"
-    preview_npz_data(npz_file_path)
+    # npz_file_path = "Data/processed/lsmt/sliding_window_800s/test/contact/batch_0.npz"
+    # preview_npz_data(npz_file_path)
     
-    # Parquet file NaN check
-    # directory_path = "Data/processed/lsmt/sliding_window_800s/test/contact"
-    # check_directory_for_nans(directory_path)
+    directory_path = "Data/processed/lsmt_statisticalFeatures/sliding_window_1200s/train/contact/batch_0.npz"
+    preview_npz_data(directory_path)
 
 if __name__ == "__main__":
     main()

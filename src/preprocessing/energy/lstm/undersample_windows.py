@@ -22,15 +22,15 @@ def undersample_normal_windows(dataset_path, seed=42):
     logger.info("Starting undersampling of normal windows")
     
     for category in categories:
-        category_path = dataset_path
-        #category_path = os.path.join(dataset_path, category)
+        #category_path = dataset_path
+        category_path = os.path.join(dataset_path, category)
 
         pt_files = [f for f in os.listdir(category_path) if f.endswith(".pt") ]
         
         logger.info(f"Processing {category} category with {len(pt_files)} pt files")
         
         # Create output directory for each category
-        output_category_dir = os.path.join('Data/processed/lsmt/test/spilt_after_sliding_1200s/train_down_25%_2', category)
+        output_category_dir = os.path.join('Data/processed/lsmt_statisticalFeatures/dataSet_1200s/train_down_25%', category)
         os.makedirs(output_category_dir, exist_ok=True)
         
         for file in sorted(pt_files):  # Sort to process in order
@@ -78,5 +78,5 @@ def undersample_normal_windows(dataset_path, seed=42):
 
 
 if __name__ == "__main__":
-    dataset_path = "Data/processed/lsmt/test/spilt_after_sliding_1200s/train/contact"
+    dataset_path = "Data/processed/lsmt_statisticalFeatures/dataSet_1200s/train"
     undersample_normal_windows(dataset_path)
