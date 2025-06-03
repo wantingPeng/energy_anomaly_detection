@@ -258,61 +258,6 @@ def train_epoch(config):
             logger.info(f"Training on component: {component_name} with {len(train_dataloader.dataset)} samples")
             
             # Train for one epoch
-            '''
-            if precision == 'mixed' and scaler:
-                # Implement mixed precision training
-                logger.info("Using mixed precision training")
-                model.train()
-                total_loss = 0
-                correct = 0
-                total = 0
-                
-                pbar = tqdm(train_dataloader, desc=f"Training on {component_name}")
-                
-                for batch_idx, (data, targets) in enumerate(pbar):
-                    data, targets = data.to(device), targets.to(device)
-                    optimizer.zero_grad()
-                    
-                    with torch.amp.autocast('cuda'):
-                        outputs = model(data)
-                        loss = criterion(outputs, targets.long())
-                    
-                    scaler.scale(loss).backward()
-                    scaler.step(optimizer)
-                    scaler.update()
-                    
-                    _, predicted = torch.max(outputs.data, 1)
-                    total += targets.size(0)
-                    correct += (predicted == targets).sum().item()
-                    
-                    total_loss += loss.item()
-                    avg_loss = total_loss / (batch_idx + 1)
-                    accuracy = 100. * correct / total
-                    
-                    # Log to TensorBoard per batch
-                    writer.add_scalar(f'Loss/train_batch/{component_name}', loss.item(), global_step)
-                    global_step += 1
-                    
-                    if batch_idx % log_interval == 0:
-                        pbar.set_postfix({'loss': f'{avg_loss:.4f}', 'accuracy': f'{accuracy:.2f}%'})
-                
-                train_loss, train_accuracy, train_precision, train_recall, train_f1 = train_model(
-                    model=model,
-                    dataloader=train_dataloader,
-                    criterion=criterion,
-                    optimizer=optimizer,
-                    device=device
-                )
-                
-                # Log to TensorBoard
-                writer.add_scalar(f'Loss/train/{component_name}', train_loss, epoch)
-                writer.add_scalar(f'Accuracy/train/{component_name}', train_accuracy, epoch)
-                writer.add_scalar(f'Precision/train/{component_name}', train_precision, epoch)
-                writer.add_scalar(f'Recall/train/{component_name}', train_recall, epoch)
-                writer.add_scalar(f'F1/train/{component_name}', train_f1, epoch)
-                
-            else:
-            '''
                 # Standard precision training
             logger.info("Using standard precision training")
             train_loss, train_accuracy, train_precision, train_recall, train_f1 = train_model(

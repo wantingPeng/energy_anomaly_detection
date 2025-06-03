@@ -12,7 +12,7 @@ model:
 # Training parameters
 training:
   batch_size: 64
-  num_epochs: 50
+  num_epochs: 150
   learning_rate: 0.001
   weight_decay: 0.0001
   num_workers: 4
@@ -38,9 +38,9 @@ data:
 # Paths
 paths:
   # LSTM sliding window data
-  lstm_data_dir: "Data/processed/lsmt_statisticalFeatures/sliding_window_1200s/train_down_25%"
+  lstm_data_dir: "Data/processed/lsmt_statisticalFeatures/sliding_window_1200s"
   # Statistical features data
-  stat_features_dir: "Data/processed/lsmt_statisticalFeatures/statistic_features_standscaler/train_down_25%"
+  stat_features_dir: "Data/processed/lsmt_statisticalFeatures/statistic_features_standscaler"
   # Output directory fordata/processed/statistical_features model checkpoints and results
   output_dir: "experiments/lstm_late_fusion"
 

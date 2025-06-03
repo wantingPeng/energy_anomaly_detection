@@ -17,6 +17,7 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score, confusion_matrix
+from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import argparse
@@ -121,6 +122,7 @@ def train_epoch(model, data_loader, criterion, optimizer, device):
         total_loss += loss.item()
     
     avg_loss = total_loss / len(data_loader)
+    print('len(data_loader)', len(data_loader))
     return avg_loss
 
 
@@ -208,57 +210,53 @@ def save_model(model, optimizer, epoch, train_loss, val_loss, metrics, config, s
     logger.info(f"Saved checkpoint to {checkpoint_path}")
 
 
-def plot_metrics(train_losses, val_losses, accuracies, precisions, recalls, f1s, save_dir):
+def load_model(model, optimizer, checkpoint_path, device):
     """
-    Plot training and validation metrics.
+    Load model checkpoint for continuing training or evaluation.
     
     Args:
-        train_losses: List of training losses
-        val_losses: List of validation losses
-        accuracies: List of accuracies
-        precisions: List of precisions
-        recalls: List of recalls
-        f1s: List of F1 scores
-        save_dir: Directory to save the plots
+        model: LSTM Late Fusion model instance
+        optimizer: Optimizer instance (can be None if just for evaluation)
+        checkpoint_path: Path to the checkpoint file
+        device: Device to load the model to
+        
+    Returns:
+        Tuple of (model, optimizer, start_epoch, checkpoint_data)
     """
-    os.makedirs(save_dir, exist_ok=True)
+    logger.info(f"Loading checkpoint from {checkpoint_path}")
     
-    # Plot losses
-    plt.figure(figsize=(10, 6))
-    plt.plot(train_losses, label='Train Loss')
-    plt.plot(val_losses, label='Validation Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.title('Training and Validation Loss')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(os.path.join(save_dir, 'loss_plot.png'))
-    plt.close()
+    # Load checkpoint
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    logger.error(f"checkpoint: {checkpoint}")
+    # Load model state
+    model.load_state_dict(checkpoint['model_state_dict'])
     
-    # Plot metrics
-    plt.figure(figsize=(10, 6))
-    plt.plot(accuracies, label='Accuracy')
-    plt.plot(precisions, label='Precision')
-    plt.plot(recalls, label='Recall')
-    plt.plot(f1s, label='F1 Score')
-    plt.xlabel('Epoch')
-    plt.ylabel('Score')
-    plt.title('Validation Metrics')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(os.path.join(save_dir, 'metrics_plot.png'))
-    plt.close()
+    # Load optimizer state if provided
+    if optimizer is not None and 'optimizer_state_dict' in checkpoint:
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    
+    # Get starting epoch (checkpoint's epoch + 1)
+    start_epoch = checkpoint.get('epoch', 0) + 1
+    
+    logger.info(f"Loaded model from epoch {checkpoint.get('epoch', 0)}")
+    
+    return model, optimizer, start_epoch, checkpoint
 
 
-def plot_pr_curve(scores, labels, thresholds, save_dir):
+def log_pr_metrics_to_tensorboard(writer, scores, labels, thresholds, global_step, prefix='val'):
     """
-    Plot precision-recall curve at different thresholds.
+    Calculate and log precision-recall metrics at different thresholds to TensorBoard.
     
     Args:
+        writer: TensorBoard SummaryWriter
         scores: Prediction scores (probabilities)
         labels: True labels
         thresholds: List of thresholds to evaluate
-        save_dir: Directory to save the plot
+        global_step: Global step for TensorBoard
+        prefix: Prefix for metric names in TensorBoard
+    
+    Returns:
+        Tuple of (best_threshold, best_f1)
     """
     precisions = []
     recalls = []
@@ -272,31 +270,26 @@ def plot_pr_curve(scores, labels, thresholds, save_dir):
         precisions.append(precision)
         recalls.append(recall)
         f1_scores.append(f1)
+        
+        # Log metrics at each threshold
+        writer.add_scalar(f'{prefix}/precision_t{threshold:.2f}', precision, global_step)
+        writer.add_scalar(f'{prefix}/recall_t{threshold:.2f}', recall, global_step)
+        writer.add_scalar(f'{prefix}/f1_t{threshold:.2f}', f1, global_step)
     
-    # Plot precision-recall curve
-    plt.figure(figsize=(10, 6))
-    plt.plot(recalls, precisions, 'b-', label='Precision-Recall curve')
-    plt.xlabel('Recall')
-    plt.ylabel('Precision')
-    plt.title('Precision-Recall Curve')
-    plt.grid(True)
-    plt.savefig(os.path.join(save_dir, 'pr_curve.png'))
-    plt.close()
-    
-    # Plot F1 score vs threshold
-    plt.figure(figsize=(10, 6))
-    plt.plot(thresholds, f1_scores, 'g-', label='F1 Score')
-    plt.xlabel('Threshold')
-    plt.ylabel('F1 Score')
-    plt.title('F1 Score vs Threshold')
-    plt.grid(True)
-    plt.savefig(os.path.join(save_dir, 'f1_threshold.png'))
-    plt.close()
+    # Log precision-recall curve
+    writer.add_pr_curve(f'{prefix}/pr_curve', 
+                        np.array(labels, dtype=np.int32),
+                        np.array(scores, dtype=np.float32),
+                        global_step)
     
     # Find best threshold
     best_idx = np.argmax(f1_scores)
     best_threshold = thresholds[best_idx]
     best_f1 = f1_scores[best_idx]
+    
+    # Log best threshold metrics
+    writer.add_scalar(f'{prefix}/best_threshold', best_threshold, global_step)
+    writer.add_scalar(f'{prefix}/best_f1', best_f1, global_step)
     
     return best_threshold, best_f1
 
@@ -317,11 +310,21 @@ def main(args):
     
     # Create experiment directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    experiment_dir = os.path.join(config['paths']['output_dir'], f"lstm_late_fusion_{timestamp}")
+    experiment_name = f"lstm_late_fusion_{timestamp}"
+    if args.experiment_name:
+        experiment_name = args.experiment_name
+    
+    experiment_dir = os.path.join(config['paths']['output_dir'], experiment_name)
     os.makedirs(experiment_dir, exist_ok=True)
     
     # Set up logging
     log_file = os.path.join("experiments/logs", f"lstm_late_fusion_training_{timestamp}.log")
+    
+    # Set up TensorBoard writer
+    tensorboard_dir = os.path.join("experiments/tensorboard", experiment_name)
+    os.makedirs(tensorboard_dir, exist_ok=True)
+    writer = SummaryWriter(log_dir=tensorboard_dir)
+    logger.info(f"TensorBoard logs will be saved to {tensorboard_dir}")
     
     # Create data loaders
     data_loaders = create_data_loaders(
@@ -336,12 +339,45 @@ def main(args):
     model = LSTMLateFusionModel(config=config['model'])
     model.to(device)
     
+    # Define optimizer
+    optimizer = optim.Adam(
+        model.parameters(),
+        lr=config['training']['learning_rate'],
+        weight_decay=config['training']['weight_decay']
+    )
+    
+    # Initialize tracking variables
+    start_epoch = 1
+    train_losses = []
+    val_losses = []
+    accuracies = []
+    precisions = []
+    recalls = []
+    f1s = []
+    best_val_loss = float('inf')
+    best_f1 = 0
+    
+    # Load existing model if specified
+    if args.load_model:
+        model, optimizer, start_epoch, checkpoint = load_model(
+            model, optimizer, args.load_model, device
+        )
+        
+        # Get best metrics from checkpoint if available
+        if 'val_loss' in checkpoint:
+            best_val_loss = checkpoint['val_loss']
+            logger.info(f"Loaded best validation loss: {best_val_loss:.4f}")
+        
+        if 'metrics' in checkpoint and 'f1' in checkpoint['metrics']:
+            best_f1 = checkpoint['metrics']['f1']
+            logger.info(f"Loaded best F1 score: {best_f1:.4f}")
+    
     # Get class weights if specified in config
     if config['training'].get('use_class_weights', False):
         # Calculate class weights from training data
         # Sample class distribution calculation (adjust based on your data)
         train_labels = []
-        for _, _, labels in data_loaders['train']:
+        for _, _, labels in data_loaders['train_down_25%']:
             train_labels.extend(labels.numpy())
         
         class_counts = np.bincount(train_labels)
@@ -360,21 +396,6 @@ def main(args):
         gamma = config['training'].get('focal_loss_gamma', 2.0)
         logger.info(f"Using Focal Loss with alpha={alpha}, gamma={gamma}")
         criterion = FocalLoss(alpha=alpha, gamma=gamma)
-    elif config['training'].get('pos_weight', None) is not None:
-        # Use binary cross entropy with logits and positive weight
-        pos_weight = torch.tensor([config['training']['pos_weight']], dtype=torch.float32).to(device)
-        logger.info(f"Using BCE with positive weight: {pos_weight}")
-        criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
-    else:
-        # Default: regular cross entropy loss
-        criterion = nn.CrossEntropyLoss()
-    
-    # Define optimizer
-    optimizer = optim.Adam(
-        model.parameters(),
-        lr=config['training']['learning_rate'],
-        weight_decay=config['training']['weight_decay']
-    )
     
     # Learning rate scheduler
     scheduler = ReduceLROnPlateau(
@@ -384,28 +405,27 @@ def main(args):
         patience=5,
     )
     
-    # Initialize tracking variables
-    train_losses = []
-    val_losses = []
-    accuracies = []
-    precisions = []
-    recalls = []
-    f1s = []
-    best_val_loss = float('inf')
-    best_f1 = 0
-    
     # Get evaluation threshold from config or use default
     eval_threshold = config['evaluation'].get('threshold', 0.3)
     logger.info(f"Using evaluation threshold: {eval_threshold}")
     
+    # Log model architecture and hyperparameters to TensorBoard
+    writer.add_text('Model/Architecture', str(model), 0)
+    writer.add_text('Hyperparameters/Learning_Rate', str(config['training']['learning_rate']), 0)
+    writer.add_text('Hyperparameters/Batch_Size', str(config['training']['batch_size']), 0)
+    writer.add_text('Hyperparameters/Weight_Decay', str(config['training']['weight_decay']), 0)
+    
     # Training loop
-    for epoch in range(1, config['training']['num_epochs'] + 1):
+    for epoch in range(start_epoch, config['training']['num_epochs'] + 1):
         logger.info(f"Epoch {epoch}/{config['training']['num_epochs']}")
         
         # Train
-        train_loss = train_epoch(model, data_loaders['train'], criterion, optimizer, device)
+        train_loss = train_epoch(model, data_loaders['train_down_25%'], criterion, optimizer, device)
         train_losses.append(train_loss)
         logger.info(f"Training Loss: {train_loss:.4f}")
+        
+        # Log training loss to TensorBoard
+        writer.add_scalar('Loss/train', train_loss, epoch)
         
         # Evaluate
         val_results = evaluate(
@@ -423,15 +443,50 @@ def main(args):
                    f"Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}")
         logger.info(f"Confusion Matrix:\n{conf_matrix}")
         
+        # Log validation metrics to TensorBoard
+        writer.add_scalar('Loss/validation', val_loss, epoch)
+        writer.add_scalar('Metrics/accuracy', accuracy, epoch)
+        writer.add_scalar('Metrics/precision', precision, epoch)
+        writer.add_scalar('Metrics/recall', recall, epoch)
+        writer.add_scalar('Metrics/f1', f1, epoch)
+        
+        # Log confusion matrix as figure to TensorBoard
+        fig = plt.figure(figsize=(8, 8))
+        plt.imshow(conf_matrix, interpolation='nearest', cmap=plt.cm.Blues)
+        plt.title('Confusion Matrix')
+        plt.colorbar()
+        classes = ['Normal', 'Anomaly']
+        tick_marks = np.arange(len(classes))
+        plt.xticks(tick_marks, classes, rotation=45)
+        plt.yticks(tick_marks, classes)
+        
+        # Add text annotations
+        thresh = conf_matrix.max() / 2.
+        for i in range(conf_matrix.shape[0]):
+            for j in range(conf_matrix.shape[1]):
+                plt.text(j, i, format(conf_matrix[i, j], 'd'),
+                        ha="center", va="center",
+                        color="white" if conf_matrix[i, j] > thresh else "black")
+        
+        plt.tight_layout()
+        plt.ylabel('True label')
+        plt.xlabel('Predicted label')
+        writer.add_figure('Confusion_Matrix/validation', fig, epoch)
+        plt.close(fig)
+        
         # Update learning rate
         scheduler.step(val_loss)
+        
+        # Log learning rate to TensorBoard
+        current_lr = optimizer.param_groups[0]['lr']
+        writer.add_scalar('Learning_Rate', current_lr, epoch)
         
         # Every 5 epochs, find best threshold
         if epoch % 5 == 0 or epoch == config['training']['num_epochs']:
             # Calculate metrics at different thresholds
             thresholds = np.arange(0.1, 0.9, 0.05)
-            best_threshold, best_threshold_f1 = plot_pr_curve(
-                val_scores, val_labels, thresholds, experiment_dir
+            best_threshold, best_threshold_f1 = log_pr_metrics_to_tensorboard(
+                writer, val_scores, val_labels, thresholds, epoch, prefix='val'
             )
             logger.info(f"Best threshold: {best_threshold:.2f} with F1: {best_threshold_f1:.4f}")
             
@@ -459,74 +514,91 @@ def main(args):
         # Save best model
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save(model.state_dict(), os.path.join(experiment_dir, 'best_model_loss.pt'))
+            best_model_path = os.path.join(experiment_dir, 'best_model_loss.pt')
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'val_loss': val_loss,
+                'metrics': metrics,
+                'config': config
+            }, best_model_path)
             logger.info(f"Saved best model (loss) at epoch {epoch}")
         
         if f1 > best_f1:
             best_f1 = f1
-            torch.save(model.state_dict(), os.path.join(experiment_dir, 'best_model_f1.pt'))
+            best_model_path = os.path.join(experiment_dir, 'best_model_f1.pt')
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'val_loss': val_loss,
+                'metrics': metrics,
+                'config': config
+            }, best_model_path)
             logger.info(f"Saved best model (F1) at epoch {epoch}")
-        
-        # Plot metrics
-        plot_metrics(
-            train_losses, val_losses, accuracies,
-            precisions, recalls, f1s, experiment_dir
-        )
         
         # Force garbage collection
         gc.collect()
     
+    # Close TensorBoard writer
+    writer.close()
+    
     # Evaluate on test set using best model
-    logger.info("Evaluating best model on test set")
-    model.load_state_dict(torch.load(os.path.join(experiment_dir, 'best_model_f1.pt')))
-    
-    test_results = evaluate(
-        model, data_loaders['test'], criterion, device, threshold=eval_threshold
-    )
-    test_loss, test_accuracy, test_precision, test_recall, test_f1, test_conf_matrix, test_scores, test_labels = test_results
-    
-    logger.info(f"Test Loss: {test_loss:.4f}, Accuracy: {test_accuracy:.4f}, "
-               f"Precision: {test_precision:.4f}, Recall: {test_recall:.4f}, F1: {test_f1:.4f}")
-    logger.info(f"Test Confusion Matrix:\n{test_conf_matrix}")
-    
-    # Try different thresholds on test set
-    thresholds = np.arange(0.1, 0.9, 0.05)
-    best_test_threshold, best_test_f1 = plot_pr_curve(
-        test_scores, test_labels, thresholds, 
-        os.path.join(experiment_dir, 'test_results')
-    )
-    logger.info(f"Best test threshold: {best_test_threshold:.2f} with F1: {best_test_f1:.4f}")
-    
-    # Re-evaluate with best threshold from test set
-    if best_test_threshold != eval_threshold:
-        logger.info(f"Re-evaluating with best test threshold: {best_test_threshold:.2f}")
-        test_preds = [1 if score > best_test_threshold else 0 for score in test_scores]
-        test_accuracy = accuracy_score(test_labels, test_preds)
-        test_precision, test_recall, test_f1, _ = precision_recall_fscore_support(
-            test_labels, test_preds, average='binary', zero_division=0
-        )
-        test_conf_matrix = confusion_matrix(test_labels, test_preds)
+    if args.evaluate_test:
+        logger.info("Evaluating best model on test set")
         
-        logger.info(f"Updated Test Metrics - Accuracy: {test_accuracy:.4f}, "
-                  f"Precision: {test_precision:.4f}, Recall: {test_recall:.4f}, F1: {test_f1:.4f}")
-        logger.info(f"Updated Test Confusion Matrix:\n{test_conf_matrix}")
+        # Load best model by F1 score
+        best_model_path = os.path.join(experiment_dir, 'best_model_f1.pt')
+        model, _, _, _ = load_model(model, None, best_model_path, device)
+        
+        test_results = evaluate(
+            model, data_loaders['test'], criterion, device, threshold=eval_threshold
+        )
+        test_loss, test_accuracy, test_precision, test_recall, test_f1, test_conf_matrix, test_scores, test_labels = test_results
+        
+        logger.info(f"Test Loss: {test_loss:.4f}, Accuracy: {test_accuracy:.4f}, "
+                   f"Precision: {test_precision:.4f}, Recall: {test_recall:.4f}, F1: {test_f1:.4f}")
+        logger.info(f"Test Confusion Matrix:\n{test_conf_matrix}")
+        
+        # Try different thresholds on test set
+        thresholds = np.arange(0.1, 0.9, 0.05)
+        best_test_threshold, best_test_f1 = log_pr_metrics_to_tensorboard(
+            writer, test_scores, test_labels, thresholds, 0, prefix='test'
+        )
+        logger.info(f"Best test threshold: {best_test_threshold:.2f} with F1: {best_test_f1:.4f}")
+        
+        # Re-evaluate with best threshold from test set
+        if best_test_threshold != eval_threshold:
+            logger.info(f"Re-evaluating with best test threshold: {best_test_threshold:.2f}")
+            test_preds = [1 if score > best_test_threshold else 0 for score in test_scores]
+            test_accuracy = accuracy_score(test_labels, test_preds)
+            test_precision, test_recall, test_f1, _ = precision_recall_fscore_support(
+                test_labels, test_preds, average='binary', zero_division=0
+            )
+            test_conf_matrix = confusion_matrix(test_labels, test_preds)
+            
+            logger.info(f"Updated Test Metrics - Accuracy: {test_accuracy:.4f}, "
+                      f"Precision: {test_precision:.4f}, Recall: {test_recall:.4f}, F1: {test_f1:.4f}")
+            logger.info(f"Updated Test Confusion Matrix:\n{test_conf_matrix}")
+        
+        # Save test metrics
+        test_metrics = {
+            'loss': test_loss,
+            'accuracy': test_accuracy,
+            'precision': test_precision,
+            'recall': test_recall,
+            'f1': test_f1,
+            'confusion_matrix': test_conf_matrix.tolist(),
+            'threshold': best_test_threshold
+        }
+        
+        test_metrics_path = os.path.join(experiment_dir, 'test_metrics.yaml')
+        with open(test_metrics_path, 'w') as f:
+            yaml.dump(test_metrics, f)
+        
+        logger.info(f"Saved test metrics to {test_metrics_path}")
     
-    # Save test metrics
-    test_metrics = {
-        'loss': test_loss,
-        'accuracy': test_accuracy,
-        'precision': test_precision,
-        'recall': test_recall,
-        'f1': test_f1,
-        'confusion_matrix': test_conf_matrix.tolist(),
-        'threshold': best_test_threshold
-    }
-    
-    test_metrics_path = os.path.join(experiment_dir, 'test_metrics.yaml')
-    with open(test_metrics_path, 'w') as f:
-        yaml.dump(test_metrics, f)
-    
-    logger.info(f"Saved test metrics to {test_metrics_path}")
     logger.info("Training complete")
 
 
@@ -534,6 +606,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train LSTM Late Fusion model")
     parser.add_argument("--config", type=str, default="configs/lstm_late_fusion.yaml",
                        help="Path to configuration file")
+    parser.add_argument("--load_model", type=str, default=None,
+                       help="Path to pretrained model checkpoint to continue training")
+    parser.add_argument("--experiment_name", type=str, default=None,
+                       help="Custom experiment name for output directory")
+    parser.add_argument("--evaluate_test", action="store_true",
+                       help="Evaluate the best model on test set after training")
     args = parser.parse_args()
     
     main(args) 

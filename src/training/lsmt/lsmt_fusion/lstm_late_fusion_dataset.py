@@ -163,7 +163,7 @@ def create_data_loaders(
     """
     data_loaders = {}
     
-    for data_type in ['train', 'val', 'test']:
+    for data_type in ['train_down_25%', 'val', 'test']:
         dataset = LSTMLateFusionDataset(
             lstm_data_dir=lstm_data_dir,
             stat_features_dir=stat_features_dir,
