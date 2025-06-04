@@ -83,6 +83,49 @@ class FocalLoss(nn.Module):
             return focal_loss
 
 
+class EarlyStopping:
+    """
+    Early stopping to prevent overfitting.
+    
+    Args:
+        patience: Number of epochs to wait after last improvement
+        min_delta: Minimum change to qualify as an improvement
+        mode: 'min' for loss, 'max' for metrics like F1
+    """
+    def __init__(self, patience=10, min_delta=0.0001, mode='min'):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.mode = mode
+        self.counter = 0
+        self.best_score = None
+        self.early_stop = False
+        
+    def __call__(self, current_score):
+        if self.best_score is None:
+            self.best_score = current_score
+            return False
+        
+        if self.mode == 'min':
+            # For metrics like loss where lower is better
+            if current_score < self.best_score - self.min_delta:
+                self.best_score = current_score
+                self.counter = 0
+            else:
+                self.counter += 1
+        else:
+            # For metrics like F1 where higher is better
+            if current_score > self.best_score + self.min_delta:
+                self.best_score = current_score
+                self.counter = 0
+            else:
+                self.counter += 1
+        
+        if self.counter >= self.patience:
+            self.early_stop = True
+            
+        return self.early_stop
+
+
 def train_epoch(model, data_loader, criterion, optimizer, device):
     """
     Train the model for one epoch.
@@ -226,11 +269,10 @@ def load_model(model, optimizer, checkpoint_path, device):
     logger.info(f"Loading checkpoint from {checkpoint_path}")
     
     # Load checkpoint
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-    logger.error(f"checkpoint: {checkpoint}")
+    checkpoint = torch.load(checkpoint_path, map_location=device,weights_only=False)
     # Load model state
+    #model.load_state_dict(checkpoint)
     model.load_state_dict(checkpoint['model_state_dict'])
-    
     # Load optimizer state if provided
     if optimizer is not None and 'optimizer_state_dict' in checkpoint:
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -241,9 +283,11 @@ def load_model(model, optimizer, checkpoint_path, device):
     logger.info(f"Loaded model from epoch {checkpoint.get('epoch', 0)}")
     
     return model, optimizer, start_epoch, checkpoint
+    #logger.error(f"return model")
+    #return model
 
 
-def log_pr_metrics_to_tensorboard(writer, scores, labels, thresholds, global_step, prefix='val'):
+'''def log_pr_metrics_to_tensorboard(writer, scores, labels, thresholds, global_step, prefix='val'):
     """
     Calculate and log precision-recall metrics at different thresholds to TensorBoard.
     
@@ -292,7 +336,7 @@ def log_pr_metrics_to_tensorboard(writer, scores, labels, thresholds, global_ste
     writer.add_scalar(f'{prefix}/best_f1', best_f1, global_step)
     
     return best_threshold, best_f1
-
+'''
 
 def main(args):
     """
@@ -372,6 +416,12 @@ def main(args):
             best_f1 = checkpoint['metrics']['f1']
             logger.info(f"Loaded best F1 score: {best_f1:.4f}")
     
+
+            '''       
+                model= load_model(
+                model, None, args.load_model, device
+            )'''
+
     # Get class weights if specified in config
     if config['training'].get('use_class_weights', False):
         # Calculate class weights from training data
@@ -396,6 +446,8 @@ def main(args):
         gamma = config['training'].get('focal_loss_gamma', 2.0)
         logger.info(f"Using Focal Loss with alpha={alpha}, gamma={gamma}")
         criterion = FocalLoss(alpha=alpha, gamma=gamma)
+    else:
+        criterion = nn.CrossEntropyLoss()
     
     # Learning rate scheduler
     scheduler = ReduceLROnPlateau(
@@ -403,6 +455,23 @@ def main(args):
         mode='min',
         factor=0.5,
         patience=5,
+    )
+    
+    # Initialize Early Stopping
+    early_stopping_metric = config['training'].get('early_stopping_metric', 'loss')
+    early_stopping_patience = config['training'].get('early_stopping_patience', 10)
+    early_stopping_min_delta = config['training'].get('early_stopping_min_delta', 0.0001)
+    
+    # Set mode based on metric (min for loss, max for F1)
+    early_stopping_mode = 'min' if early_stopping_metric == 'loss' else 'max'
+    
+    logger.info(f"Using Early Stopping with patience={early_stopping_patience}, "
+               f"metric={early_stopping_metric}, mode={early_stopping_mode}")
+    
+    early_stopping = EarlyStopping(
+        patience=early_stopping_patience,
+        min_delta=early_stopping_min_delta,
+        mode=early_stopping_mode
     )
     
     # Get evaluation threshold from config or use default
@@ -479,21 +548,8 @@ def main(args):
         
         # Log learning rate to TensorBoard
         current_lr = optimizer.param_groups[0]['lr']
+        logger.info(f"Current learning rate: {current_lr}")
         writer.add_scalar('Learning_Rate', current_lr, epoch)
-        
-        # Every 5 epochs, find best threshold
-        if epoch % 5 == 0 or epoch == config['training']['num_epochs']:
-            # Calculate metrics at different thresholds
-            thresholds = np.arange(0.1, 0.9, 0.05)
-            best_threshold, best_threshold_f1 = log_pr_metrics_to_tensorboard(
-                writer, val_scores, val_labels, thresholds, epoch, prefix='val'
-            )
-            logger.info(f"Best threshold: {best_threshold:.2f} with F1: {best_threshold_f1:.4f}")
-            
-            # Update evaluation threshold if auto-threshold is enabled
-            if config['evaluation'].get('auto_threshold', False):
-                eval_threshold = best_threshold
-                logger.info(f"Updated evaluation threshold to {eval_threshold:.2f}")
         
         # Save metrics
         metrics = {
@@ -538,6 +594,13 @@ def main(args):
             }, best_model_path)
             logger.info(f"Saved best model (F1) at epoch {epoch}")
         
+        # Check early stopping
+        early_stopping_value = val_loss if early_stopping_metric == 'loss' else f1
+        if early_stopping(early_stopping_value):
+            logger.info(f"Early stopping triggered after {epoch} epochs")
+            logger.info(f"Best {early_stopping_metric}: {early_stopping.best_score:.4f}")
+            break
+        
         # Force garbage collection
         gc.collect()
     
@@ -561,27 +624,6 @@ def main(args):
                    f"Precision: {test_precision:.4f}, Recall: {test_recall:.4f}, F1: {test_f1:.4f}")
         logger.info(f"Test Confusion Matrix:\n{test_conf_matrix}")
         
-        # Try different thresholds on test set
-        thresholds = np.arange(0.1, 0.9, 0.05)
-        best_test_threshold, best_test_f1 = log_pr_metrics_to_tensorboard(
-            writer, test_scores, test_labels, thresholds, 0, prefix='test'
-        )
-        logger.info(f"Best test threshold: {best_test_threshold:.2f} with F1: {best_test_f1:.4f}")
-        
-        # Re-evaluate with best threshold from test set
-        if best_test_threshold != eval_threshold:
-            logger.info(f"Re-evaluating with best test threshold: {best_test_threshold:.2f}")
-            test_preds = [1 if score > best_test_threshold else 0 for score in test_scores]
-            test_accuracy = accuracy_score(test_labels, test_preds)
-            test_precision, test_recall, test_f1, _ = precision_recall_fscore_support(
-                test_labels, test_preds, average='binary', zero_division=0
-            )
-            test_conf_matrix = confusion_matrix(test_labels, test_preds)
-            
-            logger.info(f"Updated Test Metrics - Accuracy: {test_accuracy:.4f}, "
-                      f"Precision: {test_precision:.4f}, Recall: {test_recall:.4f}, F1: {test_f1:.4f}")
-            logger.info(f"Updated Test Confusion Matrix:\n{test_conf_matrix}")
-        
         # Save test metrics
         test_metrics = {
             'loss': test_loss,
@@ -590,7 +632,7 @@ def main(args):
             'recall': test_recall,
             'f1': test_f1,
             'confusion_matrix': test_conf_matrix.tolist(),
-            'threshold': best_test_threshold
+           # 'threshold': best_test_threshold
         }
         
         test_metrics_path = os.path.join(experiment_dir, 'test_metrics.yaml')

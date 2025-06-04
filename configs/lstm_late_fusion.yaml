@@ -11,7 +11,7 @@ model:
 
 # Training parameters
 training:
-  batch_size: 64
+  batch_size: 128
   num_epochs: 150
   learning_rate: 0.001
   weight_decay: 0.0001
@@ -28,6 +28,10 @@ training:
   use_focal_loss: true  # Set to true to use Focal Loss
   focal_loss_alpha: 0.25  # Weight for positive class (higher means more focus on anomalies)
   focal_loss_gamma: 2.0  # Focusing parameter (higher means more focus on hard examples)
+
+  early_stopping_metric: "f1"
+  early_stopping_patience: 10
+  early_stopping_min_delta: 0.0001
 
 # Data parameters
 data:

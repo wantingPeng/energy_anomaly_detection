@@ -29,8 +29,8 @@ def undersample_normal_windows(sliding_window_path, statistical_features_path, s
     categories = ["contact"]
     
     # Create output directories
-    sliding_window_output_path = "Data/processed/lsmt_statisticalFeatures/sliding_window_1200s/train_down_25%"
-    statistical_features_output_path = "Data/processed/lsmt_statisticalFeatures/statistic_features_standscaler/train_down_25%"
+    sliding_window_output_path = "Data/processed/lsmt_timeFeatures/sliding_window_1200s/train_down_25%"
+    statistical_features_output_path = "Data/processed/lsmt_timeFeatures/statistic_features_standscaler/statisticalFeatures_down_25%"
     
     for category in categories:
         sliding_window_category_path = os.path.join(sliding_window_path, category)
@@ -142,6 +142,6 @@ def undersample_normal_windows(sliding_window_path, statistical_features_path, s
 
 
 if __name__ == "__main__":
-    sliding_window_path = "Data/processed/lsmt_statisticalFeatures/sliding_window_1200s/train"
-    statistical_features_path = "Data/processed/lsmt_statisticalFeatures/statistic_features_standscaler/train"
+    sliding_window_path = "Data/processed/lsmt_timeFeatures/sliding_window_1200s/train"
+    statistical_features_path = "Data/processed/lsmt_timeFeatures/statistic_features_standscaler/train"
     undersample_normal_windows(sliding_window_path, statistical_features_path)

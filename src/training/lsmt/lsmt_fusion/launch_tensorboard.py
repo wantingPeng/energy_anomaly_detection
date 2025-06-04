@@ -20,7 +20,7 @@ def main():
     parser.add_argument(
         "--logdir", 
         type=str, 
-        default="experiments/tensorboard",
+        default="experiments/lstm_late_fusion/tensorboard",
         help="Directory containing TensorBoard event files"
     )
     parser.add_argument(

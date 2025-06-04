@@ -88,7 +88,7 @@ def process_segment(
     }
     
     # Exclude non-feature columns
-    exclude_cols = ['TimeStamp', 'segment_id'] + [col for col in segment_df.columns if col.startswith('component_type_')]
+    exclude_cols = ['TimeStamp', 'segment_id']
     feature_cols = [col for col in segment_df.columns if col not in exclude_cols]
     
     # Sort by timestamp

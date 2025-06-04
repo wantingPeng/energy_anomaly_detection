@@ -187,14 +187,85 @@ def check_directory_for_nans(directory_path):
     except Exception as e:
         logger.error(f"Error checking directory: {str(e)}")
 
+def analyze_npz_directory(directory_path):
+    """
+    Analyze all NPZ files in a directory and display information about each key.
+    
+    Args:
+        directory_path (str): Path to the directory containing NPZ files
+    """
+    try:
+        # Check if directory exists
+        if not os.path.exists(directory_path):
+            logger.error(f"Directory not found: {directory_path}")
+            return
+        
+        # Get all NPZ files in the directory
+        npz_files = []
+        
+        # Check if directory_path is a file or directory
+        if os.path.isfile(directory_path) and directory_path.endswith('.npz'):
+            npz_files = [directory_path]
+            logger.info(f"Found 1 NPZ file: {directory_path}")
+        else:
+            # Walk through the directory to find all NPZ files
+            for root, _, files in os.walk(directory_path):
+                for file in files:
+                    if file.endswith('.npz'):
+                        npz_files.append(os.path.join(root, file))
+            
+            logger.info(f"Found {len(npz_files)} NPZ files in {directory_path}")
+        
+        if not npz_files:
+            logger.warning(f"No NPZ files found in {directory_path}")
+            return
+        
+        # Analyze each NPZ file
+        for npz_file in npz_files:
+            logger.info(f"\n{'='*50}")
+            logger.info(f"Analyzing file: {npz_file}")
+            
+            try:
+                # Load the NPZ file
+                data = np.load(npz_file, allow_pickle=True)
+                
+                # Print the keys in the NPZ file
+                logger.info(f"Keys in NPZ file: {data.files}")
+                
+                # Analyze each array in the NPZ file
+                for key in data.files:
+                    array = data[key]
+                    
+                    logger.info(f"\nKey: '{key}'")
+                    logger.info(f"  Shape: {array.shape}")
+                    logger.info(f"  Data type: {array.dtype}")
+                    logger.info(f"  Number of elements: {array.size}")
+                    
+                    # Check for NaN values if array is numeric
+                    if np.issubdtype(array.dtype, np.number):
+                        nan_count = np.isnan(array).sum()
+                        total_elements = array.size
+                        nan_percentage = (nan_count / total_elements) * 100 if total_elements > 0 else 0
+                        logger.info(f"  NaN values: {nan_count} out of {total_elements} ({nan_percentage:.2f}%)")
+            
+            except Exception as e:
+                logger.error(f"Error analyzing NPZ file {npz_file}: {str(e)}")
+        
+    except Exception as e:
+        logger.error(f"Error analyzing directory: {str(e)}")
+
 def main():
     """Main function to run the preview."""
     #NPZ file preview
     # npz_file_path = "Data/processed/lsmt/sliding_window_800s/test/contact/batch_0.npz"
     # preview_npz_data(npz_file_path)
     
-    directory_path = "Data/processed/lsmt_statisticalFeatures/sliding_window_1200s/train/contact/batch_0.npz"
-    preview_npz_data(directory_path)
+    # directory_path = "Data/processed/lsmt_standerScaler_in_segment/spilt_after_sliding/sliding_window/contact"
+    # preview_npz_data(directory_path)
+    
+    # Analyze all NPZ files in the directory
+    directory_path = "Data/processed/lsmt_standerScaler_in_segment/spilt_after_sliding/sliding_window/contact"
+    analyze_npz_directory(directory_path)
 
 if __name__ == "__main__":
     main()
