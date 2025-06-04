@@ -23,9 +23,12 @@ from tqdm import tqdm
 import argparse
 
 from src.utils.logger import logger
+from src.training.lsmt.focal_loss import FocalLoss
 from src.training.lsmt.lsmt_fusion.lstm_late_fusion_model import LSTMLateFusionModel
 from src.training.lsmt.lsmt_fusion.lstm_late_fusion_dataset import create_data_loaders
-
+#from src.training.lsmt.lsmt_fusion.attention_weight import visualize_attention_weights
+from src.training.lsmt.lsmt_fusion.train import train_epoch
+from src.training.lsmt.lsmt_fusion.evaluate import evaluate
 
 def load_config(config_path=None):
     """
@@ -45,42 +48,6 @@ def load_config(config_path=None):
     
     logger.info(f"Loaded configuration from {config_path}")
     return config
-
-
-class FocalLoss(nn.Module):
-    """
-    Focal Loss for addressing class imbalance by focusing on hard examples.
-    
-    Args:
-        alpha: Weighting factor for the rare class (typically the positive class)
-        gamma: Focusing parameter that reduces the loss contribution from easy examples
-        reduction: Specifies the reduction to apply to the output ('mean', 'sum', or 'none')
-    """
-    def __init__(self, alpha=0.25, gamma=2.0, reduction='mean'):
-        super(FocalLoss, self).__init__()
-        self.alpha = alpha
-        self.gamma = gamma
-        self.reduction = reduction
-        self.cross_entropy = nn.CrossEntropyLoss(reduction='none')
-        
-    def forward(self, inputs, targets):
-        ce_loss = self.cross_entropy(inputs, targets)
-        pt = torch.exp(-ce_loss)
-        
-        # Apply alpha weighting based on the class
-        alpha_tensor = torch.ones_like(targets, dtype=torch.float32)
-        alpha_tensor[targets == 1] = self.alpha  # Weight for positive class
-        alpha_tensor[targets == 0] = 1 - self.alpha  # Weight for negative class
-        
-        # Apply focusing term
-        focal_loss = alpha_tensor * (1 - pt) ** self.gamma * ce_loss
-        
-        if self.reduction == 'mean':
-            return focal_loss.mean()
-        elif self.reduction == 'sum':
-            return focal_loss.sum()
-        else:
-            return focal_loss
 
 
 class EarlyStopping:
@@ -125,101 +92,6 @@ class EarlyStopping:
             
         return self.early_stop
 
-
-def train_epoch(model, data_loader, criterion, optimizer, device):
-    """
-    Train the model for one epoch.
-    
-    Args:
-        model: LSTM Late Fusion model
-        data_loader: Training data loader
-        criterion: Loss function
-        optimizer: Optimizer
-        device: Device to use for training
-        
-    Returns:
-        Average training loss
-    """
-    model.train()
-    total_loss = 0
-    
-    for windows, stat_features, labels in tqdm(data_loader, desc="Training"):
-        # Move data to device
-        windows = windows.to(device)
-        stat_features = stat_features.to(device)
-        labels = labels.to(device)
-        
-        # Zero gradients
-        optimizer.zero_grad()
-        
-        # Forward pass
-        outputs = model(windows, stat_features)
-        
-        # Calculate loss
-        loss = criterion(outputs, labels)
-        
-        # Backward pass and optimize
-        loss.backward()
-        optimizer.step()
-        
-        total_loss += loss.item()
-    
-    avg_loss = total_loss / len(data_loader)
-    print('len(data_loader)', len(data_loader))
-    return avg_loss
-
-
-def evaluate(model, data_loader, criterion, device, threshold=0.3):
-    """
-    Evaluate the model on validation or test data.
-    
-    Args:
-        model: LSTM Late Fusion model
-        data_loader: Validation or test data loader
-        criterion: Loss function
-        device: Device to use for evaluation
-        threshold: Classification threshold for positive class (anomaly)
-        
-    Returns:
-        Tuple of (average loss, accuracy, precision, recall, f1, confusion matrix)
-    """
-    model.eval()
-    total_loss = 0
-    all_preds = []
-    all_labels = []
-    all_scores = []
-    
-    with torch.no_grad():
-        for windows, stat_features, labels in tqdm(data_loader, desc="Evaluating"):
-            # Move data to device
-            windows = windows.to(device)
-            stat_features = stat_features.to(device)
-            labels = labels.to(device)
-            
-            # Forward pass
-            outputs = model(windows, stat_features)
-            
-            # Calculate loss
-            loss = criterion(outputs, labels)
-            total_loss += loss.item()
-            
-            # Get probabilities and predictions with custom threshold
-            probs = torch.softmax(outputs, dim=1)
-            anomaly_scores = probs[:, 1]  # Probability for anomaly class
-            preds = (anomaly_scores > threshold).long()
-            
-            # Store predictions, scores and labels
-            all_preds.extend(preds.cpu().numpy())
-            all_scores.extend(anomaly_scores.cpu().numpy())
-            all_labels.extend(labels.cpu().numpy())
-    
-    # Calculate metrics
-    avg_loss = total_loss / len(data_loader)
-    accuracy = accuracy_score(all_labels, all_preds)
-    precision, recall, f1, _ = precision_recall_fscore_support(all_labels, all_preds, average='binary', zero_division=0)
-    conf_matrix = confusion_matrix(all_labels, all_preds)
-    
-    return avg_loss, accuracy, precision, recall, f1, conf_matrix, all_scores, all_labels
 
 
 def save_model(model, optimizer, epoch, train_loss, val_loss, metrics, config, save_dir):
@@ -285,7 +157,7 @@ def load_model(model, optimizer, checkpoint_path, device):
     return model, optimizer, start_epoch, checkpoint
     #logger.error(f"return model")
     #return model
-
+    
 
 '''def log_pr_metrics_to_tensorboard(writer, scores, labels, thresholds, global_step, prefix='val'):
     """
@@ -500,7 +372,7 @@ def main(args):
         val_results = evaluate(
             model, data_loaders['val'], criterion, device, threshold=eval_threshold
         )
-        val_loss, accuracy, precision, recall, f1, conf_matrix, val_scores, val_labels = val_results
+        val_loss, accuracy, precision, recall, f1, conf_matrix, val_scores, val_labels, val_attn_weights = val_results
         
         val_losses.append(val_loss)
         accuracies.append(accuracy)
@@ -603,6 +475,9 @@ def main(args):
         
         # Force garbage collection
         gc.collect()
+        
+        # Visualize attention weights
+        #visualize_attention_weights(val_attn_weights, experiment_dir, epoch)
     
     # Close TensorBoard writer
     writer.close()
@@ -618,7 +493,7 @@ def main(args):
         test_results = evaluate(
             model, data_loaders['test'], criterion, device, threshold=eval_threshold
         )
-        test_loss, test_accuracy, test_precision, test_recall, test_f1, test_conf_matrix, test_scores, test_labels = test_results
+        test_loss, test_accuracy, test_precision, test_recall, test_f1, test_conf_matrix, test_scores, test_labels, test_attn_weights = test_results
         
         logger.info(f"Test Loss: {test_loss:.4f}, Accuracy: {test_accuracy:.4f}, "
                    f"Precision: {test_precision:.4f}, Recall: {test_recall:.4f}, F1: {test_f1:.4f}")
@@ -640,6 +515,9 @@ def main(args):
             yaml.dump(test_metrics, f)
         
         logger.info(f"Saved test metrics to {test_metrics_path}")
+        
+        # Visualize attention weights
+        #visualize_attention_weights(test_attn_weights, experiment_dir, 0, prefix='test')
     
     logger.info("Training complete")
 

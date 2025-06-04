@@ -61,7 +61,7 @@ def load_model(model_path, config):
         logger.error(f"Error loading model from {model_path}: {str(e)}")
         raise
 
-def validate_model(model, dataloader, criterion, device):
+def evaluate_model(model, dataloader, criterion, device):
     """
     Validate the model on validation data
     
@@ -144,7 +144,7 @@ def calculate_metrics(predictions, targets):
     
     return metrics
 
-def validate(config, model_path=None, model=None):
+def evaluate(config, model_path=None, model=None):
     """
     Validate the LSTM model using the provided configuration
     
@@ -235,7 +235,7 @@ def validate(config, model_path=None, model=None):
         logger.info(f"Validating on component: {component_name} with {len(dataloader.dataset)} samples")
         
         # Validate
-        val_loss, accuracy, predictions, targets = validate_model(
+        val_loss, accuracy, predictions, targets = evaluate_model(
             model=model,
             dataloader=dataloader,
             criterion=criterion,
@@ -296,7 +296,7 @@ def main():
     config = load_config(config_path)
     
     # Validate model
-    component_metrics, overall_metrics = validate(config)
+    component_metrics, overall_metrics = evaluate(config)
     
     logger.info("Validation completed")
 

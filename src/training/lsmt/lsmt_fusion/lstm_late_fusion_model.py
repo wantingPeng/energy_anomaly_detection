@@ -47,6 +47,11 @@ class LSTMLateFusionModel(nn.Module):
             dropout=self.dropout if self.num_layers > 1 else 0,
         )
         
+        # Attention layer for LSTM outputs
+        self.attention_layer = nn.Linear(self.hidden_size, 1)
+        nn.init.xavier_uniform_(self.attention_layer.weight, gain=2.0)
+        nn.init.zeros_(self.attention_layer.bias)
+
         # LSTM branch fully connected layers
         self.lstm_fc = nn.Sequential(
             nn.Linear(self.hidden_size, self.hidden_size // 2),
@@ -91,7 +96,7 @@ class LSTMLateFusionModel(nn.Module):
             stat_features: Statistical features tensor with shape (batch_size, stat_features_size)
             
         Returns:
-            Output tensor
+            Output tensor and attention weights
         """
         # Check input shapes
         batch_size, seq_len, features = x.size()
@@ -103,8 +108,25 @@ class LSTMLateFusionModel(nn.Module):
 
         # LSTM branch forward pass
         lstm_out, _ = self.lstm(x)
+        #logger.info(f"LSTM output STD per time step: {lstm_out.std(dim=1)}")
+
+        '''
         lstm_out = lstm_out[:, -1, :]  # Use the output from the last time step
         lstm_features = self.lstm_fc(lstm_out)
+        '''
+        '''
+        # Apply attention mechanism
+        attn_scores = self.attention_layer(lstm_out)             # (B, T, 1)
+        attn_weights = torch.softmax(attn_scores, dim=1)         # (B, T, 1)
+
+        context_vector = torch.sum(attn_weights * lstm_out, dim=1)  # (B, H)
+        lstm_features = self.lstm_fc(context_vector)
+        '''
+        scores = self.attention_layer(lstm_out)           # (B, T, 1)
+        weights = torch.sigmoid(scores)                   # [0, 1]
+        weights = weights / weights.sum(dim=1, keepdim=True)
+        context = torch.sum(weights * lstm_out, dim=1)
+        lstm_features = self.lstm_fc(context)
         
         # Statistical features branch forward pass
         stat_out = self.stat_fc(stat_features)
@@ -118,8 +140,9 @@ class LSTMLateFusionModel(nn.Module):
         # Apply output activation
         out = self.output_activation(out)
         
-        return out
-    
+        #return out, attn_weights
+        return out,weights
+
     def _init_weights(self):
         """
         Initialize the weights for LSTM and linear layers

@@ -14,7 +14,7 @@ from sklearn.metrics import f1_score, precision_score, recall_score
 from src.training.lsmt.lstm_model import LSTMModel
 from src.training.lsmt.dataloader_from_batches import get_component_dataloaders
 from src.utils.logger import logger
-from src.training.lsmt.val_lsmt import validate
+from src.training.lsmt.evaluate import evaluate
 from src.training.lsmt.focal_loss import FocalLoss
 
 def load_config(config_path):
@@ -36,75 +36,7 @@ def load_config(config_path):
         logger.error(f"Error loading configuration from {config_path}: {str(e)}")
         raise
 
-def train_model(model, dataloader, criterion, optimizer, device):
-    """
-    Train the model for one epoch
-    
-    Args:
-        model: PyTorch model
-        dataloader: PyTorch DataLoader
-        criterion: Loss function
-        optimizer: PyTorch optimizer
-        device: Device to train on
-        
-    Returns:
-        tuple: (epoch_loss, epoch_accuracy, epoch_precision, epoch_recall, epoch_f1)
-    """
-    model.train()
-    total_loss = 0
-    correct = 0
-    total = 0
-    
-    all_predictions = []
-    all_targets = []
-    
-    # Use tqdm for progress bar
-    pbar = tqdm(dataloader, desc="Training")
-    
-    for batch_idx, (data, targets) in enumerate(pbar):
-        # Move data to device
-        data, targets = data.to(device), targets.to(device)
-        
-        # Zero the parameter gradients
-        optimizer.zero_grad()
-        
-        # Forward pass
-        outputs = model(data)
-        
-        # Calculate loss
-        loss = criterion(outputs, targets.long())
-        
-        # Backward pass and optimize
-        loss.backward()
-        optimizer.step()
-        
-        # Calculate accuracy for binary classification
-        _, predicted = torch.max(outputs.data, 1)
-        total += targets.size(0)
-        correct += (predicted == targets).sum().item()
-        
-        # Store predictions and targets for metric calculation
-        all_predictions.extend(predicted.cpu().numpy())
-        all_targets.extend(targets.cpu().numpy())
-        
-        # Update total loss
-        total_loss += loss.item()
-        
-        # Update progress bar
-        avg_loss = total_loss / (batch_idx + 1)
-        accuracy = 100. * correct / total
-        pbar.set_postfix({'loss': f'{avg_loss:.4f}', 'accuracy': f'{accuracy:.2f}%'})
-    
-    # Calculate metrics
-    epoch_loss = total_loss / len(dataloader)
-    epoch_accuracy = 100. * correct / total
-    epoch_precision = precision_score(all_targets, all_predictions, average='weighted')
-    epoch_recall = recall_score(all_targets, all_predictions, average='weighted')
-    epoch_f1 = f1_score(all_targets, all_predictions, average='weighted')
-    
-    return epoch_loss, epoch_accuracy, epoch_precision, epoch_recall, epoch_f1
-
-def train_epoch(config):
+def epoch(config):
     """
     Train the LSTM model using the provided configuration
     
@@ -299,7 +231,7 @@ def train_epoch(config):
         # else:
         #     # First epoch or no best model saved yet, use current model
         #     logger.info(f"Using current model for validation (no best model saved yet)")
-        component_metrics, overall_metrics = validate(config, model_path=None, model=model)
+        component_metrics, overall_metrics = evaluate(config, model_path=None, model=model)
         
         # Store validation metrics in history
         if overall_metrics:
@@ -404,7 +336,7 @@ def main():
     config = load_config(config_path)
     
     # Train model
-    model, history = train_epoch(config)
+    model, history = epoch(config)
     
     # Save final model if not already saved in training loop
     if not config.get('logging', {}).get('save_checkpoint', True):
