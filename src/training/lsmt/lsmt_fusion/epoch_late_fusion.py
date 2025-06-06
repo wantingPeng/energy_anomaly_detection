@@ -24,11 +24,13 @@ import argparse
 
 from src.utils.logger import logger
 from src.training.lsmt.focal_loss import FocalLoss
-from src.training.lsmt.lsmt_fusion.lstm_late_fusion_model import LSTMLateFusionModel
+from src.training.lsmt.lsmt_fusion.BiGRU_late_fusion_model import BiGRULateFusionModel
+#from src.training.lsmt.lsmt_fusion.lstm_late_fusion_model import LSTMLateFusionModel
 from src.training.lsmt.lsmt_fusion.lstm_late_fusion_dataset import create_data_loaders
 #from src.training.lsmt.lsmt_fusion.attention_weight import visualize_attention_weights
 from src.training.lsmt.lsmt_fusion.train import train_epoch
 from src.training.lsmt.lsmt_fusion.evaluate import evaluate
+from src.training.lsmt.lsmt_fusion.watch_weight import visualize_lstm_gradients
 
 def load_config(config_path=None):
     """
@@ -252,7 +254,7 @@ def main(args):
     )
     
     # Create model
-    model = LSTMLateFusionModel(config=config['model'])
+    model = BiGRULateFusionModel(config=config['model'])
     model.to(device)
     
     # Define optimizer
@@ -312,7 +314,7 @@ def main(args):
         
         logger.info(f"Using class weights: {class_weights}")
         criterion = nn.CrossEntropyLoss(weight=class_weights)
-    elif config['training'].get('use_focal_loss', False):
+    elif config['training'].get('use_focal_loss', True):
         # Use Focal Loss
         alpha = config['training'].get('focal_loss_alpha', 0.25)
         gamma = config['training'].get('focal_loss_gamma', 2.0)
@@ -320,7 +322,7 @@ def main(args):
         criterion = FocalLoss(alpha=alpha, gamma=gamma)
     else:
         criterion = nn.CrossEntropyLoss()
-    
+    logger.info(f"Using criterion: {criterion}")
     # Learning rate scheduler
     scheduler = ReduceLROnPlateau(
         optimizer,
@@ -361,18 +363,26 @@ def main(args):
         logger.info(f"Epoch {epoch}/{config['training']['num_epochs']}")
         
         # Train
-        train_loss = train_epoch(model, data_loaders['train_down_25%'], criterion, optimizer, device)
+        train_results = train_epoch(model, data_loaders['train_down_25%'], criterion, optimizer, device, threshold=eval_threshold, epoch=epoch)
+        train_loss, train_accuracy, train_precision, train_recall, train_f1, train_conf_matrix = train_results
         train_losses.append(train_loss)
-        logger.info(f"Training Loss: {train_loss:.4f}")
         
-        # Log training loss to TensorBoard
+        # Log training metrics
+        logger.info(f"Training Loss: {train_loss:.4f}, Accuracy: {train_accuracy:.4f}, "
+                   f"Precision: {train_precision:.4f}, Recall: {train_recall:.4f}, F1: {train_f1:.4f}")
+        
+        # Log training metrics to TensorBoard
         writer.add_scalar('Loss/train', train_loss, epoch)
+        writer.add_scalar('Metrics/train_accuracy', train_accuracy, epoch)
+        writer.add_scalar('Metrics/train_precision', train_precision, epoch)
+        writer.add_scalar('Metrics/train_recall', train_recall, epoch)
+        writer.add_scalar('Metrics/train_f1', train_f1, epoch)
         
         # Evaluate
         val_results = evaluate(
-            model, data_loaders['val'], criterion, device, threshold=eval_threshold
+            model, data_loaders['val'], criterion, device, threshold=eval_threshold, epoch=epoch
         )
-        val_loss, accuracy, precision, recall, f1, conf_matrix, val_scores, val_labels, val_attn_weights = val_results
+        val_loss, accuracy, precision, recall, f1, conf_matrix= val_results
         
         val_losses.append(val_loss)
         accuracies.append(accuracy)
@@ -391,29 +401,6 @@ def main(args):
         writer.add_scalar('Metrics/recall', recall, epoch)
         writer.add_scalar('Metrics/f1', f1, epoch)
         
-        # Log confusion matrix as figure to TensorBoard
-        fig = plt.figure(figsize=(8, 8))
-        plt.imshow(conf_matrix, interpolation='nearest', cmap=plt.cm.Blues)
-        plt.title('Confusion Matrix')
-        plt.colorbar()
-        classes = ['Normal', 'Anomaly']
-        tick_marks = np.arange(len(classes))
-        plt.xticks(tick_marks, classes, rotation=45)
-        plt.yticks(tick_marks, classes)
-        
-        # Add text annotations
-        thresh = conf_matrix.max() / 2.
-        for i in range(conf_matrix.shape[0]):
-            for j in range(conf_matrix.shape[1]):
-                plt.text(j, i, format(conf_matrix[i, j], 'd'),
-                        ha="center", va="center",
-                        color="white" if conf_matrix[i, j] > thresh else "black")
-        
-        plt.tight_layout()
-        plt.ylabel('True label')
-        plt.xlabel('Predicted label')
-        writer.add_figure('Confusion_Matrix/validation', fig, epoch)
-        plt.close(fig)
         
         # Update learning rate
         scheduler.step(val_loss)
@@ -430,7 +417,12 @@ def main(args):
             'recall': recall,
             'f1': f1,
             'confusion_matrix': conf_matrix.tolist(),
-            'threshold': eval_threshold
+            'threshold': eval_threshold,
+            'train_accuracy': train_accuracy,
+            'train_precision': train_precision,
+            'train_recall': train_recall,
+            'train_f1': train_f1,
+            'train_confusion_matrix': train_conf_matrix.tolist()
         }
         
         # Save checkpoint
@@ -493,7 +485,7 @@ def main(args):
         test_results = evaluate(
             model, data_loaders['test'], criterion, device, threshold=eval_threshold
         )
-        test_loss, test_accuracy, test_precision, test_recall, test_f1, test_conf_matrix, test_scores, test_labels, test_attn_weights = test_results
+        test_loss, test_accuracy, test_precision, test_recall, test_f1, test_conf_matrix = test_results
         
         logger.info(f"Test Loss: {test_loss:.4f}, Accuracy: {test_accuracy:.4f}, "
                    f"Precision: {test_precision:.4f}, Recall: {test_recall:.4f}, F1: {test_f1:.4f}")

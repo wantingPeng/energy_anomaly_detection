@@ -1,8 +1,9 @@
 import torch
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
+from src.training.lsmt.lsmt_fusion.watch_weight import visualize_lstm_gradients
 
-def evaluate(model, data_loader, criterion, device, threshold=0.3):
+def evaluate(model, data_loader, criterion, device, threshold=0.3, epoch=None):
     """
     Evaluate the model on validation or test data.
     
@@ -12,6 +13,7 @@ def evaluate(model, data_loader, criterion, device, threshold=0.3):
         criterion: Loss function
         device: Device to use for evaluation
         threshold: Classification threshold for positive class (anomaly)
+        epoch: Current epoch number for gradient visualization
         
     Returns:
         Tuple of (average loss, accuracy, precision, recall, f1, confusion matrix)
@@ -56,5 +58,9 @@ def evaluate(model, data_loader, criterion, device, threshold=0.3):
     precision, recall, f1, _ = precision_recall_fscore_support(all_labels, all_preds, average='binary', zero_division=0)
     conf_matrix = confusion_matrix(all_labels, all_preds)
     
-    return avg_loss, accuracy, precision, recall, f1, conf_matrix, all_scores, all_labels, all_attn_weights
+    # # Visualize LSTM gradients if epoch is provided
+    # if epoch is not None:
+    #     visualize_lstm_gradients(model, epoch, prefix='val')
+    
+    return avg_loss, accuracy, precision, recall, f1, conf_matrix
 

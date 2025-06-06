@@ -2,7 +2,7 @@
 
 # Model parameters
 model:
-  input_size: 31  # Number of time series features
+  input_size: 38  # Number of time series features
   hidden_size: 128
   num_layers: 2
   dropout: 0.3
@@ -42,9 +42,9 @@ data:
 # Paths
 paths:
   # LSTM sliding window data
-  lstm_data_dir: "Data/processed/lsmt_statisticalFeatures/sliding_window_1200s"
+  lstm_data_dir: "Data/processed/lsmt_timeFeatures/sliding_window_600s"
   # Statistical features data
-  stat_features_dir: "Data/processed/lsmt_statisticalFeatures/statistic_features_standscaler"
+  stat_features_dir: "Data/processed/lsmt_timeFeatures/statistic_features_standscaler_600s"
   # Output directory fordata/processed/statistical_features model checkpoints and results
   output_dir: "experiments/lstm_late_fusion"
 

@@ -273,8 +273,8 @@ def process_batch(batch_dir, output_dir, top_features, window_size=1200, step_si
 def main():
     """Main function to process all data."""
     # Set window and step size
-    window_size = 1200  # seconds
-    step_size = 300     # seconds
+    window_size = 600  # seconds
+    step_size = 100     # seconds
     
     # Load top features
     top_features = load_top_features()
@@ -286,9 +286,6 @@ def main():
     data_types = ['train', 'val', 'test']
     components = ['contact']  # Add 'pcb', 'ring' if needed
     
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = f"experiments/logs/sliding_window_features_{timestamp}.log"
-    
     logger.info(f"Starting sliding window feature extraction with window_size={window_size}s, step_size={step_size}s")
     
     for data_type in data_types:
@@ -297,7 +294,7 @@ def main():
             batch_dirs = get_batch_dirs(data_type, component)
             
             # Create output directory
-            output_dir = f"Data/processed/lsmt_statisticalFeatures/statistic_features_standscaler/{data_type}/{component}"
+            output_dir = f"Data/processed/lsmt_timeFeatures/statistic_features_standscaler_600s/{data_type}/{component}"
             os.makedirs(output_dir, exist_ok=True)
             
             # Process each batch
@@ -313,28 +310,7 @@ def main():
     
     logger.info(f"Total windows processed: {total_windows}")
     logger.info(f"Processing complete. Results saved to Data/processed/lsmt_statisticalFeatures/statistic_features_standscaler/")
-    
-    # Create a README file explaining the data format
-    readme_path = "Data/processed/lsmt_statisticalFeatures/statistic_features_standscaler/README.md"
-    with open(readme_path, "w") as f:
-        f.write("# Statistical Features for LSTM Late Fusion\n\n")
-        f.write("This directory contains statistical features extracted from sliding windows for use in LSTM Late Fusion models.\n\n")
-        f.write("## Data Format\n\n")
-        f.write("Each batch is saved in two formats:\n")
-        f.write("1. Parquet file: Contains all features and metadata\n")
-        f.write("2. NPZ file: Contains numpy arrays for easier loading in PyTorch\n\n")
-        f.write("### NPZ File Structure\n\n")
-        f.write("- `stat_features`: Standardized statistical features array with shape (n_windows, n_features)\n")
-        f.write("- `window_starts`: Start timestamps for each window\n")
-        f.write("- `window_ends`: End timestamps for each window\n")
-        f.write("- `segment_ids`: Segment IDs for each window\n")
-        f.write("- `feature_names`: Names of the features\n\n")
-        f.write("These arrays can be used to align statistical features with LSTM sliding window data.\n")
-        f.write("\n## Standardization\n\n")
-        f.write("All numerical features have been standardized using sklearn's StandardScaler.\n")
-        f.write("The scalers for each batch are saved in the `scalers` directory for later use during inference.\n")
-    
-    logger.info(f"Created README file at {readme_path}")
+
 
 
 if __name__ == "__main__":
