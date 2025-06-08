@@ -381,7 +381,6 @@ def main(args):
     
     # Log model architecture and parameter count
     logger.info(f"Model architecture:\n{model}")
-    logger.info(f"Number of trainable parameters: {model.count_parameters():,}")
     
     # Move model to device
     model = model.to(device)
@@ -440,7 +439,6 @@ def main(args):
             mode='min',
             factor=config['training']['lr_reduce_factor'],
             patience=config['training']['lr_reduce_patience'],
-            verbose=True
         )
     elif config['training']['lr_scheduler'] == 'cosine_annealing':
         scheduler = optim.lr_scheduler.CosineAnnealingLR(

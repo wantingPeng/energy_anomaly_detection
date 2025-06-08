@@ -20,25 +20,22 @@ class AttentionPooling(nn.Module):
     def forward(self, x):
         """
         Args:
-            x: Input tensor [seq_len, batch_size, d_model]
+            x: Input tensor [batch_size, seq_len, d_model]
             
         Returns:
             Pooled representation [batch_size, d_model]
         """
-        # x shape: [seq_len, batch_size, d_model]
-        seq_len, batch_size, _ = x.size()
-        
-        # Reshape for attention computation
-        x_reshaped = x.transpose(0, 1).contiguous()  # [batch_size, seq_len, d_model]
+        # x shape: [batch_size, seq_len, d_model]
+        batch_size, seq_len, _ = x.size()
         
         # Calculate attention scores
-        attn_scores = self.attention(x_reshaped)  # [batch_size, seq_len, 1]
+        attn_scores = self.attention(x)  # [batch_size, seq_len, 1]
         
         # Apply softmax to get attention weights
         attn_weights = F.softmax(attn_scores, dim=1)  # [batch_size, seq_len, 1]
         
         # Weighted sum to get the final representation
-        weighted_sum = torch.bmm(attn_weights.transpose(1, 2), x_reshaped)  # [batch_size, 1, d_model]
+        weighted_sum = torch.bmm(attn_weights.transpose(1, 2), x)  # [batch_size, 1, d_model]
         pooled_output = weighted_sum.squeeze(1)  # [batch_size, d_model]
         
         return pooled_output
@@ -87,7 +84,8 @@ class TransformerModel(nn.Module):
             nhead=nhead,
             dim_feedforward=dim_feedforward,
             dropout=dropout,
-            activation=activation
+            activation=activation,
+            batch_first=True
         )
         self.transformer_encoder = nn.TransformerEncoder(
             encoder_layers,
@@ -111,13 +109,10 @@ class TransformerModel(nn.Module):
         Returns:
             Output tensor with class probabilities
         """
-        # Transpose to [seq_len, batch_size, input_dim]
-        src = src.transpose(0, 1)        
-    
-        # Apply transformer encoder
+        # Apply transformer encoder (now using batch_first=True)
         encoder_output = self.transformer_encoder(src, mask=src_mask)
         
-        # Apply attention pooling instead of using the last token
+        # Apply attention pooling
         pooled_output = self.attention_pooling(encoder_output)
         
         # Apply classifier
