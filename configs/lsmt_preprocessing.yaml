@@ -1,15 +1,15 @@
 # Data paths
 paths:
   input_dir: 'Data/processed/lsmt_timeFeatures/add_timeFeatures'
-  output_dir: 'Data/processed/lsmt_timeFeatures/sliding_window_600s'
+  output_dir: 'Data/processed/transform/slidingWindow_noOverlap'
   anomaly_dict: 'Data/interim/Anomaly_Data/anomaly_dict.pkl'
 
 # Sliding window parameters
 sliding_window:
   window_size: 600  # Window size in seconds
-  step_size: 100    # Step size in seconds
+  step_size: 600    # Step size in seconds
   anomaly_threshold: 0.3  # Minimum overlap ratio to label as anomaly (30%)
-# 1200 300     60 10      800 150
+# 1200 300     60 10      800 150  
 # Component processing configuration
 components:
   #processing_order: ['contact', 'pcb', 'ring']

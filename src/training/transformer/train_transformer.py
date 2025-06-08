@@ -16,11 +16,12 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
-from sklearn.metrics import precision_recall_fscore_support, accuracy_score, confusion_matrix
+from sklearn.metrics import precision_recall_fscore_support, accuracy_score, confusion_matrix, precision_recall_curve, f1_score
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 import argparse
 import time
+import matplotlib.pyplot as plt
 
 from src.utils.logger import logger
 from src.training.transformer.transformer_model import TransformerModel
@@ -177,10 +178,10 @@ def load_model(model, optimizer, checkpoint_path, device):
     
     return model, optimizer, start_epoch, checkpoint
 
-def train_epoch(model, data_loader, optimizer, criterion, device, scheduler=None):
+def train_epoch(model, data_loader, optimizer, criterion, device, scheduler=None, threshold=0.5):
     """
     Train the model for one epoch.
-    
+
     Args:
         model: Transformer model
         data_loader: DataLoader for training data
@@ -188,126 +189,136 @@ def train_epoch(model, data_loader, optimizer, criterion, device, scheduler=None
         criterion: Loss function
         device: Device to use for training
         scheduler: Learning rate scheduler
-        
+        threshold: Classification threshold (default=0.5)
+
     Returns:
-        Average training loss for the epoch
+        Average training loss for the epoch, and training metrics
     """
     model.train()
     total_loss = 0
     all_labels = []
-    all_preds = []
-    
-    # Progress bar
+    all_scores = []
+
     pbar = tqdm(data_loader, desc="Training")
-    
+
     for batch_idx, (data, labels) in enumerate(pbar):
-        # Move data to device
         data, labels = data.to(device), labels.to(device)
-        
-        # Zero gradients
+
         optimizer.zero_grad()
-        
-        # Forward pass
         outputs = model(data)
-        
-        # Calculate loss
         loss = criterion(outputs, labels)
-        
-        # Backward pass
         loss.backward()
-        
-        # Gradient clipping
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-        
-        # Update weights
         optimizer.step()
-        
-        # Update learning rate if scheduler is provided
+
         if scheduler is not None and not isinstance(scheduler, ReduceLROnPlateau):
             scheduler.step()
-        
-        # Calculate metrics
-        _, predicted = torch.max(outputs.data, 1)
+
+        # Use softmax for class=1 score
+        scores = torch.softmax(outputs, dim=1)[:, 1]
+        all_scores.extend(scores.detach().cpu().numpy())
         all_labels.extend(labels.cpu().numpy())
-        all_preds.extend(predicted.cpu().numpy())
-        
-        # Update total loss
+
         total_loss += loss.item()
-        
-        # Update progress bar
         pbar.set_postfix({'loss': loss.item()})
-    
-    # Calculate average loss
+
     avg_loss = total_loss / len(data_loader)
-    
-    # Calculate metrics
+
+    # Apply threshold to convert probabilities into predictions
+    all_scores = np.array(all_scores)
+    all_labels = np.array(all_labels)
+    all_preds = (all_scores >= threshold).astype(int)
+
+    # Metrics
     accuracy = accuracy_score(all_labels, all_preds)
     precision, recall, f1, _ = precision_recall_fscore_support(
         all_labels, all_preds, average='binary', zero_division=0
     )
-    
+
     metrics = {
         'accuracy': accuracy,
         'precision': precision,
         'recall': recall,
-        'f1': f1
+        'f1': f1,
+        'threshold': threshold
     }
-    
+
     return avg_loss, metrics
 
-def evaluate(model, data_loader, criterion, device):
+
+def evaluate(model, data_loader, criterion, device, print_samples=True, find_optimal_threshold=True):
     """
     Evaluate the model on validation or test data.
-    
-    Args:
-        model: Transformer model
-        data_loader: DataLoader for validation/test data
-        criterion: Loss function
-        device: Device to use for evaluation
-        
-    Returns:
-        Tuple of (average loss, metrics)
     """
     model.eval()
     total_loss = 0
     all_labels = []
-    all_preds = []
     all_scores = []
-    
+    sample_outputs = []
+
     with torch.no_grad():
-        for data, labels in tqdm(data_loader, desc="Evaluating"):
-            # Move data to device
+        for batch_idx, (data, labels) in enumerate(tqdm(data_loader, desc="Evaluating")):
             data, labels = data.to(device), labels.to(device)
-            
+
             # Forward pass
             outputs = model(data)
-            
-            # Calculate loss
             loss = criterion(outputs, labels)
-            
-            # Calculate metrics
-            scores = torch.softmax(outputs, dim=1)[:, 1]
-            _, predicted = torch.max(outputs.data, 1)
-            
-            all_labels.extend(labels.cpu().numpy())
-            all_preds.extend(predicted.cpu().numpy())
-            all_scores.extend(scores.cpu().numpy())
-            
-            # Update total loss
             total_loss += loss.item()
-    
-    # Calculate average loss
+
+            # Softmax scores
+            scores = torch.softmax(outputs, dim=1)[:, 1]  # P(class=1)
+
+            all_labels.extend(labels.cpu().numpy())
+            all_scores.extend(scores.cpu().numpy())
+
+            # Sample output logging
+            if print_samples and batch_idx == 0:
+                sample_size = min(5, len(data))
+                for i in range(sample_size):
+                    sample_outputs.append({
+                        'logits': outputs[i].cpu().numpy(),
+                        'softmax': scores[i].item(),
+                        'actual': labels[i].item()
+                    })
+
     avg_loss = total_loss / len(data_loader)
-    
-    # Calculate metrics
+
+    if print_samples and sample_outputs:
+        logger.info("\n===== Sample Outputs =====")
+        for i, sample in enumerate(sample_outputs):
+            logger.info(f"Sample {i+1}:")
+            logger.info(f"  Logits: {sample['logits']}")
+            logger.info(f"  Softmax (anomaly prob): {sample['softmax']:.6f}")
+            logger.info(f"  Actual: {sample['actual']} (0=normal, 1=anomaly)")
+            logger.info("------------------------")
+
+    all_scores = np.array(all_scores)
+    all_labels = np.array(all_labels)
+    optimal_threshold = 0.5
+
+    # Threshold optimization
+    if find_optimal_threshold and len(np.unique(all_labels)) > 1:
+        precision, recall, thresholds = precision_recall_curve(all_labels, all_scores)
+        f1_scores = 2 * precision * recall / (precision + recall + 1e-10)
+        optimal_idx = np.argmax(f1_scores)
+        optimal_threshold = thresholds[optimal_idx] if optimal_idx < len(thresholds) else 0.5
+
+        logger.info(f"\n===== Threshold Optimization =====")
+        logger.info(f"Optimal threshold: {optimal_threshold:.6f}")
+        logger.info(f"Optimal F1 score: {f1_scores[optimal_idx]:.4f}")
+        logger.info(f"Optimal precision: {precision[optimal_idx]:.4f}")
+        logger.info(f"Optimal recall: {recall[optimal_idx]:.4f}")
+
+    # Final prediction using threshold (either optimal or default 0.5)
+    all_preds = (all_scores >= optimal_threshold).astype(int)
+
+    # Metrics
     accuracy = accuracy_score(all_labels, all_preds)
     precision, recall, f1, _ = precision_recall_fscore_support(
         all_labels, all_preds, average='binary', zero_division=0
     )
-    
-    # Calculate confusion matrix
     cm = confusion_matrix(all_labels, all_preds)
-    
+
     metrics = {
         'accuracy': accuracy,
         'precision': precision,
@@ -316,9 +327,10 @@ def evaluate(model, data_loader, criterion, device):
         'confusion_matrix': cm,
         'predictions': all_preds,
         'labels': all_labels,
-        'scores': all_scores
+        'scores': all_scores,
+        'threshold': optimal_threshold
     }
-    
+
     return avg_loss, metrics
 
 
@@ -360,7 +372,7 @@ def main(args):
     )
     
     # Get a sample batch to determine input dimension
-    sample_batch, _ = next(iter(data_loaders['train']))
+    sample_batch, _ = next(iter(data_loaders['train_down_25%']))
     input_dim = sample_batch.shape[2]  # [batch_size, seq_len, input_dim]
     seq_len = sample_batch.shape[1]
     
@@ -397,7 +409,7 @@ def main(args):
         if config['training']['use_class_weights']:
             # Get class distribution from training data
             all_labels = []
-            for _, labels in data_loaders['train'].dataset:
+            for _, labels in data_loaders['train_down_25%'].dataset:
                 all_labels.append(labels)
             all_labels = torch.stack(all_labels)
             
@@ -476,12 +488,16 @@ def main(args):
         
         # Train for one epoch
         train_loss, train_metrics = train_epoch(
-            model, data_loaders['train'], optimizer, criterion, device
+            model, data_loaders['train_down_25%'], optimizer, criterion, device,
+            scheduler=scheduler,
+            threshold=0.5
         )
         
         # Evaluate on validation set
         val_loss, val_metrics = evaluate(
-            model, data_loaders['val'], criterion, device
+            model, data_loaders['val'], criterion, device,
+            print_samples=(epoch == 0),  # Print samples only for first epoch
+            find_optimal_threshold=True   # Find optimal threshold each epoch
         )
         
         # Update learning rate scheduler if using ReduceLROnPlateau
@@ -500,6 +516,7 @@ def main(args):
         logger.info(f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
         logger.info(f"Train F1: {train_metrics['f1']:.4f}, Val F1: {val_metrics['f1']:.4f}")
         logger.info(f"Val Precision: {val_metrics['precision']:.4f}, Val Recall: {val_metrics['recall']:.4f}")
+        logger.info(f"Optimal Threshold: {val_metrics['threshold']:.6f}")
         logger.info(f"Epoch completed in {epoch_duration:.2f} seconds")
         
         writer.add_scalar('train/loss', train_loss, epoch)
@@ -510,6 +527,7 @@ def main(args):
         writer.add_scalar('val/precision', val_metrics['precision'], epoch)
         writer.add_scalar('train/recall', train_metrics['recall'], epoch)
         writer.add_scalar('val/recall', val_metrics['recall'], epoch)
+        writer.add_scalar('val/optimal_threshold', val_metrics['threshold'], epoch)
         
         # Save current model checkpoint
         save_model(
@@ -557,6 +575,7 @@ def main(args):
         logger.info(f"Test Precision: {test_metrics['precision']:.4f}")
         logger.info(f"Test Recall: {test_metrics['recall']:.4f}")
         logger.info(f"Test F1: {test_metrics['f1']:.4f}")
+        logger.info(f"Test Optimal Threshold: {test_metrics['threshold']:.6f}")
         
         # Log test metrics to TensorBoard
         writer.add_scalar('test/loss', test_loss, 0)

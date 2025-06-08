@@ -2,7 +2,7 @@
 
 # Paths
 paths:
-  data_dir: "Data/processed/transform/slidingWindows_transform_1200s"
+  data_dir: "Data/processed/transform/slidingWindow_noOverlap"
   output_dir: "experiments/transformer"
 
 # Data configuration
@@ -24,7 +24,7 @@ training:
   batch_size: 64
   num_workers: 4
   num_epochs: 150
-  learning_rate: 0.001
+  learning_rate: 0.0001
   weight_decay: 0.0001
   momentum: 0.9  # Only used for SGD optimizer
   optimizer: "adam"  # Options: adam, adamw, sgd
