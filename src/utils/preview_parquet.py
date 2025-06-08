@@ -38,8 +38,8 @@ def preview_parquet(parquet_path, sample_size=1000, output_csv_path=None):
 
 if __name__ == "__main__":
     # ====== Customize below ======
-    parquet_file = "Data/processed/lamt_timeFeatures/add_timeFeatures/train/contact/batch_0/part.0.parquet"
-    sample_output_csv = "Data/data_preview/add_timeFeature/add_timeFeatures_contact_batch_0.csv"
+    parquet_file = "Data/processed/lsmt_timeFeatures/add_timeFeatures/test/contact/batch_0/part.0.parquet"
+    sample_output_csv = "Data/data_preview/add_timeFeature/contact_batch_0.csv"
     # ====== ================== ======
 
     preview_parquet(parquet_file, sample_size=1000, output_csv_path=sample_output_csv)
