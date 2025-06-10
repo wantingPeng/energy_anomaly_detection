@@ -26,7 +26,6 @@ from src.utils.memory_left import log_memory
 from src.preprocessing.energy.machine_learning.labeling_slidingWindow import (
     load_anomaly_dict,
     create_interval_tree,
-    calculate_window_overlap
 )
 
 # Import the process_segment and create_sliding_windows from the original module

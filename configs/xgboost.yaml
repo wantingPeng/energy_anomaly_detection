@@ -14,10 +14,10 @@ model:
 
 # Data paths
 data:
-  train_path: "Data/processed/machinen_learning/randomly_spilt/train.parquet"
-  val_path: "Data/processed/machinen_learning/randomly_spilt/val.parquet"
-  model_save_path: "models/xgboost_model.json"
-  report_dir: "src/model_report/xgboost_randomly_spilt"
+  train_path: "Data/processed/machinen_learning/individual_model/randomly_spilt/train.parquet"
+  val_path: "Data/processed/machinen_learning/individual_model/randomly_spilt/val.parquet"
+  model_save_path: "src/model_report/xgboost_model_individual_model.json"
+  report_dir: "src/model_report/xgboost_individual_model"
 
 # Feature engineering
 features:

@@ -88,8 +88,8 @@ def process_batch_file(batch_path, output_dir, component, data_type, linear_proj
     log_memory(f"After loading {os.path.basename(batch_path)}")
 
     # Convert to tensor
-    windows_tensor = torch.FloatTensor(windows)
-    labels_tensor = torch.LongTensor(labels)
+    windows_tensor = torch.tensor(windows, dtype=torch.float16)
+    labels_tensor = torch.tensor(labels, dtype=torch.int8)
    
     # Apply linear projection and positional encoding
     with torch.no_grad():
@@ -163,15 +163,15 @@ def main():
     log_memory("Starting conversion")
     
     # Get paths from config
-    input_dir = "Data/processed/lsmt_timeFeatures/sliding_window_1200s"
-    output_dir = "Data/processed/transform/slidingWindows_transform_1200s"
+    input_dir = "Data/processed/transform/slidingWindow_noOverlap_0.8_no_stats"
+    output_dir = "Data/processed/transform/slidingWindow_noOverlap_0.8_no_stats/projection_pos_encoding_float16"
     
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
     
     # Explicitly define components and data types
     components = ['contact']
-    data_types = ['train_down_25%', 'val', 'test']
+    data_types = ['train_down_25%', 'val']
     
     logger.info(f"Processing data types: {data_types}")
     logger.info(f"Processing components: {components}")
@@ -188,12 +188,12 @@ def main():
     max_seq_length = 1200
     
     # Create linear projection layer
-    linear_projection = nn.Linear(input_features, d_model)
+    linear_projection = nn.Linear(input_features, d_model).half()
     nn.init.xavier_uniform_(linear_projection.weight)
     nn.init.zeros_(linear_projection.bias)
     
     # Create positional encoding layer
-    positional_encoding = PositionalEncoding(d_model, max_seq_length)
+    positional_encoding = PositionalEncoding(d_model, max_seq_length).half()
     
     # Save the projection weights for reproducibility
     projection_path = os.path.join(output_dir, "projection_weights.pt")

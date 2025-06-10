@@ -48,7 +48,9 @@ def analyze_pt_files(base_dir: str = "Data/processed/lsmt/dataset/train") -> Dic
                     file_info["type"] = "dict"
                     file_info["keys"] = list(data.keys())
                     file_info["data_shapes"] = {k: tuple(v.shape) if hasattr(v, 'shape') else str(type(v)) for k, v in data.items()}
-                    
+                    file_info['dtype_windows'] = data['windows'].dtype
+                    file_info['dtype_labels'] = data['labels'].dtype
+
                     # Try to extract feature names if available
                     if 'feature_names' in data:
                         file_info["feature_names"] = data['feature_names']
@@ -100,9 +102,11 @@ def print_pt_summary(analysis_result: Dict[str, List[Dict[str, Any]]]) -> None:
             if file_info['type'] == 'dict':
                 logger.info(f"  Keys: {file_info['keys']}")
                 logger.info(f"  Data shapes:")
+                logger.info(f"  Data type windows: {file_info['dtype_windows']}")
+                logger.info(f"  Data type labels: {file_info['dtype_labels']}")
                 for k, shape in file_info['data_shapes'].items():
                     logger.info(f"    - {k}: {shape}")
-                
+                #logger.info(f"  Data type: {file_info['dtype']}")
                 if 'feature_names' in file_info:
                     logger.info(f"  Feature names: {file_info['feature_names']}")
             
@@ -113,7 +117,7 @@ def print_pt_summary(analysis_result: Dict[str, List[Dict[str, Any]]]) -> None:
             else:
                 logger.info(f"  Type: {file_info['type']}")
 
-def analyze_and_print_pt_structure(base_dir: str = "Data/processed/lsmt/test/spilt_after_sliding_1200s/train_down_25%_2") -> Dict[str, List[Dict[str, Any]]]:
+def analyze_and_print_pt_structure(base_dir: str = "Data/processed/transform/slidingWindow_noOverlap_0.8_no_stats/projection_pos_encoding/train_down_25%") -> Dict[str, List[Dict[str, Any]]]:
     """
     Convenience function to analyze PyTorch files and print a summary
     

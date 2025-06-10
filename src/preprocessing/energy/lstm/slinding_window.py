@@ -47,6 +47,7 @@ def process_segment(
     component: str,
     window_size: int,
     step_size: int,
+    anomaly_step_size: int,
     anomaly_trees: Dict[str, IntervalTree],
     anomaly_threshold: float = 0.3
 ) -> Tuple[List, List, List, List, dict]:
@@ -68,18 +69,9 @@ def process_segment(
     
     windows = []
     labels = []
-    segment_ids = []
-    timestamps = []
+
     
-    # Statistics tracking
-    stats = {
-        "total_segments": 1,
-        "total_windows": 0,
-        "anomaly_windows": 0,
-        "normal_windows": 0,
-        "segments_with_anomalies": 0,
-        "segments_without_anomalies": 0
-    }
+
     
     component_to_station = {
         'contact': 'Kontaktieren',
@@ -97,7 +89,7 @@ def process_segment(
     # Get station
     station = component_to_station.get(component)
     interval_tree = anomaly_trees[station]
-    segment_has_anomalies = False
+
     
     # Create sliding windows
     start_idx = 0
@@ -120,30 +112,17 @@ def process_segment(
         if len(window_data) == window_size:
             # Calculate overlap with anomalies
             overlap_ratio = calculate_window_overlap(window_start, window_end, interval_tree)
+            step_size = anomaly_step_size if overlap_ratio > 0.5 else step_size
+
+
             label = 1 if overlap_ratio >= anomaly_threshold else 0
-            
-            if label == 1:
-                segment_has_anomalies = True
-                stats["anomaly_windows"] += 1
-            else:
-                stats["normal_windows"] += 1
             
             windows.append(window_data)
             labels.append(label)
-            segment_ids.append(segment_id)
-            timestamps.append(window_start)
-            
-            stats["total_windows"] += 1
-        
+
         # Move to next window position
         start_idx += step_size
-    
-    if segment_has_anomalies:
-        stats["segments_with_anomalies"] = 1
-    else:
-        stats["segments_without_anomalies"] = 1
-    
-    return windows, labels, segment_ids, timestamps, stats
+    return windows, labels
 
 
 def create_sliding_windows(
@@ -151,6 +130,7 @@ def create_sliding_windows(
     component: str,
     window_size: int,
     step_size: int,
+    anomaly_step_size: int,
     anomaly_trees: Dict[str, IntervalTree],
     anomaly_threshold: float = 0.3,
     n_jobs: int = 6
@@ -178,20 +158,8 @@ def create_sliding_windows(
     """
     all_windows = []
     all_labels = []
-    all_segment_ids = []
-    all_timestamps = []
-    
-    # Aggregate statistics
-    total_stats = {
-        "total_segments": 0,
-        "total_windows": 0,
-        "anomaly_windows": 0,
-        "normal_windows": 0,
-        "skipped_segments": 0,
-        "segments_with_anomalies": 0,
-        "segments_without_anomalies": 0
-    }
-    
+
+
     # Group by segment_id
     segments = list(df.groupby('segment_id'))
     total_segments = len(segments)
@@ -205,6 +173,7 @@ def create_sliding_windows(
             component,
             window_size,
             step_size,
+            anomaly_step_size,
             anomaly_trees,
             anomaly_threshold
         )
@@ -212,26 +181,18 @@ def create_sliding_windows(
     )
     
     # Combine results
-    for windows, labels, segment_ids, timestamps, stats in results:
+    for windows, labels in results:
         all_windows.extend(windows)
         all_labels.extend(labels)
-        all_segment_ids.extend(segment_ids)
-        all_timestamps.extend(timestamps)
-        
-        # Update statistics
-        for key in total_stats:
-            total_stats[key] += stats.get(key, 0)
+
+
     
     # Convert to numpy arrays
     all_windows = np.array(all_windows)
     all_labels = np.array(all_labels)
-    all_segment_ids = np.array(all_segment_ids)
-    all_timestamps = np.array(all_timestamps)
     
     logger.info(f"Created {len(all_windows)} windows for component {component}")
-    logger.info(f"Statistics: {total_stats}")
-    
-    return all_windows, all_labels, all_segment_ids, all_timestamps, total_stats
+    return all_windows, all_labels
 
 def process_component_data(
     input_dir: str,
@@ -280,15 +241,7 @@ def process_component_data(
     output_dir = os.path.join(config['paths']['output_dir'], data_type, component)
     os.makedirs(output_dir, exist_ok=True)
     
-    combined_stats = {
-        "total_segments": 0,
-        "total_windows": 0,
-        "anomaly_windows": 0,
-        "normal_windows": 0,
-        "skipped_segments": 0,
-        "segments_with_anomalies": 0,
-        "segments_without_anomalies": 0
-    }
+
     
     # Process each batch directory
     for batch_idx, batch_dir in enumerate(batch_dirs):
@@ -307,20 +260,18 @@ def process_component_data(
         
         # Process this batch
         logger.info(f"Creating sliding windows for {batch_name} {component} {data_type}")
-        windows, labels, segment_ids, timestamps, stats = create_sliding_windows(
+        windows, labels = create_sliding_windows(
             df,
             component,
             config['sliding_window']['window_size'],
             config['sliding_window']['step_size'],
+            config['sliding_window']['anomaly_step_size'],
             anomaly_trees,
             config['sliding_window']['anomaly_threshold'],
             n_jobs=6
         )
         
-        # Update combined stats
-        for key in combined_stats:
-            if key in stats:
-                combined_stats[key] += stats[key]
+
         batch_name = os.path.basename(batch_dir)
         # Save intermediate results to temporary files if there are windows
         if len(windows) > 0:
@@ -329,13 +280,11 @@ def process_component_data(
                 batch_file,
                 windows=windows,
                 labels=labels,
-                segment_ids=segment_ids,
-                timestamps=timestamps
             )
             logger.info(f"Saved {len(windows)} windows to temporary file {batch_file}")
         
         # Free memory
-        del df, windows, labels, segment_ids, timestamps
+        del df, windows, labels
         gc.collect()
         log_memory(f"After processing {batch_name} for {component} {data_type}")
     
@@ -363,7 +312,8 @@ def main():
     components = ['contact']
 
     # Process each data type and component
-    for data_type in ['train', 'val', 'test']:
+    #for data_type in ['train', 'val', 'test']:
+    for data_type in [ 'val']:
 
         for component in components:
             process_component_data(

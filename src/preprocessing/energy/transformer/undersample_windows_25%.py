@@ -27,7 +27,7 @@ def undersample_normal_windows(sliding_window_path, seed=42):
     categories = ["contact"]
     
     # Create output directories
-    sliding_window_output_path = "Data/processed/transform/slidingWindow_noOverlap/train_down_25%"
+    sliding_window_output_path = "Data/processed/transform/slidingWindow_noOverlap_0.8_no_stats/train_down_25%"
     
     for category in categories:
         sliding_window_category_path = os.path.join(sliding_window_path, category)
@@ -116,5 +116,5 @@ def undersample_normal_windows(sliding_window_path, seed=42):
 
 
 if __name__ == "__main__":
-    sliding_window_path = "Data/processed/transform/slidingWindow_noOverlap/train"
+    sliding_window_path = "Data/processed/transform/slidingWindow_noOverlap_0.8_no_stats/train"
     undersample_normal_windows(sliding_window_path) 

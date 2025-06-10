@@ -25,7 +25,8 @@ import matplotlib.pyplot as plt
 
 from src.utils.logger import logger
 from src.training.transformer.transformer_model import TransformerModel
-from src.training.transformer.transformer_dataset import create_data_loaders
+#from src.training.transformer.transformer_dataset import create_data_loaders
+from src.training.transformer.transfomer_dataset_no_pro_pos import create_data_loaders
 
 # Define focal loss for imbalanced dataset
 class FocalLoss(nn.Module):
@@ -294,7 +295,7 @@ def evaluate(model, data_loader, criterion, device, print_samples=True, find_opt
 
     all_scores = np.array(all_scores)
     all_labels = np.array(all_labels)
-    optimal_threshold = 0.5
+    optimal_threshold = 0.3
 
     # Threshold optimization
     if find_optimal_threshold and len(np.unique(all_labels)) > 1:
@@ -511,7 +512,13 @@ def main(args):
         
         # Calculate epoch duration
         epoch_duration = time.time() - epoch_start_time
-        
+        # Get current learning rate
+        current_lr = optimizer.param_groups[0]['lr']
+
+        # Log learning rate
+        logger.info(f"Current learning rate: {current_lr:.6f}")
+        writer.add_scalar('lr', current_lr, epoch)
+
         # Log metrics
         logger.info(f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
         logger.info(f"Train F1: {train_metrics['f1']:.4f}, Val F1: {val_metrics['f1']:.4f}")

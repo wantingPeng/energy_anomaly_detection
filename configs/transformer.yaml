@@ -2,7 +2,7 @@
 
 # Paths
 paths:
-  data_dir: "Data/processed/transform/slidingWindow_noOverlap"
+  data_dir: "Data/processed/transform/slidingWindow_noOverlap_0.8_no_stats/projection_pos_encoding"
   output_dir: "experiments/transformer"
 
 # Data configuration
@@ -13,16 +13,16 @@ data:
 model:
   d_model: 256  # Dimension of the model
   nhead: 8  # Number of heads in multi-head attention
-  num_layers: 3  # Number of transformer layers
+  num_layers: 2  # Number of transformer layers
   dim_feedforward: 512  # Dimension of the feedforward network
-  dropout: 0.1  # Dropout probability
+  dropout: 0.4  # Dropout probability
   num_classes: 2  # Number of output classes (binary classification)
   activation: "gelu"  # Activation function for transformer layers
 
 # Training configuration
 training:
   batch_size: 64
-  num_workers: 4
+  num_workers: 2
   num_epochs: 150
   learning_rate: 0.0001
   weight_decay: 0.0001
@@ -41,8 +41,8 @@ training:
   early_stopping_metric: "f1"  # Metric to monitor for early stopping, options: loss, f1
   
   # Class weighting and loss function
-  use_class_weights: false  # Whether to use class weights for loss calculation
-  use_focal_loss: true  # Whether to use focal loss instead of cross entropy loss
+  use_class_weights: true  # Whether to use class weights for loss calculation
+  use_focal_loss: false  # Whether to use focal loss instead of cross entropy loss
   focal_loss_alpha: 0.25  # Alpha parameter for focal loss
   focal_loss_gamma: 2.0  # Gamma parameter for focal loss
 
