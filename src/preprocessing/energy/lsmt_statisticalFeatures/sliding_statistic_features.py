@@ -294,7 +294,7 @@ def main():
             batch_dirs = get_batch_dirs(data_type, component)
             
             # Create output directory
-            output_dir = f"Data/processed/lsmt_timeFeatures/statistic_features_standscaler_600s/{data_type}/{component}"
+            output_dir = f"Data/processed/transform/slidingWindow_noOverlap_800_800_100_0.7_th0.5/statistic_features_standscaler/{data_type}/{component}"
             os.makedirs(output_dir, exist_ok=True)
             
             # Process each batch
