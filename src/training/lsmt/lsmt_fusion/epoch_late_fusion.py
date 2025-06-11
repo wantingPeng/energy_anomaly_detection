@@ -28,7 +28,7 @@ from src.training.lsmt.lsmt_fusion.BiGRU_late_fusion_model import BiGRULateFusio
 #from src.training.lsmt.lsmt_fusion.lstm_late_fusion_model import LSTMLateFusionModel
 from src.training.lsmt.lsmt_fusion.lstm_late_fusion_dataset import create_data_loaders
 #from src.training.lsmt.lsmt_fusion.attention_weight import visualize_attention_weights
-from src.training.lsmt.lsmt_fusion.train import train_epoch
+from src.training.lsmt.lsmt_fusion.train import train
 from src.training.lsmt.lsmt_fusion.evaluate import evaluate
 from src.training.lsmt.lsmt_fusion.watch_weight import visualize_lstm_gradients
 
@@ -96,7 +96,7 @@ class EarlyStopping:
 
 
 
-def save_model(model, optimizer, epoch, train_loss, val_loss, metrics, config, save_dir):
+'''def save_model(model, optimizer, epoch, train_loss, val_loss, metrics, config, save_dir):
     """
     Save model checkpoint.
     
@@ -124,7 +124,7 @@ def save_model(model, optimizer, epoch, train_loss, val_loss, metrics, config, s
     
     checkpoint_path = os.path.join(save_dir, f"checkpoint_epoch_{epoch}.pt")
     torch.save(checkpoint, checkpoint_path)
-    logger.info(f"Saved checkpoint to {checkpoint_path}")
+    logger.info(f"Saved checkpoint to {checkpoint_path}")'''
 
 
 def load_model(model, optimizer, checkpoint_path, device):
@@ -145,8 +145,8 @@ def load_model(model, optimizer, checkpoint_path, device):
     # Load checkpoint
     checkpoint = torch.load(checkpoint_path, map_location=device,weights_only=False)
     # Load model state
-    #model.load_state_dict(checkpoint)
-    model.load_state_dict(checkpoint['model_state_dict'])
+    model.load_state_dict(checkpoint)
+    #model.load_state_dict(checkpoint['model_state_dict'])
     # Load optimizer state if provided
     if optimizer is not None and 'optimizer_state_dict' in checkpoint:
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -156,61 +156,9 @@ def load_model(model, optimizer, checkpoint_path, device):
     
     logger.info(f"Loaded model from epoch {checkpoint.get('epoch', 0)}")
     
-    return model, optimizer, start_epoch, checkpoint
-    #logger.error(f"return model")
-    #return model
-    
-
-'''def log_pr_metrics_to_tensorboard(writer, scores, labels, thresholds, global_step, prefix='val'):
-    """
-    Calculate and log precision-recall metrics at different thresholds to TensorBoard.
-    
-    Args:
-        writer: TensorBoard SummaryWriter
-        scores: Prediction scores (probabilities)
-        labels: True labels
-        thresholds: List of thresholds to evaluate
-        global_step: Global step for TensorBoard
-        prefix: Prefix for metric names in TensorBoard
-    
-    Returns:
-        Tuple of (best_threshold, best_f1)
-    """
-    precisions = []
-    recalls = []
-    f1_scores = []
-    
-    for threshold in thresholds:
-        preds = [1 if score > threshold else 0 for score in scores]
-        precision, recall, f1, _ = precision_recall_fscore_support(
-            labels, preds, average='binary', zero_division=0
-        )
-        precisions.append(precision)
-        recalls.append(recall)
-        f1_scores.append(f1)
-        
-        # Log metrics at each threshold
-        writer.add_scalar(f'{prefix}/precision_t{threshold:.2f}', precision, global_step)
-        writer.add_scalar(f'{prefix}/recall_t{threshold:.2f}', recall, global_step)
-        writer.add_scalar(f'{prefix}/f1_t{threshold:.2f}', f1, global_step)
-    
-    # Log precision-recall curve
-    writer.add_pr_curve(f'{prefix}/pr_curve', 
-                        np.array(labels, dtype=np.int32),
-                        np.array(scores, dtype=np.float32),
-                        global_step)
-    
-    # Find best threshold
-    best_idx = np.argmax(f1_scores)
-    best_threshold = thresholds[best_idx]
-    best_f1 = f1_scores[best_idx]
-    
-    # Log best threshold metrics
-    writer.add_scalar(f'{prefix}/best_threshold', best_threshold, global_step)
-    writer.add_scalar(f'{prefix}/best_f1', best_f1, global_step)
-    
-    return best_threshold, best_f1
-'''
+    #return model, optimizer, start_epoch, checkpoint
+    logger.error(f"return model")
+    return model
 
 def main(args):
     """
@@ -232,14 +180,14 @@ def main(args):
     if args.experiment_name:
         experiment_name = args.experiment_name
     
-    experiment_dir = os.path.join(config['paths']['output_dir'], experiment_name)
+    experiment_dir = os.path.join(config['paths']['output_dir'],'model_save', experiment_name)
     os.makedirs(experiment_dir, exist_ok=True)
     
     # Set up logging
     log_file = os.path.join("experiments/logs", f"lstm_late_fusion_training_{timestamp}.log")
     
     # Set up TensorBoard writer
-    tensorboard_dir = os.path.join("experiments/tensorboard", experiment_name)
+    tensorboard_dir = os.path.join("experiments/lstm_late_fusion/tensorboard", experiment_name)
     os.makedirs(tensorboard_dir, exist_ok=True)
     writer = SummaryWriter(log_dir=tensorboard_dir)
     logger.info(f"TensorBoard logs will be saved to {tensorboard_dir}")
@@ -277,7 +225,7 @@ def main(args):
     
     # Load existing model if specified
     if args.load_model:
-        model, optimizer, start_epoch, checkpoint = load_model(
+        '''      model, optimizer, start_epoch, checkpoint = load_model(
             model, optimizer, args.load_model, device
         )
         
@@ -289,12 +237,12 @@ def main(args):
         if 'metrics' in checkpoint and 'f1' in checkpoint['metrics']:
             best_f1 = checkpoint['metrics']['f1']
             logger.info(f"Loaded best F1 score: {best_f1:.4f}")
-    
+         '''
 
-            '''       
-                model= load_model(
-                model, None, args.load_model, device
-            )'''
+                  
+        model= load_model(
+        model, None, args.load_model, device
+    )
 
     # Get class weights if specified in config
     if config['training'].get('use_class_weights', False):
@@ -312,16 +260,17 @@ def main(args):
         class_weights = total_samples / (num_classes * class_counts)
         class_weights = torch.tensor(class_weights, dtype=torch.float32).to(device)
         
+    if config['training'].get('use_class_weights', False):
         logger.info(f"Using class weights: {class_weights}")
         criterion = nn.CrossEntropyLoss(weight=class_weights)
+
     elif config['training'].get('use_focal_loss', True):
         # Use Focal Loss
         alpha = config['training'].get('focal_loss_alpha', 0.25)
         gamma = config['training'].get('focal_loss_gamma', 2.0)
         logger.info(f"Using Focal Loss with alpha={alpha}, gamma={gamma}")
         criterion = FocalLoss(alpha=alpha, gamma=gamma)
-    else:
-        criterion = nn.CrossEntropyLoss()
+ 
     logger.info(f"Using criterion: {criterion}")
     # Learning rate scheduler
     scheduler = ReduceLROnPlateau(
@@ -363,7 +312,7 @@ def main(args):
         logger.info(f"Epoch {epoch}/{config['training']['num_epochs']}")
         
         # Train
-        train_results = train_epoch(model, data_loaders['train_down_25%'], criterion, optimizer, device, threshold=eval_threshold, epoch=epoch)
+        train_results = train(model, data_loaders['train_down_25%'], criterion, optimizer, device, threshold=eval_threshold, epoch=epoch)
         train_loss, train_accuracy, train_precision, train_recall, train_f1, train_conf_matrix = train_results
         train_losses.append(train_loss)
         
@@ -380,9 +329,9 @@ def main(args):
         
         # Evaluate
         val_results = evaluate(
-            model, data_loaders['val'], criterion, device, threshold=eval_threshold, epoch=epoch
+            model, data_loaders['val'], criterion, device, epoch=epoch
         )
-        val_loss, accuracy, precision, recall, f1, conf_matrix= val_results
+        val_loss, accuracy, precision, recall, f1, conf_matrix, threshold = val_results
         
         val_losses.append(val_loss)
         accuracies.append(accuracy)
@@ -393,13 +342,13 @@ def main(args):
         logger.info(f"Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f}, "
                    f"Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}")
         logger.info(f"Confusion Matrix:\n{conf_matrix}")
-        
+        logger.info(f"current best Threshold: {threshold}")
         # Log validation metrics to TensorBoard
         writer.add_scalar('Loss/validation', val_loss, epoch)
-        writer.add_scalar('Metrics/accuracy', accuracy, epoch)
-        writer.add_scalar('Metrics/precision', precision, epoch)
-        writer.add_scalar('Metrics/recall', recall, epoch)
-        writer.add_scalar('Metrics/f1', f1, epoch)
+        writer.add_scalar('Metrics/val_accuracy', accuracy, epoch)
+        writer.add_scalar('Metrics/val_precision', precision, epoch)
+        writer.add_scalar('Metrics/val_recall', recall, epoch)
+        writer.add_scalar('Metrics/val_f1', f1, epoch)
         
         
         # Update learning rate
@@ -425,11 +374,11 @@ def main(args):
             'train_confusion_matrix': train_conf_matrix.tolist()
         }
         
-        # Save checkpoint
+        '''# Save checkpoint
         save_model(
             model, optimizer, epoch, train_loss, val_loss,
             metrics, config, experiment_dir
-        )
+        )'''
         
         # Save best model
         if val_loss < best_val_loss:

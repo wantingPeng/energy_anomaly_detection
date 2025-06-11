@@ -3,10 +3,10 @@ import torch.nn.functional as F
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
 import numpy as np
-from src.training.lsmt.lsmt_fusion.watch_weight import visualize_lstm_gradients
+#from src.training.lsmt.lsmt_fusion.watch_weight import visualize_lstm_gradients
 
 
-def train_epoch(model, data_loader, criterion, optimizer, device, threshold=0.3, epoch=None):
+def train(model, data_loader, criterion, optimizer, device, threshold=0.3, epoch=None):
     """
     Train the model for one epoch.
     
@@ -37,12 +37,13 @@ def train_epoch(model, data_loader, criterion, optimizer, device, threshold=0.3,
         optimizer.zero_grad()
         #print(f"[Batch Input mean: {windows.mean().item():.6f}, std: {windows.std().item():.6f}")
         # Forward pass
-        outputs, attn_weights = model(windows, stat_features)
-        
+        #outputs, attn_weights = model(windows, stat_features)
+        outputs= model(windows, stat_features)
+
         # Calculate loss
         loss = criterion(outputs, labels)
-        entropy = - (attn_weights * torch.log(attn_weights + 1e-8)).sum(dim=1).mean()
-        loss += 0.01 * entropy 
+        '''entropy = - (attn_weights * torch.log(attn_weights + 1e-8)).sum(dim=1).mean()
+        loss += 0.01 * entropy '''
         
         # Backward pass and optimize
         loss.backward()
@@ -65,8 +66,8 @@ def train_epoch(model, data_loader, criterion, optimizer, device, threshold=0.3,
     precision, recall, f1, _ = precision_recall_fscore_support(all_labels, all_preds, average='binary', zero_division=0)
     conf_matrix = confusion_matrix(all_labels, all_preds)
     
-    # Visualize LSTM gradients if epoch is provid
+    '''# Visualize LSTM gradients if epoch is provid
     if epoch is not None:
         visualize_lstm_gradients(model, epoch, prefix='train')
-    
+    '''
     return avg_loss, accuracy, precision, recall, f1, conf_matrix

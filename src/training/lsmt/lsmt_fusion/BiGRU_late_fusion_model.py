@@ -151,13 +151,16 @@ class BiGRULateFusionModel(nn.Module):
             residual = gru_out
             hidden_states = gru_out
         
-        # Apply attention mechanism
+        '''# Apply attention mechanism
         scores = self.attention_layer(hidden_states)      # (B, T, 1)
         weights = torch.sigmoid(scores)                   # [0, 1]
         weights = weights / weights.sum(dim=1, keepdim=True)
         context = torch.sum(weights * hidden_states, dim=1)
-        gru_features = self.gru_fc(context)
+        gru_features = self.gru_fc(context)'''
         
+        gru_out = gru_out[:, -1, :]  # Use the output from the last time step
+        gru_features = self.gru_fc(gru_out)
+
         # Statistical features branch forward pass
         stat_out = self.stat_fc(stat_features)
         
@@ -170,7 +173,8 @@ class BiGRULateFusionModel(nn.Module):
         # Apply output activation
         out = self.output_activation(out)
         
-        return out, weights
+        return out
+        #return out, weights
 
     def _init_weights(self):
         """

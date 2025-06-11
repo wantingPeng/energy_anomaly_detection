@@ -19,13 +19,13 @@ training:
   
   # Class imbalance handling methods (choose one):
   # Method 1: Class weights (inverse frequency weighting)
-  use_class_weights: false
+  use_class_weights: true
   
   # Method 2: Positive weight for BCE loss
   pos_weight: 5.0  # Weight for positive class (anomalies)
   
   # Method 3: Focal Loss
-  use_focal_loss: true  # Set to true to use Focal Loss
+  use_focal_loss: false  # Set to true to use Focal Loss
   focal_loss_alpha: 0.25  # Weight for positive class (higher means more focus on anomalies)
   focal_loss_gamma: 2.0  # Focusing parameter (higher means more focus on hard examples)
 
@@ -42,9 +42,9 @@ data:
 # Paths
 paths:
   # LSTM sliding window data
-  lstm_data_dir: "Data/processed/lsmt_timeFeatures/sliding_window_600s"
+  lstm_data_dir: "Data/processed/transform/slidingWindow_noOverlap_0.7_800s"
   # Statistical features data
-  stat_features_dir: "Data/processed/lsmt_timeFeatures/statistic_features_standscaler_600s"
+  stat_features_dir: "Data/processed/lsmt_statisticalFeatures/statistic_features_standscaler_1200s"
   # Output directory fordata/processed/statistical_features model checkpoints and results
   output_dir: "experiments/lstm_late_fusion"
 

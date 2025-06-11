@@ -126,7 +126,7 @@ class LSTMLateFusionDataset(Dataset):
         # Concatenate all statistical features
         stat_features = np.concatenate(all_stat_features, axis=0)
         
-        '''     
+          
         # Verify that the number of samples match
         if len(windows) != len(stat_features):
             logger.warning(f"Number of LSTM windows ({len(windows)}) does not match "
@@ -137,7 +137,7 @@ class LSTMLateFusionDataset(Dataset):
             labels = labels[:min_len]
             stat_features = stat_features[:min_len]
         
-        logger.info(f"Loaded {len(windows)} LSTM windows and {len(stat_features)} statistical features")'''
+        logger.info(f"Loaded {len(windows)} LSTM windows and {len(stat_features)} statistical features")
         
         return windows, labels, stat_features
 

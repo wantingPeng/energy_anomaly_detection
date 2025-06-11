@@ -36,7 +36,7 @@ from src.preprocessing.energy.machine_learning.labeling_slidingWindow import (
 
 def load_config() -> dict:
     """Load configuration from YAML file."""
-    config_path = Path("configs/lsmt_preprocessing.yaml")
+    config_path = Path("configs/lsmt_sliding_window.yaml")
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
     return config
@@ -313,7 +313,7 @@ def main():
 
     # Process each data type and component
     #for data_type in ['train', 'val', 'test']:
-    for data_type in [ 'val']:
+    for data_type in [ 'train']:
 
         for component in components:
             process_component_data(
