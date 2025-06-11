@@ -204,6 +204,7 @@ def train_epoch(model, data_loader, optimizer, criterion, device, scheduler=None
 
     for batch_idx, (data, labels) in enumerate(pbar):
         data, labels = data.to(device), labels.to(device)
+        data = data.float()
 
         optimizer.zero_grad()
         outputs = model(data)
@@ -247,7 +248,7 @@ def train_epoch(model, data_loader, optimizer, criterion, device, scheduler=None
     return avg_loss, metrics
 
 
-def evaluate(model, data_loader, criterion, device, print_samples=True, find_optimal_threshold=True):
+def evaluate(model, data_loader, criterion, device, config, print_samples=True, find_optimal_threshold=True):
     """
     Evaluate the model on validation or test data.
     """
@@ -260,6 +261,7 @@ def evaluate(model, data_loader, criterion, device, print_samples=True, find_opt
     with torch.no_grad():
         for batch_idx, (data, labels) in enumerate(tqdm(data_loader, desc="Evaluating")):
             data, labels = data.to(device), labels.to(device)
+            data = data.float()
 
             # Forward pass
             outputs = model(data)
@@ -271,6 +273,7 @@ def evaluate(model, data_loader, criterion, device, print_samples=True, find_opt
 
             all_labels.extend(labels.cpu().numpy())
             all_scores.extend(scores.cpu().numpy())
+
 
             # Sample output logging
             if print_samples and batch_idx == 0:
@@ -320,6 +323,18 @@ def evaluate(model, data_loader, criterion, device, print_samples=True, find_opt
     )
     cm = confusion_matrix(all_labels, all_preds)
 
+    normal_scores = all_scores[all_labels == 0]
+    anomaly_scores = all_scores[all_labels == 1]
+
+    plt.hist(normal_scores, bins=50, alpha=0.5, label='Normal')
+    plt.hist(anomaly_scores, bins=50, alpha=0.5, label='Anomaly')
+    plt.xlabel("Predicted anomaly score (P(class=1))")
+    plt.ylabel("Count")
+    plt.legend()
+    plt.title("Score Distribution by Class")
+    plt.savefig(os.path.join(config['paths']['output_dir'],'model_save', "score_distribution_by_class.png"))
+    plt.close()
+
     metrics = {
         'accuracy': accuracy,
         'precision': precision,
@@ -355,7 +370,7 @@ def main(args):
     if args.experiment_name:
         experiment_name = args.experiment_name
     
-    experiment_dir = os.path.join(config['paths']['output_dir'], experiment_name)
+    experiment_dir = os.path.join(config['paths']['output_dir'],'model_save', experiment_name)
     os.makedirs(experiment_dir, exist_ok=True)
     
     # Set up TensorBoard writer
@@ -496,7 +511,7 @@ def main(args):
         
         # Evaluate on validation set
         val_loss, val_metrics = evaluate(
-            model, data_loaders['val'], criterion, device,
+            model, data_loaders['val'], criterion, device,config,
             print_samples=(epoch == 0),  # Print samples only for first epoch
             find_optimal_threshold=True   # Find optimal threshold each epoch
         )
@@ -575,7 +590,7 @@ def main(args):
     best_model_path = os.path.join(experiment_dir, "best_f1", f"checkpoint_epoch_{epoch}.pt")
     if os.path.exists(best_model_path):
         model, _, _, _ = load_model(model, None, best_model_path, device)
-        test_loss, test_metrics = evaluate(model, data_loaders['test'], criterion, device)
+        test_loss, test_metrics = evaluate(model, data_loaders['test'], criterion, device, config)
         
         logger.info(f"Test Loss: {test_loss:.4f}")
         logger.info(f"Test Accuracy: {test_metrics['accuracy']:.4f}")

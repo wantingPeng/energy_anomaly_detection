@@ -89,7 +89,7 @@ def process_batch_file(batch_path, output_dir, component, data_type, linear_proj
 
     # Convert to tensor
     windows_tensor = torch.tensor(windows, dtype=torch.float16)
-    labels_tensor = torch.tensor(labels, dtype=torch.int8)
+    labels_tensor = torch.LongTensor(labels)
    
     # Apply linear projection and positional encoding
     with torch.no_grad():

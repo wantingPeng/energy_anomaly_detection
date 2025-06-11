@@ -43,26 +43,36 @@ class TransformerDataset(Dataset):
         # Path for the specific data type and component
         self.component_dir = os.path.join(data_dir, self.data_type_dir, component)
         
-        # Load data
-        self.windows, self.labels = self._load_data()
+        # Store file paths and indices for lazy loading
+        self.file_indices = []
+        self._prepare_file_indices()
         
-        logger.info(f"Loaded {len(self.windows)} samples for {data_type}/{component}")
+        logger.info(f"Loaded {len(self.file_indices)} samples for {data_type}/{component}")
+    
+    def _prepare_file_indices(self):
+        """
+        Prepare file indices for lazy loading.
+        """
+        pt_files = sorted(glob.glob(os.path.join(self.component_dir, "batch_*.pt")))
+        if not pt_files:
+            raise ValueError(f"No .pt files found in {self.component_dir}")
+
+        for pt_file in pt_files:
+            data = torch.load(pt_file)
+            num_samples = len(data['windows'])
+            self.file_indices.extend([(pt_file, i) for i in range(num_samples)])
     
     def __len__(self):
-        return len(self.windows)
+        return len(self.file_indices)
     
     def __getitem__(self, idx):
         """
-        Get a sample from the dataset.
-        
-        Args:
-            idx: Index of the sample
-            
-        Returns:
-            Tuple of (window, label)
+        Get a sample from the dataset using lazy loading.
         """
-        window = self.windows[idx]
-        label = self.labels[idx]
+        pt_file, sample_idx = self.file_indices[idx]
+        data = torch.load(pt_file)
+        window = data['windows'][sample_idx]
+        label = data['labels'][sample_idx]
         
         # Convert to torch tensors if they aren't already
         if not isinstance(window, torch.Tensor):
@@ -78,36 +88,9 @@ class TransformerDataset(Dataset):
     
     def _load_data(self):
         """
-        Load sliding window data from .pt files.
-        
-        Returns:
-            Tuple of (windows, labels)
+        Deprecated: Load sliding window data from .pt files.
         """
-        # Find all .pt files in the component directory
-        pt_files = sorted(glob.glob(os.path.join(self.component_dir, "batch_*.pt")))
-        if not pt_files:
-            raise ValueError(f"No .pt files found in {self.component_dir}")
-        
-        # Load and concatenate data from all files
-        all_windows = []
-        all_labels = []
-        
-        for pt_file in pt_files:
-            logger.info(f"Loading {pt_file}")
-            data = torch.load(pt_file)
-            if 'windows' in data and 'labels' in data:
-                all_windows.append(data['windows'])
-                all_labels.append(data['labels'])
-            else:
-                raise ValueError(f"Unknown data structure in {pt_file}")
-           
-        windows = torch.cat(all_windows, dim=0)
-        labels = torch.cat(all_labels, dim=0)
-
-        
-        logger.info(f"Loaded {len(windows)} windows with shape {windows.shape} and {len(labels)} labels")
-        
-        return windows, labels
+        raise NotImplementedError("_load_data is deprecated due to lazy loading implementation.")
 
 
 def create_data_loaders(
@@ -144,7 +127,7 @@ def create_data_loaders(
             batch_size=batch_size,
             shuffle=shuffle,
             num_workers=num_workers,
-            pin_memory=False
+            pin_memory=True
         )
         
         logger.info(f"Created {data_type} data loader with {len(dataset)} samples")

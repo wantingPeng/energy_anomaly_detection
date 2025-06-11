@@ -117,7 +117,7 @@ def print_pt_summary(analysis_result: Dict[str, List[Dict[str, Any]]]) -> None:
             else:
                 logger.info(f"  Type: {file_info['type']}")
 
-def analyze_and_print_pt_structure(base_dir: str = "Data/processed/transform/slidingWindow_noOverlap_0.8_no_stats/projection_pos_encoding/train_down_25%") -> Dict[str, List[Dict[str, Any]]]:
+def analyze_and_print_pt_structure(base_dir: str = "Data/processed/transform/slidingWindow_noOverlap_0.8_no_stats/projection_pos_encoding_float16/train_down_25%") -> Dict[str, List[Dict[str, Any]]]:
     """
     Convenience function to analyze PyTorch files and print a summary
     
