@@ -2,7 +2,7 @@
 
 # Paths
 paths:
-  data_dir: "Data/processed/transform/slidingWindow_noOverlap_0.7_800s/projection_pos_encoding_float16"
+  data_dir: "Data/processed/transform/slidingWindow_noOverlap_800_800_100_0.7_th0.5/projection_pos_encoding_float16"
   output_dir: "experiments/transformer"
 
 # Data configuration
@@ -38,7 +38,7 @@ training:
   # Early stopping
   early_stopping_patience: 15  # Number of epochs with no improvement after which training will be stopped
   early_stopping_min_delta: 0.0001  # Minimum change to qualify as an improvement
-  early_stopping_metric: "f1"  # Metric to monitor for early stopping, options: loss, f1
+  early_stopping_metric: "auprc"  # Metric to monitor for early stopping, options: loss, f1
   
   # Class weighting and loss function
   use_class_weights: true  # Whether to use class weights for loss calculation

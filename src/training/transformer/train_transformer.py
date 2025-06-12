@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
-from sklearn.metrics import precision_recall_fscore_support, accuracy_score, confusion_matrix, precision_recall_curve, f1_score
+from sklearn.metrics import precision_recall_fscore_support, accuracy_score, confusion_matrix, precision_recall_curve, f1_score, auc, average_precision_score
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 import argparse
@@ -179,7 +179,7 @@ def load_model(model, optimizer, checkpoint_path, device):
     
     return model, optimizer, start_epoch, checkpoint
 
-def train_epoch(model, data_loader, optimizer, criterion, device, scheduler=None, threshold=0.5):
+def train_epoch(model, data_loader, optimizer, criterion, device, scheduler=None):
     """
     Train the model for one epoch.
 
@@ -193,7 +193,7 @@ def train_epoch(model, data_loader, optimizer, criterion, device, scheduler=None
         threshold: Classification threshold (default=0.5)
 
     Returns:
-        Average training loss for the epoch, and training metrics
+        Average training loss for the epoch and AUPRC metric
     """
     model.train()
     total_loss = 0
@@ -226,23 +226,13 @@ def train_epoch(model, data_loader, optimizer, criterion, device, scheduler=None
 
     avg_loss = total_loss / len(data_loader)
 
-    # Apply threshold to convert probabilities into predictions
+    # Calculate AUPRC (Average Precision)
     all_scores = np.array(all_scores)
     all_labels = np.array(all_labels)
-    all_preds = (all_scores >= threshold).astype(int)
-
-    # Metrics
-    accuracy = accuracy_score(all_labels, all_preds)
-    precision, recall, f1, _ = precision_recall_fscore_support(
-        all_labels, all_preds, average='binary', zero_division=0
-    )
+    auprc = average_precision_score(all_labels, all_scores)
 
     metrics = {
-        'accuracy': accuracy,
-        'precision': precision,
-        'recall': recall,
-        'f1': f1,
-        'threshold': threshold
+        'auprc': auprc
     }
 
     return avg_loss, metrics
@@ -298,7 +288,7 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True, 
 
     all_scores = np.array(all_scores)
     all_labels = np.array(all_labels)
-    optimal_threshold = 0.3
+    optimal_threshold = 0
 
     # Threshold optimization
     if find_optimal_threshold and len(np.unique(all_labels)) > 1:
@@ -316,6 +306,9 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True, 
     # Final prediction using threshold (either optimal or default 0.5)
     all_preds = (all_scores >= optimal_threshold).astype(int)
 
+    # Calculate AUPRC
+    auprc = average_precision_score(all_labels, all_scores)
+
     # Metrics
     accuracy = accuracy_score(all_labels, all_preds)
     precision, recall, f1, _ = precision_recall_fscore_support(
@@ -323,23 +316,12 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True, 
     )
     cm = confusion_matrix(all_labels, all_preds)
 
-    normal_scores = all_scores[all_labels == 0]
-    anomaly_scores = all_scores[all_labels == 1]
-
-    plt.hist(normal_scores, bins=50, alpha=0.5, label='Normal')
-    plt.hist(anomaly_scores, bins=50, alpha=0.5, label='Anomaly')
-    plt.xlabel("Predicted anomaly score (P(class=1))")
-    plt.ylabel("Count")
-    plt.legend()
-    plt.title("Score Distribution by Class")
-    plt.savefig(os.path.join(config['paths']['output_dir'],'model_save', "score_distribution_by_class.png"))
-    plt.close()
-
     metrics = {
         'accuracy': accuracy,
         'precision': precision,
         'recall': recall,
         'f1': f1,
+        'auprc': auprc,
         'confusion_matrix': cm,
         'predictions': all_preds,
         'labels': all_labels,
@@ -488,12 +470,13 @@ def main(args):
     early_stopping = EarlyStopping(
         patience=config['training']['early_stopping_patience'],
         min_delta=config['training']['early_stopping_min_delta'],
-        mode='max' if config['training']['early_stopping_metric'] == 'f1' else 'min'
+        mode='max' if config['training']['early_stopping_metric'] in ['f1', 'auprc'] else 'min'
     )
     
     # Initialize best metrics
     best_val_loss = float('inf')
     best_val_f1 = 0.0
+    best_val_auprc = 0.0
     
     # Training loop
     for epoch in range(start_epoch, config['training']['num_epochs']):
@@ -505,8 +488,7 @@ def main(args):
         # Train for one epoch
         train_loss, train_metrics = train_epoch(
             model, data_loaders['train'], optimizer, criterion, device,
-            scheduler=scheduler,
-            threshold=0.5
+            scheduler=scheduler
         )
         
         # Evaluate on validation set
@@ -520,6 +502,8 @@ def main(args):
         if isinstance(scheduler, ReduceLROnPlateau):
             if config['training']['early_stopping_metric'] == 'f1':
                 scheduler.step(val_metrics['f1'])
+            elif config['training']['early_stopping_metric'] == 'auprc':
+                scheduler.step(val_metrics['auprc'])
             else:
                 scheduler.step(val_loss)
         elif scheduler is not None and not isinstance(scheduler, optim.lr_scheduler.CosineAnnealingLR):
@@ -536,18 +520,18 @@ def main(args):
 
         # Log metrics
         logger.info(f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
-        logger.info(f"Train F1: {train_metrics['f1']:.4f}, Val F1: {val_metrics['f1']:.4f}")
+        logger.info(f"Train AUPRC: {train_metrics['auprc']:.4f}, Val AUPRC: {val_metrics['auprc']:.4f}")
+        logger.info(f"Val F1: {val_metrics['f1']:.4f}")
         logger.info(f"Val Precision: {val_metrics['precision']:.4f}, Val Recall: {val_metrics['recall']:.4f}")
         logger.info(f"Optimal Threshold: {val_metrics['threshold']:.6f}")
         logger.info(f"Epoch completed in {epoch_duration:.2f} seconds")
         
         writer.add_scalar('train/loss', train_loss, epoch)
         writer.add_scalar('val/loss', val_loss, epoch)
-        writer.add_scalar('train/f1', train_metrics['f1'], epoch)
+        writer.add_scalar('train/auprc', train_metrics['auprc'], epoch)
+        writer.add_scalar('val/auprc', val_metrics['auprc'], epoch)
         writer.add_scalar('val/f1', val_metrics['f1'], epoch)
-        writer.add_scalar('train/precision', train_metrics['precision'], epoch)
         writer.add_scalar('val/precision', val_metrics['precision'], epoch)
-        writer.add_scalar('train/recall', train_metrics['recall'], epoch)
         writer.add_scalar('val/recall', val_metrics['recall'], epoch)
         writer.add_scalar('val/optimal_threshold', val_metrics['threshold'], epoch)
         
@@ -575,9 +559,22 @@ def main(args):
             )
             logger.info(f"New best validation F1: {best_val_f1:.4f}")
         
+        # Save best model based on AUPRC
+        if val_metrics['auprc'] > best_val_auprc:
+            best_val_auprc = val_metrics['auprc']
+            save_model(
+                model, optimizer, epoch, train_loss, val_loss, val_metrics,
+                config, os.path.join(experiment_dir, "best_auprc")
+            )
+            logger.info(f"New best validation AUPRC: {best_val_auprc:.4f}")
+        
         # Check for early stopping
         if config['training']['early_stopping_metric'] == 'f1':
             if early_stopping(val_metrics['f1']):
+                logger.info(f"Early stopping triggered after {epoch+1} epochs")
+                break
+        elif config['training']['early_stopping_metric'] == 'auprc':
+            if early_stopping(val_metrics['auprc']):
                 logger.info(f"Early stopping triggered after {epoch+1} epochs")
                 break
         else:
@@ -593,6 +590,7 @@ def main(args):
         test_loss, test_metrics = evaluate(model, data_loaders['test'], criterion, device, config)
         
         logger.info(f"Test Loss: {test_loss:.4f}")
+        logger.info(f"Test AUPRC: {test_metrics['auprc']:.4f}")
         logger.info(f"Test Accuracy: {test_metrics['accuracy']:.4f}")
         logger.info(f"Test Precision: {test_metrics['precision']:.4f}")
         logger.info(f"Test Recall: {test_metrics['recall']:.4f}")
@@ -601,6 +599,34 @@ def main(args):
         
         # Log test metrics to TensorBoard
         writer.add_scalar('test/loss', test_loss, 0)
+        writer.add_scalar('test/auprc', test_metrics['auprc'], 0)
+        writer.add_scalar('test/f1', test_metrics['f1'], 0)
+        writer.add_scalar('test/precision', test_metrics['precision'], 0)
+        writer.add_scalar('test/recall', test_metrics['recall'], 0)
+        writer.add_scalar('test/accuracy', test_metrics['accuracy'], 0)
+    
+    # Evaluate on test set using best model (based on AUPRC)
+    logger.info("Evaluating best model (based on AUPRC) on test set")
+    best_auprc_model_path = os.path.join(experiment_dir, "best_auprc", f"checkpoint_epoch_{epoch}.pt")
+    if os.path.exists(best_auprc_model_path):
+        model, _, _, _ = load_model(model, None, best_auprc_model_path, device)
+        test_loss, test_metrics = evaluate(model, data_loaders['test'], criterion, device, config)
+        
+        logger.info(f"Test Loss (AUPRC model): {test_loss:.4f}")
+        logger.info(f"Test AUPRC (AUPRC model): {test_metrics['auprc']:.4f}")
+        logger.info(f"Test Accuracy (AUPRC model): {test_metrics['accuracy']:.4f}")
+        logger.info(f"Test Precision (AUPRC model): {test_metrics['precision']:.4f}")
+        logger.info(f"Test Recall (AUPRC model): {test_metrics['recall']:.4f}")
+        logger.info(f"Test F1 (AUPRC model): {test_metrics['f1']:.4f}")
+        logger.info(f"Test Optimal Threshold (AUPRC model): {test_metrics['threshold']:.6f}")
+        
+        # Log test metrics to TensorBoard for AUPRC model
+        writer.add_scalar('test_auprc_model/loss', test_loss, 0)
+        writer.add_scalar('test_auprc_model/auprc', test_metrics['auprc'], 0)
+        writer.add_scalar('test_auprc_model/f1', test_metrics['f1'], 0)
+        writer.add_scalar('test_auprc_model/precision', test_metrics['precision'], 0)
+        writer.add_scalar('test_auprc_model/recall', test_metrics['recall'], 0)
+        writer.add_scalar('test_auprc_model/accuracy', test_metrics['accuracy'], 0)
     
     # Close TensorBoard writer
     writer.close()

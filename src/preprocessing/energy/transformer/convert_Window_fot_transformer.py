@@ -163,7 +163,7 @@ def main():
     log_memory("Starting conversion")
     
     # Get paths from config
-    input_dir = "Data/processed/transform/slidingWindow_noOverlap_0.7_800s"
+    input_dir = "Data/processed/transform/slidingWindow_noOverlap_800_800_100_0.7_th0.5"
     output_dir = "Data/processed/transform/slidingWindow_noOverlap_0.7_800s/projection_pos_encoding_float16"
     
     # Create output directory if it doesn't exist
@@ -176,10 +176,10 @@ def main():
     logger.info(f"Processing data types: {data_types}")
     logger.info(f"Processing components: {components}")
     
-
-        # 动态读取 input_features
+    # 动态读取 input_features
     sample_file = glob.glob(os.path.join(input_dir, data_types[0], components[0], "*.npz"))[0]
-    logger.error(f'not found sample file {sample_file}')   
+    logger.info(f'sample file {sample_file}')   
+    
     sample_data = np.load(sample_file)
     input_features = sample_data['windows'].shape[2]
     logger.info(f"Input features: {input_features}")

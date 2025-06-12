@@ -214,15 +214,17 @@ def analyze_parquet_labels(file_path, label_column='anomaly_label'):
         return None
 
 def main():
-    # file_path = "Data/processed/lsmt/sliding_window/val/contact/batch_0.npz"
-    # analyze_normal_anomaly_distribution(file_path)
+    '''file_path = "Data/processed/transform/slidingWindow_noOverlap_0.7_800s/projection_pos_encoding_float16/val/contact/batch_0.pt"
+    analyze_normal_anomaly_distribution(file_path)'''
 
-    # directory_path = "Data/processed/transform/slidingWindow_noOverlap_0.7_800s/val/contact"
-    # analyze_normal_anomaly_distribution_pt(directory_path)
     
-    # Analyze parquet file with normal/anomaly labels
+
+    directory_path = "Data/processed/transform/slidingWindow_noOverlap_800_800_100_0.7_th0.5/val/contact"
+    analyze_normal_anomaly_distribution_pt(directory_path)
+    
+    '''# Analyze parquet file with normal/anomaly labels
     parquet_path = "Data/processed/machinen_learning/individual_model/randomly_spilt/val.parquet"
-    analyze_parquet_labels(parquet_path, label_column='anomaly_label')
+    analyze_parquet_labels(parquet_path, label_column='anomaly_label')'''
 
 if __name__ == "__main__":
     main()
