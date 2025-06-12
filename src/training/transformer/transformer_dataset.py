@@ -228,7 +228,7 @@ def create_data_loaders(
     """
     data_loaders = {}
     
-    for data_type in ['train_down_25%', 'val']:
+    for data_type in ['train', 'val']:
         dataset = TransformerDataset(
             data_dir=data_dir,
             data_type=data_type,

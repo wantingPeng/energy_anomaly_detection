@@ -167,7 +167,8 @@ def create_sliding_windows(df, window_size=1200, step_size=300):
             
             # Move to next window
             start_time += pd.Timedelta(seconds=step_size)
-    
+    logger.info(f"windows_type: {type(windows)}")
+
     logger.info(f"Created {window_count} windows from {len(segments)} segments")
     return windows
 
@@ -198,7 +199,9 @@ def process_batch(batch_dir, output_dir, top_features, window_size=1200, step_si
         # Create sliding windows
         logger.info(f"Creating sliding windows with window_size={window_size}s, step_size={step_size}s")
         windows = create_sliding_windows(batch_df, window_size, step_size)
-        
+        logger.info(f"windows_type: {type(windows)}")
+        logger.info(f"windows[:5]: {(windows[:5])}")
+
         # Free memory
         del batch_df
         gc.collect()
@@ -273,8 +276,8 @@ def process_batch(batch_dir, output_dir, top_features, window_size=1200, step_si
 def main():
     """Main function to process all data."""
     # Set window and step size
-    window_size = 600  # seconds
-    step_size = 100     # seconds
+    window_size = 10000  # seconds
+    step_size = 10000     # seconds
     
     # Load top features
     top_features = load_top_features()

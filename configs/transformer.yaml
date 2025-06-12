@@ -2,7 +2,7 @@
 
 # Paths
 paths:
-  data_dir: "Data/processed/transform/slidingWindow_noOverlap_0.6/projection_pos_encoding_float16"
+  data_dir: "Data/processed/transform/slidingWindow_noOverlap_0.7_800s/projection_pos_encoding_float16"
   output_dir: "experiments/transformer"
 
 # Data configuration

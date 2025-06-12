@@ -21,6 +21,7 @@ import yaml
 import pickle
 from intervaltree import IntervalTree
 from typing import Dict, List, Tuple
+from joblib import Parallel, delayed
 
 from src.utils.logger import logger
 from src.preprocessing.energy.machine_learning.calculate_window_features import calculate_window_features
@@ -63,7 +64,7 @@ def filter_features(df, top_features):
         Filtered DataFrame
     """
     # Always keep these metadata columns
-    metadata_cols = ['window_start', 'window_end', 'segment_id', 'overlap_ratio']
+    metadata_cols = ['window_start', 'window_end', 'segment_id']
     
     # Create a list of columns to keep
     keep_cols = metadata_cols + [col for col in top_features if col in df.columns]
@@ -91,7 +92,7 @@ def get_batch_dirs(data_type, component):
     Returns:
         List of batch directory paths
     """
-    base_dir = f"Data/processed/lsmt_timeFeatures/add_timeFeatures/{data_type}/{component}"
+    base_dir = f"Data/processed/lsmt_statisticalFeatures/interpolate/{data_type}/{component}"
     batch_dirs = sorted(glob.glob(os.path.join(base_dir, "batch_*")))
     logger.info(f"Found {len(batch_dirs)} batch directories for {data_type}/{component}")
     return batch_dirs
@@ -126,86 +127,135 @@ def load_batch_data(batch_dir):
         return pd.DataFrame()
 
 
-def create_sliding_windows(df, anomaly_trees, component, window_size=800, step_size=800, 
-                          anomaly_step_size=100, overlap_threshold=0.5):
+def process_segment(
+    segment_data: Tuple[str, pd.DataFrame],
+    component: str,
+    window_size: int,
+    step_size: int,
+    anomaly_step_size: int,
+    anomaly_trees: Dict[str, IntervalTree],
+    anomaly_threshold: float = 0.3
+) -> List[pd.DataFrame]:
     """
-    Create sliding windows from DataFrame with dynamic step size based on anomaly overlap.
+    Process a single segment for sliding window creation (for parallel processing).
     
     Args:
-        df: DataFrame containing time series data
-        anomaly_trees: Dictionary of interval trees for anomaly detection
-        component: Component type ('contact', 'pcb', or 'ring')
+        segment_data: Tuple of (segment_id, segment_df)
+        component: Component type (e.g., 'contact', 'pcb', 'ring')
         window_size: Size of sliding window in seconds
-        step_size: Normal step size for window sliding in seconds
-        anomaly_step_size: Step size for windows with anomalies
-        overlap_threshold: Threshold for considering a window as having an anomaly
+        step_size: Step size for window sliding in seconds
+        anomaly_trees: Dictionary mapping station IDs to IntervalTree objects
+        anomaly_threshold: Threshold for anomaly labeling
         
     Returns:
-        List of tuples containing (window_df, overlap_ratio)
+        List of DataFrame windows
     """
-    # Sort by TimeStamp
-    df = df.sort_values('TimeStamp')
+    segment_id, segment_df = segment_data
     
-    # Convert TimeStamp to datetime if it's not already
-    if not pd.api.types.is_datetime64_any_dtype(df['TimeStamp']):
-        df['TimeStamp'] = pd.to_datetime(df['TimeStamp'])
-    
-    # Map component to station name
+    windows = []
     component_to_station = {
         'contact': 'Kontaktieren',
         'ring': 'Ringmontage',
         'pcb': 'Pcb'
     }
     
-    # Get station name
+    # Sort by timestamp
+    segment_df = segment_df.sort_values('TimeStamp')
+    
+    # Get station
     station = component_to_station.get(component)
-    if station not in anomaly_trees:
-        logger.warning(f"No anomaly data for station {station}")
-        interval_tree = IntervalTree()  # Empty tree
-    else:
-        interval_tree = anomaly_trees[station]
+    interval_tree = anomaly_trees[station]
     
-    # Group by segment_id
-    segments = df.groupby('segment_id')
+    # Convert TimeStamp to datetime if it's not already
+    if not pd.api.types.is_datetime64_any_dtype(segment_df['TimeStamp']):
+        segment_df['TimeStamp'] = pd.to_datetime(segment_df['TimeStamp'])
     
-    windows = []
-    window_count = 0
+    # Get first and last timestamp
+    first_timestamp = segment_df['TimeStamp'].min()
+    last_timestamp = segment_df['TimeStamp'].max()
     
-    for segment_id, segment_df in segments:
-        # Sort by timestamp
-        segment_df = segment_df.sort_values('TimeStamp')
+    # Create windows
+    start_time = first_timestamp
+    
+    while start_time + pd.Timedelta(seconds=window_size) <= last_timestamp:
+        end_time = start_time + pd.Timedelta(seconds=window_size)
         
-        # Get first and last timestamp
-        first_timestamp = segment_df['TimeStamp'].min()
-        last_timestamp = segment_df['TimeStamp'].max()
+        # Get data for this window
+        window_mask = (segment_df['TimeStamp'] >= start_time) & (segment_df['TimeStamp'] < end_time)
+        window_df = segment_df.loc[window_mask].copy()
         
-        # Create windows
-        start_time = first_timestamp
+        # Skip empty windows
+        if window_df.empty:
+            start_time += pd.Timedelta(seconds=step_size)
+            continue
+            
+        # Calculate overlap with anomalies
+        overlap_ratio = calculate_window_overlap(start_time, end_time, interval_tree)
+        current_step_size = anomaly_step_size if overlap_ratio > 0.5 else step_size
         
-        while start_time + pd.Timedelta(seconds=window_size) <= last_timestamp:
-            end_time = start_time + pd.Timedelta(seconds=window_size)
-            
-            # Calculate overlap with anomalies
-            overlap_ratio = calculate_window_overlap(start_time, end_time, interval_tree)
-            
-            # Determine step size based on overlap ratio
-            current_step_size = anomaly_step_size if overlap_ratio > overlap_threshold else step_size
-            
-            # Get data for this window
-            window_mask = (segment_df['TimeStamp'] >= start_time) & (segment_df['TimeStamp'] < end_time)
-            window_df = segment_df.loc[window_mask].copy()
-            
-            # Add window to list if it's not empty
-            if not window_df.empty:
-                windows.append((window_df, overlap_ratio))
-                window_count += 1
-            
-            # Move to next window
-            start_time += pd.Timedelta(seconds=current_step_size)
+        # Add window to list
+        windows.append(window_df)
+        # Move to next window
+        start_time += pd.Timedelta(seconds=current_step_size)
     
-    logger.info(f"Created {window_count} windows from {len(segments)} segments")
     return windows
 
+
+def create_sliding_windows(
+    df: pd.DataFrame,
+    component: str,
+    window_size: int,
+    step_size: int,
+    anomaly_step_size: int,
+    anomaly_trees: Dict[str, IntervalTree],
+    anomaly_threshold: float = 0.3,
+    n_jobs: int = 6
+) -> List[pd.DataFrame]:
+    """
+    Create sliding windows from segment data and label them based on anomaly overlap.
+    Uses parallel processing for efficiency.
+    
+    Args:
+        df: DataFrame containing the segment data
+        component: Component type (e.g., 'contact', 'pcb', 'ring')
+        window_size: Size of sliding window in seconds
+        step_size: Step size for window sliding in seconds
+        anomaly_trees: Dictionary mapping station IDs to IntervalTree objects
+        anomaly_threshold: Threshold for anomaly labeling (default: 0.3)
+        n_jobs: Number of parallel jobs to run (default: 6)
+        
+    Returns:
+        List of DataFrame windows
+    """
+    all_windows = []
+    # Group by segment_id
+    segments = list(df.groupby('segment_id'))
+    total_segments = len(segments)
+    
+    logger.info(f"Processing {total_segments} segments for component {component}")
+    
+    # Process all segments in parallel
+    results = Parallel(n_jobs=n_jobs)(
+        delayed(process_segment)(
+            segment_data,
+            component,
+            window_size,
+            step_size,
+            anomaly_step_size,
+            anomaly_trees,
+            anomaly_threshold
+        )
+        for segment_data in tqdm(segments, desc="Processing segments")
+    )
+    
+    # Combine results
+    for windows in results:
+        all_windows.extend(windows)
+
+    logger.info(f"all_windows_type: {type(all_windows)}")
+
+    logger.info(f"Created {len(all_windows)} windows for component {component}")
+    return all_windows
 
 def process_batch(batch_dir, output_dir, top_features, anomaly_trees, component):
     """
@@ -217,13 +267,11 @@ def process_batch(batch_dir, output_dir, top_features, anomaly_trees, component)
         top_features: List of top feature names to keep
         anomaly_trees: Dictionary of interval trees for anomaly detection
         component: Component type ('contact', 'pcb', or 'ring')
-        config: Configuration dictionary
         
     Returns:
         Number of windows processed
     """
     try:
-
         # Load batch data
         logger.info(f"Loading data from {batch_dir}")
         batch_df = load_batch_data(batch_dir)
@@ -236,8 +284,16 @@ def process_batch(batch_dir, output_dir, top_features, anomaly_trees, component)
         logger.info(f"Creating sliding windows with window_size=800s, step_size=800s, "
                   f"anomaly_step_size=100s, overlap_threshold=0.7")
         windows = create_sliding_windows(
-            batch_df, anomaly_trees, component, 800, 800, 100, 0.7
+            batch_df, component, 800, 800, 100, anomaly_trees, 0.7, 6
         )
+        logger.info(f"windows_type: {type(windows)}")
+        
+        # Display sample of window data
+        if windows and len(windows) > 0:
+            sample_window = windows[0]
+            '''logger.info(f"Sample window shape: {sample_window.shape}")
+            logger.info(f"Sample window columns: {sample_window.columns.tolist()}")
+            logger.info(f"windows[:5]: {(windows[:5])}")'''
         
         # Free memory
         del batch_df
@@ -269,10 +325,9 @@ def process_batch(batch_dir, output_dir, top_features, anomaly_trees, component)
         
         # Save features as parquet
         batch_name = os.path.basename(batch_dir)
-
         
         # Extract only numerical features for the statistical features
-        metadata_cols = ['window_start', 'window_end', 'segment_id', 'overlap_ratio']
+        metadata_cols = ['window_start', 'window_end', 'segment_id']
         feature_cols = [col for col in features_df.columns if col not in metadata_cols]
         
         # Apply standardization to numerical features
@@ -338,7 +393,7 @@ def main():
             batch_dirs = get_batch_dirs(data_type, component)
             
             # Create output directory
-            output_dir = f"Data/processed/transform/slidingWindow_noOverlap_800_800_100_0.7_th0.5/statistic_features_standscaler/{data_type}/{component}"
+            output_dir = f"Data/processed/transform/slidingWindow_noOverlap_0.7_800s/statistic_features_standscaler/{data_type}/{component}"
             os.makedirs(output_dir, exist_ok=True)
             
             # Process each batch

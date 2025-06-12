@@ -388,7 +388,7 @@ def main(args):
     )
     
     # Get a sample batch to determine input dimension
-    sample_batch, _ = next(iter(data_loaders['train_down_25%']))
+    sample_batch, _ = next(iter(data_loaders['train']))
     input_dim = sample_batch.shape[2]  # [batch_size, seq_len, input_dim]
     seq_len = sample_batch.shape[1]
     
@@ -425,7 +425,7 @@ def main(args):
         if config['training']['use_class_weights']:
             # Get class distribution from training data
             all_labels = []
-            for _, labels in data_loaders['train_down_25%'].dataset:
+            for _, labels in data_loaders['train'].dataset:
                 all_labels.append(labels)
             all_labels = torch.stack(all_labels)
             
@@ -504,7 +504,7 @@ def main(args):
         
         # Train for one epoch
         train_loss, train_metrics = train_epoch(
-            model, data_loaders['train_down_25%'], optimizer, criterion, device,
+            model, data_loaders['train'], optimizer, criterion, device,
             scheduler=scheduler,
             threshold=0.5
         )

@@ -34,14 +34,8 @@ class TransformerDataset(Dataset):
         self.component = component
         self.transform = transform
         
-        # Convert train_down_25% to the actual directory name
-        if data_type == 'train':
-            self.data_type_dir = 'train_down_25%'
-        else:
-            self.data_type_dir = data_type
-        
         # Path for the specific data type and component
-        self.component_dir = os.path.join(data_dir, self.data_type_dir, component)
+        self.component_dir = os.path.join(data_dir, self.data_type, component)
         
         # Load data
         self.windows, self.labels = self._load_data()
@@ -130,7 +124,7 @@ def create_data_loaders(
     """
     data_loaders = {}
     
-    for data_type in ['train_down_25%', 'val']:
+    for data_type in ['train', 'val']:
         dataset = TransformerDataset(
             data_dir=data_dir,
             data_type=data_type,

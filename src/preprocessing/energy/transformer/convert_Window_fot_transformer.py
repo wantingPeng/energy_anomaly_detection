@@ -163,15 +163,15 @@ def main():
     log_memory("Starting conversion")
     
     # Get paths from config
-    input_dir = "Data/processed/transform/slidingWindow_noOverlap_0.8_no_stats"
-    output_dir = "Data/processed/transform/slidingWindow_noOverlap_0.8_no_stats/projection_pos_encoding_float16"
+    input_dir = "Data/processed/transform/slidingWindow_noOverlap_0.7_800s"
+    output_dir = "Data/processed/transform/slidingWindow_noOverlap_0.7_800s/projection_pos_encoding_float16"
     
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
     
     # Explicitly define components and data types
     components = ['contact']
-    data_types = ['train_down_25%', 'val']
+    data_types = ['val']
     
     logger.info(f"Processing data types: {data_types}")
     logger.info(f"Processing components: {components}")

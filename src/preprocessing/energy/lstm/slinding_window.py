@@ -112,7 +112,7 @@ def process_segment(
         if len(window_data) == window_size:
             # Calculate overlap with anomalies
             overlap_ratio = calculate_window_overlap(window_start, window_end, interval_tree)
-            step_size = anomaly_step_size if overlap_ratio > 0.5 else step_size
+            current_step_size = anomaly_step_size if overlap_ratio > 0.5 else step_size
 
 
             label = 1 if overlap_ratio >= anomaly_threshold else 0
@@ -121,7 +121,7 @@ def process_segment(
             labels.append(label)
 
         # Move to next window position
-        start_idx += step_size
+        start_idx += current_step_size
     return windows, labels
 
 
@@ -313,7 +313,7 @@ def main():
 
     # Process each data type and component
     #for data_type in ['train', 'val', 'test']:
-    for data_type in [ 'train']:
+    for data_type in [ 'val']:
 
         for component in components:
             process_component_data(

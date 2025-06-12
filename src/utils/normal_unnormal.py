@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from src.utils.logger import logger
 import os
 import torch
+import pandas as pd
 
 def analyze_normal_anomaly_distribution(file_path):
     """
@@ -112,12 +113,116 @@ def analyze_normal_anomaly_distribution_pt(directory_path):
     except Exception as e:
         logger.error(f"Error analyzing directory: {str(e)}")
 
+def analyze_parquet_labels(file_path, label_column='anomaly_label'):
+    """
+    Analyze the distribution of normal and anomaly samples in a parquet file.
+    
+    Args:
+        file_path (str): Path to the parquet file
+        label_column (str): Name of the column containing anomaly labels (default: 'anomaly_label')
+    
+    Returns:
+        dict: Dictionary containing distribution statistics
+    """
+    if not os.path.exists(file_path):
+        logger.error(f"File not found: {file_path}")
+        return None
+    
+    try:
+        # Read the parquet file
+        logger.info(f"Reading parquet file: {file_path}")
+        df = pd.read_parquet(file_path)
+        
+        # Check if the label column exists
+        if label_column not in df.columns:
+            logger.error(f"Label column '{label_column}' not found in parquet file")
+            return None
+        
+        # Count normal and anomaly samples
+        value_counts = df[label_column].value_counts()
+        total_samples = len(df)
+        
+        # Calculate percentages
+        percentages = (value_counts / total_samples) * 100
+        
+        # Log the distribution
+        logger.info(f"Total number of samples: {total_samples}")
+        
+        # Create results dictionary
+        results = {
+            'total_samples': total_samples,
+            'counts': {},
+            'percentages': {}
+        }
+        
+        # Process each unique value (could be boolean True/False or 0/1)
+        for label, count in value_counts.items():
+            percentage = percentages[label]
+            
+            # Convert boolean labels to string for better readability
+            label_str = str(label)
+            label_type = "Anomaly" if label in [True, 1, "1", "True"] else "Normal"
+            
+            logger.info(f"{label_type} ({label_str}): {count} samples ({percentage:.2f}%)")
+            
+            results['counts'][label_str] = int(count)
+            results['percentages'][label_str] = float(percentage)
+        
+        # Create visualization
+        plt.figure(figsize=(10, 6))
+        
+        # Extract labels and counts for plotting
+        labels_for_plot = [str(label) for label in value_counts.index]
+        counts_for_plot = value_counts.values
+        
+        # Map labels to more readable form for plot
+        label_mapping = {}
+        for label in value_counts.index:
+            if label in [True, 1, "1", "True"]:
+                label_mapping[str(label)] = "Anomaly"
+            else:
+                label_mapping[str(label)] = "Normal"
+        
+        plot_labels = [label_mapping.get(str(label), str(label)) for label in value_counts.index]
+        
+        # Create the bar plot
+        bars = plt.bar(plot_labels, counts_for_plot)
+        plt.title('Distribution of Normal vs Anomaly Samples')
+        plt.ylabel('Number of Samples')
+        plt.grid(True, alpha=0.3)
+        
+        # Add value labels on top of each bar
+        for i, (count, percentage) in enumerate(zip(counts_for_plot, percentages)):
+            plt.text(i, count, f'{count}\n({percentage:.1f}%)', 
+                    ha='center', va='bottom')
+        
+        plt.tight_layout()
+        
+        # Create directory for saving the figure
+        file_name = os.path.basename(file_path).replace('.parquet', '')
+        save_path = f'experiments/figures/normal_anomaly_distribution_{file_name}.png'
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        
+        plt.savefig(save_path, dpi=300)
+        logger.info(f"Distribution plot saved to {save_path}")
+        plt.close()
+        
+        return results
+        
+    except Exception as e:
+        logger.error(f"Error analyzing parquet file: {str(e)}")
+        return None
+
 def main():
     # file_path = "Data/processed/lsmt/sliding_window/val/contact/batch_0.npz"
     # analyze_normal_anomaly_distribution(file_path)
 
-    directory_path = "Data/processed/transform/slidingWindow_noOverlap_0.8_no_stats/train_down_25%/contact"
-    analyze_normal_anomaly_distribution_pt(directory_path)
+    # directory_path = "Data/processed/transform/slidingWindow_noOverlap_0.7_800s/val/contact"
+    # analyze_normal_anomaly_distribution_pt(directory_path)
+    
+    # Analyze parquet file with normal/anomaly labels
+    parquet_path = "Data/processed/machinen_learning/individual_model/randomly_spilt/val.parquet"
+    analyze_parquet_labels(parquet_path, label_column='anomaly_label')
 
 if __name__ == "__main__":
     main()
