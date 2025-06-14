@@ -1,0 +1,45 @@
+# Transformer Model Configuration for Energy Anomaly Detection with Soft Labels
+
+# Paths
+paths:
+  data_dir: "Data/processed/soft_label/projection_pos_encoding_float16_both_200"
+  output_dir: "experiments/transformer_soft_label"
+
+# Data configuration
+data:
+  component: "contact"  # Options: contact, pcb, ring
+
+# Model configuration
+model:
+  d_model: 256  # Dimension of the model
+  nhead: 8  # Number of heads in multi-head attention
+  num_layers: 2  # Number of transformer layers
+  dim_feedforward: 512  # Dimension of the feedforward network
+  dropout: 0.1  # Dropout probability
+  activation: "gelu"  # Activation function for transformer layers
+
+# Training configuration
+training:
+  batch_size: 64
+  num_workers: 2
+  num_epochs: 150
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  momentum: 0.9  # Only used for SGD optimizer
+  optimizer: "adam"  # Options: adam, adamw, sgd
+  loss: "mse"  # Options: mse, bce
+  
+  # Learning rate scheduling
+  lr_scheduler: "reduce_on_plateau"  # Options: reduce_on_plateau, cosine_annealing, none
+  lr_reduce_factor: 0.5  # Factor by which the learning rate will be reduced (ReduceLROnPlateau)
+  lr_reduce_patience: 5  # Number of epochs with no improvement after which learning rate will be reduced
+  min_lr: 1.0e-6  # Minimum learning rate for CosineAnnealingLR
+  
+  # Early stopping
+  early_stopping_patience: 15  # Number of epochs with no improvement after which training will be stopped
+  early_stopping_min_delta: 0.0001  # Minimum change to qualify as an improvement
+  early_stopping_metric: "mse"  # Metric to monitor for early stopping, options: loss, mse, mae, r2
+
+# Hardware configuration
+hardware:
+  precision: "float32"  # Options: float32, float16 (mixed precision) 

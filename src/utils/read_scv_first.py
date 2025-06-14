@@ -40,8 +40,8 @@ def read_first_n_rows(
 
 if __name__ == "__main__":
     # Example usage (modify paths as needed)
-    input_csv = "Data/row/Energy_Data/Contacting/April_2024.csv"
-    output_csv = "Data/data_preview/contacting_April_2024_sample.csv"  # Optional
+    input_csv = "Data/row/Anomaly_Data/Duration_of_Anomalies.csv"
+    output_csv = "Data/data_preview/row_anomaly_data.csv"  # Optional
     
     try:
         df = read_first_n_rows(

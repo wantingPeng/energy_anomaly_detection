@@ -82,15 +82,15 @@ def process_batch_file(batch_path, output_dir, component, data_type, linear_proj
     # Load .npz
     data = np.load(batch_path, allow_pickle=True)
     windows = data['windows']
-    labels = data['labels']
+    labels = data['soft_labels']
     logger.info(f"Windows shape: {windows.shape}")
     logger.info(f"Labels shape: {labels.shape}")
     log_memory(f"After loading {os.path.basename(batch_path)}")
 
     # Convert to tensor
     windows_tensor = torch.tensor(windows, dtype=torch.float16)
-    labels_tensor = torch.LongTensor(labels)
-   
+    #labels_tensor = torch.LongTensor(labels)
+    labels_tensor = torch.tensor(labels, dtype=torch.float16)
     # Apply linear projection and positional encoding
     with torch.no_grad():
         projected = linear_projection(windows_tensor)
@@ -163,15 +163,15 @@ def main():
     log_memory("Starting conversion")
     
     # Get paths from config
-    input_dir = "Data/processed/transform/slidingWindow_noOverlap_800_800_100_0.7_th0.5"
-    output_dir = "Data/processed/transform/slidingWindow_noOverlap_0.7_800s/projection_pos_encoding_float16"
+    input_dir = "Data/processed/soft_label/slidingWindow_600_600_200"
+    output_dir = "Data/processed/soft_label/projection_pos_encoding_float16_both_200"
     
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
     
     # Explicitly define components and data types
     components = ['contact']
-    data_types = ['val']
+    data_types = ['val_200', 'train']
     
     logger.info(f"Processing data types: {data_types}")
     logger.info(f"Processing components: {components}")

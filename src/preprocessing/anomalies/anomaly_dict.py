@@ -2,21 +2,60 @@ import os
 import pickle
 from typing import Dict, List, Tuple
 import dask.dataframe as dd
+import pandas as pd
+from datetime import datetime
 from src.utils.logger import logger
 from pathlib import Path
 
 
-def generate_anomaly_dict() -> Dict[str, List[Tuple[str, str]]]:
+def merge_overlapping_periods(periods: List[Tuple[datetime, datetime]]) -> List[Tuple[datetime, datetime]]:
+    """
+    Merge overlapping time periods into their union.
+    
+    Args:
+        periods (List[Tuple[datetime, datetime]]): List of (start_time, end_time) tuples
+        
+    Returns:
+        List[Tuple[datetime, datetime]]: List of merged (start_time, end_time) tuples
+    """
+    if not periods:
+        return []
+    
+    # Sort periods by start time
+    sorted_periods = sorted(periods, key=lambda x: x[0])
+    
+    merged = []
+    current_start, current_end = sorted_periods[0]
+    
+    for start, end in sorted_periods[1:]:
+        # If current period overlaps with the next one, extend the current period
+        if start <= current_end:
+            current_end = max(current_end, end)
+        else:
+            # No overlap, add the current period to results and start a new one
+            merged.append((current_start, current_end))
+            current_start, current_end = start, end
+    
+    # Add the last period
+    merged.append((current_start, current_end))
+    
+    return merged
+
+
+def generate_anomaly_dict(merge_overlaps: bool = True) -> Dict[str, List[Tuple[datetime, datetime]]]:
     """
     Generate a dictionary of anomaly time periods organized by station.
     
+    Args:
+        merge_overlaps (bool): Whether to merge overlapping time periods
+    
     Returns:
-        Dict[str, List[Tuple[str, str]]]: Dictionary where keys are station names and values are
+        Dict[str, List[Tuple[datetime, datetime]]]: Dictionary where keys are station names and values are
         lists of (start_time, end_time) tuples sorted by start_time.
     """
     # Define input and output paths
     input_path = "Data/interim/Anomaly_Data/Duration_of_Anomalies_cleaned.parquet"
-    output_path = "Data/interim/Anomaly_Data/anomaly_dict.pkl"
+    output_path = "Data/interim/Anomaly_Data/anomaly_dict_merged.pkl"
     
     try:
         # Check if input file exists
@@ -53,7 +92,14 @@ def generate_anomaly_dict() -> Dict[str, List[Tuple[str, str]]]:
         for station, group in df.groupby('Station'):
             # Sort by starttime and create list of tuples
             periods = list(zip(group['StartTime'], group['EndTime']))
-            periods.sort(key=lambda x: x[0])  # Sort by starttime
+            
+            if merge_overlaps:
+                logger.info(f"Merging overlapping periods for station: {station}")
+                periods = merge_overlapping_periods(periods)
+                logger.info(f"Station {station}: {len(group)} original periods merged into {len(periods)} non-overlapping periods")
+            else:
+                periods.sort(key=lambda x: x[0])  # Sort by starttime
+                
             anomaly_dict[station] = periods
             
         # Save the dictionary
@@ -68,11 +114,11 @@ def generate_anomaly_dict() -> Dict[str, List[Tuple[str, str]]]:
         logger.error(f"Error generating anomaly dictionary: {str(e)}")
         raise
 
-
 if __name__ == "__main__":
     # Test the function
-    try:
-        anomaly_dict = generate_anomaly_dict()
-        logger.info("Successfully generated anomaly dictionary")
-    except Exception as e:
-        logger.error(f"Failed to generate anomaly dictionary: {str(e)}") 
+    print("Generating anomaly dictionary with merged overlapping periods")
+    # Generate anomaly dictionary with merged overlaps
+    anomaly_dict = generate_anomaly_dict(merge_overlaps=True)
+    logger.info("Successfully generated anomaly dictionary with merged overlapping periods")
+
+  
