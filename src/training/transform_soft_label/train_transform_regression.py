@@ -16,16 +16,47 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.metrics import mean_absolute_error, median_absolute_error
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 import argparse
 import time
 import matplotlib.pyplot as plt
+from scipy.stats import wasserstein_distance
 
 from src.utils.logger import logger
 from src.training.transform_soft_label.transformer_model_regression import TransformerModelSoftLabel
 from src.training.transformer.transfomer_dataset_no_pro_pos import create_data_loaders
+
+
+class TweedieLoss(nn.Module):
+    """
+    Tweedie loss for regression with zero-inflated or highly skewed data.
+    
+    Args:
+        variance_power (float): Variance power parameter p where variance ~ mean^p
+                               p=1 is Poisson
+                               p=2 is Gamma
+                               p=3 is Inverse Gaussian
+                               1<p<2 is compound Poisson-Gamma (good for zero-inflated data)
+    """
+    def __init__(self, variance_power=1.5):
+        super(TweedieLoss, self).__init__()
+        self.p = variance_power
+        
+    def forward(self, pred, target):
+        # Avoid numerical instability with small values
+        eps = 1e-5
+        pred = torch.clamp(pred, min=eps)
+        
+        if self.p == 2.0:  # Gamma case
+            return torch.mean(pred / target + torch.log(target))
+        else:
+            # General Tweedie case
+            term1 = torch.pow(target, 2.0 - self.p) / ((1.0 - self.p) * (2.0 - self.p))
+            term2 = torch.pow(pred, 2.0 - self.p) / ((1.0 - self.p) * (2.0 - self.p))
+            term3 = target * torch.pow(pred, 1.0 - self.p) / (1.0 - self.p)
+            return torch.mean(term1 - term3 + term2)
 
 
 def load_config(config_path=None):
@@ -185,6 +216,8 @@ def train_epoch(model, data_loader, optimizer, criterion, device, scheduler=None
 
         optimizer.zero_grad()
         outputs = model(data)
+        # Ensure non-negative predictions
+        outputs = torch.clamp(outputs, min=0.0)
         loss = criterion(outputs, targets)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -206,18 +239,19 @@ def train_epoch(model, data_loader, optimizer, criterion, device, scheduler=None
     all_targets = np.array(all_targets)
     print(f"[Train Prediction Range] min: {all_outputs.min():.4f}, max: {all_outputs.max():.4f}, mean: {all_outputs.mean():.4f}, std: {all_outputs.std():.4f}")
     print(f"[Train Target Range] min: {all_targets.min():.4f}, max: {all_targets.max():.4f}, mean: {all_targets.mean():.4f}, std: {all_targets.std():.4f}")
-    mse = mean_squared_error(all_targets, all_outputs)
     mae = mean_absolute_error(all_targets, all_outputs)
-
+    median_ae = median_absolute_error(all_targets, all_outputs)
+    
+    # Calculate Wasserstein distance (Earth Mover's Distance)
     try:
-        r2 = r2_score(all_targets, all_outputs)
+        w_distance = wasserstein_distance(all_targets.flatten(), all_outputs.flatten())
     except:
-        r2 = 0.0
+        w_distance = float('inf')
 
     metrics = {
-        'mse': mse,
         'mae': mae,
-        'r2': r2
+        'median_ae': median_ae,
+        'wasserstein': w_distance
     }
 
     return avg_loss, metrics
@@ -251,6 +285,8 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
 
             # Forward pass
             outputs = model(data)
+            # Ensure non-negative predictions
+            outputs = torch.clamp(outputs, min=0.0)
             loss = criterion(outputs, targets)
             total_loss += loss.item()
 
@@ -282,18 +318,19 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
     print(f"[Val Prediction Range] min: {all_outputs.min():.4f}, max: {all_outputs.max():.4f}, mean: {all_outputs.mean():.4f}, std: {all_outputs.std():.4f}")
     print(f"[Val Target Range] min: {all_targets.min():.4f}, max: {all_targets.max():.4f}, mean: {all_targets.mean():.4f}, std: {all_targets.std():.4f}")
     # Calculate regression metrics
-    mse = mean_squared_error(all_targets, all_outputs)
     mae = mean_absolute_error(all_targets, all_outputs)
+    median_ae = median_absolute_error(all_targets, all_outputs)
     
+    # Calculate Wasserstein distance (Earth Mover's Distance)
     try:
-        r2 = r2_score(all_targets, all_outputs)
+        w_distance = wasserstein_distance(all_targets.flatten(), all_outputs.flatten())
     except:
-        r2 = 0.0
+        w_distance = float('inf')
 
     metrics = {
-        'mse': mse,
         'mae': mae,
-        'r2': r2,
+        'median_ae': median_ae,
+        'wasserstein': w_distance,
         'predictions': all_outputs,
         'targets': all_targets
     }
@@ -364,8 +401,17 @@ def main(args):
     model = model.to(device)
     
     # Define loss function
-    criterion = nn.MSELoss() if config['training']['loss'] == 'mse' else nn.BCELoss()
-    logger.info(f"Using loss function: {criterion}")
+    if config['training']['loss'] == 'mse':
+        criterion = nn.MSELoss()
+    elif config['training']['loss'] == 'bce':
+        criterion = nn.BCELoss()
+    elif config['training']['loss'] == 'tweedie':
+        variance_power = config['training'].get('tweedie_variance_power', 1.5)
+        criterion = TweedieLoss(variance_power=variance_power)
+        logger.info(f"Using Tweedie Loss with variance power: {variance_power}")
+    else:
+        criterion = nn.MSELoss()  # Default to MSE if not specified
+    logger.info(f"Using loss function: {config['training']['loss']}")
     # Define optimizer
     if config['training']['optimizer'] == 'adam':
         optimizer = optim.Adam(
@@ -415,13 +461,14 @@ def main(args):
     early_stopping = EarlyStopping(
         patience=config['training']['early_stopping_patience'],
         min_delta=config['training']['early_stopping_min_delta'],
-        mode='min' if config['training']['early_stopping_metric'] in ['loss', 'mse', 'mae'] else 'max'
+        mode='min'  # All our metrics (loss, mae, median_ae, wasserstein) are "lower is better"
     )
     
     # Initialize best metrics
     best_val_loss = float('inf')
-    best_val_mse = float('inf')
-    best_val_r2 = float('-inf')
+    best_val_wasserstein = float('inf')
+    best_val_mae = float('inf')
+    best_val_median_ae = float('inf')
     
     # Training loop
     for epoch in range(start_epoch, config['training']['num_epochs']):
@@ -444,11 +491,12 @@ def main(args):
         
         # Update learning rate scheduler if using ReduceLROnPlateau
         if isinstance(scheduler, ReduceLROnPlateau):
-            if config['training']['early_stopping_metric'] == 'mse':
-                scheduler.step(val_metrics['mse'])
-            elif config['training']['early_stopping_metric'] == 'r2':
-                # Negative since scheduler is in 'min' mode
-                scheduler.step(-val_metrics['r2'])
+            if config['training']['early_stopping_metric'] == 'wasserstein':
+                scheduler.step(val_metrics['wasserstein'])
+            elif config['training']['early_stopping_metric'] == 'mae':
+                scheduler.step(val_metrics['mae'])
+            elif config['training']['early_stopping_metric'] == 'median_ae':
+                scheduler.step(val_metrics['median_ae'])
             else:
                 scheduler.step(val_loss)
         elif scheduler is not None and not isinstance(scheduler, optim.lr_scheduler.CosineAnnealingLR):
@@ -466,19 +514,19 @@ def main(args):
 
         # Log metrics
         logger.info(f"Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}")
-        logger.info(f"Train MSE: {train_metrics['mse']:.6f}, Val MSE: {val_metrics['mse']:.6f}")
         logger.info(f"Train MAE: {train_metrics['mae']:.6f}, Val MAE: {val_metrics['mae']:.6f}")
-        logger.info(f"Train R²: {train_metrics['r2']:.6f}, Val R²: {val_metrics['r2']:.6f}")
+        logger.info(f"Train Median AE: {train_metrics['median_ae']:.6f}, Val Median AE: {val_metrics['median_ae']:.6f}")
+        logger.info(f"Train Wasserstein: {train_metrics['wasserstein']:.6f}, Val Wasserstein: {val_metrics['wasserstein']:.6f}")
         logger.info(f"Epoch completed in {epoch_duration:.2f} seconds")
         
         writer.add_scalar('train/loss', train_loss, epoch)
         writer.add_scalar('val/loss', val_loss, epoch)
-        writer.add_scalar('train/mse', train_metrics['mse'], epoch)
-        writer.add_scalar('val/mse', val_metrics['mse'], epoch)
         writer.add_scalar('train/mae', train_metrics['mae'], epoch)
         writer.add_scalar('val/mae', val_metrics['mae'], epoch)
-        writer.add_scalar('train/r2', train_metrics['r2'], epoch)
-        writer.add_scalar('val/r2', val_metrics['r2'], epoch)
+        writer.add_scalar('train/median_ae', train_metrics['median_ae'], epoch)
+        writer.add_scalar('val/median_ae', val_metrics['median_ae'], epoch)
+        writer.add_scalar('train/wasserstein', train_metrics['wasserstein'], epoch)
+        writer.add_scalar('val/wasserstein', val_metrics['wasserstein'], epoch)
         
         # Save current model checkpoint
         save_model(
@@ -494,33 +542,45 @@ def main(args):
                 config, os.path.join(experiment_dir, "best_loss")
             )
             logger.info(f"New best validation loss: {best_val_loss:.6f}")
-        
-        # Save best model based on MSE
-        if val_metrics['mse'] < best_val_mse:
-            best_val_mse = val_metrics['mse']
+            
+        # Save best model based on Wasserstein distance
+        if val_metrics['wasserstein'] < best_val_wasserstein:
+            best_val_wasserstein = val_metrics['wasserstein']
             save_model(
                 model, optimizer, epoch, train_loss, val_loss, val_metrics,
-                config, os.path.join(experiment_dir, "best_mse")
+                config, os.path.join(experiment_dir, "best_wasserstein")
             )
-            logger.info(f"New best validation MSE: {best_val_mse:.6f}")
-        
-        # Save best model based on R²
-        if val_metrics['r2'] > best_val_r2:
-            best_val_r2 = val_metrics['r2']
+            logger.info(f"New best validation Wasserstein distance: {best_val_wasserstein:.6f}")
+            
+        # Save best model based on MAE
+        if val_metrics['mae'] < best_val_mae:
+            best_val_mae = val_metrics['mae']
             save_model(
                 model, optimizer, epoch, train_loss, val_loss, val_metrics,
-                config, os.path.join(experiment_dir, "best_r2")
+                config, os.path.join(experiment_dir, "best_mae")
             )
-            logger.info(f"New best validation R²: {best_val_r2:.6f}")
+            logger.info(f"New best validation MAE: {best_val_mae:.6f}")
+            
+        # Save best model based on Median AE
+        if val_metrics['median_ae'] < best_val_median_ae:
+            best_val_median_ae = val_metrics['median_ae']
+            save_model(
+                model, optimizer, epoch, train_loss, val_loss, val_metrics,
+                config, os.path.join(experiment_dir, "best_median_ae")
+            )
+            logger.info(f"New best validation Median AE: {best_val_median_ae:.6f}")
         
         # Check for early stopping
-        if config['training']['early_stopping_metric'] == 'mse':
-            if early_stopping(val_metrics['mse']):
+        if config['training']['early_stopping_metric'] == 'wasserstein':
+            if early_stopping(val_metrics['wasserstein']):
                 logger.info(f"Early stopping triggered after {epoch+1} epochs")
                 break
-        elif config['training']['early_stopping_metric'] == 'r2':
-            # Negative since scheduler is in 'min' mode but we want to maximize R²
-            if early_stopping(-val_metrics['r2']):
+        elif config['training']['early_stopping_metric'] == 'mae':
+            if early_stopping(val_metrics['mae']):
+                logger.info(f"Early stopping triggered after {epoch+1} epochs")
+                break
+        elif config['training']['early_stopping_metric'] == 'median_ae':
+            if early_stopping(val_metrics['median_ae']):
                 logger.info(f"Early stopping triggered after {epoch+1} epochs")
                 break
         else:
@@ -528,41 +588,59 @@ def main(args):
                 logger.info(f"Early stopping triggered after {epoch+1} epochs")
                 break
     
-    # Evaluate on test set using best model (based on MSE)
-    logger.info("Evaluating best model (based on MSE) on test set")
-    best_model_path = os.path.join(experiment_dir, "best_mse", f"checkpoint_epoch_{epoch}.pt")
-    if os.path.exists(best_model_path):
-        model, _, _, _ = load_model(model, None, best_model_path, device)
+    # Evaluate on test set using best model (based on Wasserstein)
+    logger.info("Evaluating best model (based on Wasserstein) on test set")
+    best_wasserstein_model_path = os.path.join(experiment_dir, "best_wasserstein", f"checkpoint_epoch_{epoch}.pt")
+    if os.path.exists(best_wasserstein_model_path):
+        model, _, _, _ = load_model(model, None, best_wasserstein_model_path, device)
         test_loss, test_metrics = evaluate(model, data_loaders['val'], criterion, device, config)
         
-        logger.info(f"Test Loss: {test_loss:.6f}")
-        logger.info(f"Test MSE: {test_metrics['mse']:.6f}")
-        logger.info(f"Test MAE: {test_metrics['mae']:.6f}")
-        logger.info(f"Test R²: {test_metrics['r2']:.6f}")
+        logger.info(f"Test Loss (Wasserstein model): {test_loss:.6f}")
+        logger.info(f"Test MAE (Wasserstein model): {test_metrics['mae']:.6f}")
+        logger.info(f"Test Median AE (Wasserstein model): {test_metrics['median_ae']:.6f}")
+        logger.info(f"Test Wasserstein (Wasserstein model): {test_metrics['wasserstein']:.6f}")
         
         # Log test metrics to TensorBoard
-        writer.add_scalar('test/loss', test_loss, 0)
-        writer.add_scalar('test/mse', test_metrics['mse'], 0)
-        writer.add_scalar('test/mae', test_metrics['mae'], 0)
-        writer.add_scalar('test/r2', test_metrics['r2'], 0)
+        writer.add_scalar('test_wasserstein_model/loss', test_loss, 0)
+        writer.add_scalar('test_wasserstein_model/mae', test_metrics['mae'], 0)
+        writer.add_scalar('test_wasserstein_model/median_ae', test_metrics['median_ae'], 0)
+        writer.add_scalar('test_wasserstein_model/wasserstein', test_metrics['wasserstein'], 0)
     
-    # Evaluate on test set using best model (based on R²)
-    logger.info("Evaluating best model (based on R²) on test set")
-    best_r2_model_path = os.path.join(experiment_dir, "best_r2", f"checkpoint_epoch_{epoch}.pt")
-    if os.path.exists(best_r2_model_path):
-        model, _, _, _ = load_model(model, None, best_r2_model_path, device)
+    # Evaluate on test set using best model (based on MAE)
+    logger.info("Evaluating best model (based on MAE) on test set")
+    best_mae_model_path = os.path.join(experiment_dir, "best_mae", f"checkpoint_epoch_{epoch}.pt")
+    if os.path.exists(best_mae_model_path):
+        model, _, _, _ = load_model(model, None, best_mae_model_path, device)
         test_loss, test_metrics = evaluate(model, data_loaders['val'], criterion, device, config)
         
-        logger.info(f"Test Loss (R² model): {test_loss:.6f}")
-        logger.info(f"Test MSE (R² model): {test_metrics['mse']:.6f}")
-        logger.info(f"Test MAE (R² model): {test_metrics['mae']:.6f}")
-        logger.info(f"Test R² (R² model): {test_metrics['r2']:.6f}")
+        logger.info(f"Test Loss (MAE model): {test_loss:.6f}")
+        logger.info(f"Test MAE (MAE model): {test_metrics['mae']:.6f}")
+        logger.info(f"Test Median AE (MAE model): {test_metrics['median_ae']:.6f}")
+        logger.info(f"Test Wasserstein (MAE model): {test_metrics['wasserstein']:.6f}")
         
-        # Log test metrics to TensorBoard for R² model
-        writer.add_scalar('test_r2_model/loss', test_loss, 0)
-        writer.add_scalar('test_r2_model/mse', test_metrics['mse'], 0)
-        writer.add_scalar('test_r2_model/mae', test_metrics['mae'], 0)
-        writer.add_scalar('test_r2_model/r2', test_metrics['r2'], 0)
+        # Log test metrics to TensorBoard
+        writer.add_scalar('test_mae_model/loss', test_loss, 0)
+        writer.add_scalar('test_mae_model/mae', test_metrics['mae'], 0)
+        writer.add_scalar('test_mae_model/median_ae', test_metrics['median_ae'], 0)
+        writer.add_scalar('test_mae_model/wasserstein', test_metrics['wasserstein'], 0)
+    
+    # Evaluate on test set using best model (based on Median AE)
+    logger.info("Evaluating best model (based on Median AE) on test set")
+    best_median_ae_model_path = os.path.join(experiment_dir, "best_median_ae", f"checkpoint_epoch_{epoch}.pt")
+    if os.path.exists(best_median_ae_model_path):
+        model, _, _, _ = load_model(model, None, best_median_ae_model_path, device)
+        test_loss, test_metrics = evaluate(model, data_loaders['val'], criterion, device, config)
+        
+        logger.info(f"Test Loss (Median AE model): {test_loss:.6f}")
+        logger.info(f"Test MAE (Median AE model): {test_metrics['mae']:.6f}")
+        logger.info(f"Test Median AE (Median AE model): {test_metrics['median_ae']:.6f}")
+        logger.info(f"Test Wasserstein (Median AE model): {test_metrics['wasserstein']:.6f}")
+        
+        # Log test metrics to TensorBoard
+        writer.add_scalar('test_median_ae_model/loss', test_loss, 0)
+        writer.add_scalar('test_median_ae_model/mae', test_metrics['mae'], 0)
+        writer.add_scalar('test_median_ae_model/median_ae', test_metrics['median_ae'], 0)
+        writer.add_scalar('test_median_ae_model/wasserstein', test_metrics['wasserstein'], 0)
     
     # Close TensorBoard writer
     writer.close()
