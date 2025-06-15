@@ -131,4 +131,4 @@ class TransformerModelSoftLabel(nn.Module):
         # Apply regressor to get soft label prediction
         output = self.regressor(pooled_output)
         
-        return output.squeeze(-1)  # Return [batch_size] instead of [batch_size, 1] 
+        return output.squeeze(-1) * 1.5  # Return [batch_size] instead of [batch_size, 1] 

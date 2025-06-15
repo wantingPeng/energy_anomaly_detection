@@ -1,8 +1,9 @@
 """
-Training script for Transformer model with soft labels for energy anomaly detection.
+Training script for Transformer model with binary classification for energy anomaly detection.
 
 This script trains a Transformer model using PyTorch's nn.TransformerEncoder
-for energy anomaly detection with soft labels (anomaly scores between 0 and 1).
+for energy anomaly detection with binary classification (normal:0 / abnormal:1) 
+using a threshold of 0.5 on the model outputs.
 """
 
 import os
@@ -16,7 +17,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
-from sklearn.metrics import mean_absolute_error, median_absolute_error, precision_recall_curve, average_precision_score
+from sklearn.metrics import mean_absolute_error, median_absolute_error, precision_recall_curve, average_precision_score, precision_score, recall_score, f1_score
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 import argparse
@@ -30,34 +31,28 @@ from src.training.transform_soft_label.transformer_model_regression import Trans
 from src.training.transformer.transfomer_dataset_no_pro_pos import create_data_loaders
 
 
-def calculate_threshold_metrics(targets, predictions):
+def calculate_binary_metrics(targets, predictions, threshold=0.5):
     """
-    Calculate classification metrics based on thresholds and AUPRC.
+    Calculate binary classification metrics using a threshold of 0.5.
     
     Args:
         targets: Ground truth values (numpy array)
         predictions: Predicted values (numpy array)
+        threshold: Threshold for binary classification (default: 0.5)
         
     Returns:
-        Dictionary with threshold-based metrics and AUPRC values
+        Dictionary with binary classification metrics
     """
-    # Define thresholds for classification
-    thresholds = [0.0, 0.2, 0.4, 0.6, 1.0]
-    class_names = ["No fault", "Medium risk", "High risk", "Fault"]
+    # Convert to binary labels using threshold
+    binary_targets = (targets >= threshold).astype(int)
+    binary_preds = (predictions >= threshold).astype(int)
     
-    # Classification based on thresholds
-    target_classes = np.zeros_like(targets, dtype=int)
-    pred_classes = np.zeros_like(predictions, dtype=int)
-    
-    for i in range(len(thresholds) - 1):
-        target_classes[(targets >= thresholds[i]) & (targets < thresholds[i + 1])] = i
-        pred_classes[(predictions >= thresholds[i]) & (predictions < thresholds[i + 1])] = i
-    
-    # Count samples in each class
+    # Calculate class distribution
+    class_names = ["Normal (0)", "Abnormal (1)"]
     class_counts = {}
     for i in range(len(class_names)):
-        target_count = np.sum(target_classes == i)
-        pred_count = np.sum(pred_classes == i)
+        target_count = np.sum(binary_targets == i)
+        pred_count = np.sum(binary_preds == i)
         class_counts[class_names[i]] = {
             "target_count": int(target_count),
             "pred_count": int(pred_count),
@@ -65,38 +60,41 @@ def calculate_threshold_metrics(targets, predictions):
             "percentage_pred": float(pred_count) / len(predictions) * 100 if len(predictions) > 0 else 0
         }
     
-    # Calculate confusion metrics for each class
-    confusion_metrics = {}
-    accuracy = np.mean(target_classes == pred_classes)
+    # Calculate confusion metrics
+    accuracy = np.mean(binary_targets == binary_preds)
     
-    # Calculate AUPRC for binary classification of each threshold
-    auprc_metrics = {}
-    for i in range(len(thresholds) - 1):
-        # Binary classification for this threshold range
-        # 1 if value is in or above this range, 0 otherwise
-        for j, threshold in enumerate(thresholds[:-1]):
-            binary_targets = (targets >= threshold).astype(int)
-            binary_preds = predictions  # Keep the continuous predictions for PR curve
-            
-            try:
-                ap_score = average_precision_score(binary_targets, binary_preds)
-                precision, recall, _ = precision_recall_curve(binary_targets, binary_preds)
-                auprc_metrics[f">= {threshold:.1f}"] = {
-                    "average_precision": float(ap_score),
-                    "positive_samples": int(np.sum(binary_targets)),
-                    "positive_rate": float(np.mean(binary_targets)) * 100
-                }
-            except Exception as e:
-                auprc_metrics[f">= {threshold:.1f}"] = {
-                    "error": str(e),
-                    "positive_samples": int(np.sum(binary_targets)),
-                    "positive_rate": float(np.mean(binary_targets)) * 100
-                }
+    # Calculate precision, recall, f1
+    try:
+        prec = precision_score(binary_targets, binary_preds)
+        rec = recall_score(binary_targets, binary_preds)
+        f1 = f1_score(binary_targets, binary_preds)
+    except Exception as e:
+        prec, rec, f1 = 0.0, 0.0, 0.0
+        logger.warning(f"Error calculating precision/recall/f1: {str(e)}")
+    
+    # Calculate AUPRC
+    try:
+        ap_score = average_precision_score(binary_targets, predictions)
+        precision, recall, _ = precision_recall_curve(binary_targets, predictions)
+        auprc = {
+            "average_precision": float(ap_score),
+            "positive_samples": int(np.sum(binary_targets)),
+            "positive_rate": float(np.mean(binary_targets)) * 100
+        }
+    except Exception as e:
+        auprc = {
+            "error": str(e),
+            "positive_samples": int(np.sum(binary_targets)),
+            "positive_rate": float(np.mean(binary_targets)) * 100
+        }
     
     return {
         "class_distribution": class_counts,
         "accuracy": float(accuracy),
-        "auprc": auprc_metrics
+        "precision": float(prec),
+        "recall": float(rec),
+        "f1": float(f1),
+        "auprc": auprc
     }
 
 
@@ -128,6 +126,88 @@ class TweedieLoss(nn.Module):
             term2 = torch.pow(pred, 2.0 - self.p) / ((1.0 - self.p) * (2.0 - self.p))
             term3 = target * torch.pow(pred, 1.0 - self.p) / (1.0 - self.p)
             return torch.mean(term1 - term3 + term2)
+
+class QuantileLoss(nn.Module):
+    """
+    Quantile Loss for quantile regression.
+    
+    This loss is useful for predicting specific quantiles of the target distribution,
+    which is helpful for uncertainty estimation or asymmetric error penalties.
+    
+    Args:
+        quantile (float): Quantile to predict, between 0 and 1
+                         0.5 corresponds to median regression (symmetric loss)
+                         Lower values penalize overestimation more
+                         Higher values penalize underestimation more
+    """
+    def __init__(self, quantile=0.5):
+        super(QuantileLoss, self).__init__()
+        self.quantile = quantile
+        
+    def forward(self, pred, target):
+        # Calculate quantile loss
+        errors = target - pred
+        losses = torch.max(self.quantile * errors, (self.quantile - 1) * errors)
+        return torch.mean(losses)
+
+
+class DynamicWeightedMSELoss(nn.Module):
+    """
+    Dynamically Weighted MSE Loss that calculates weights inversely proportional to the frequency
+    of target values in the batch. This puts more emphasis on rare target values.
+    
+    Args:
+        num_bins (int): Number of bins to divide the target range [0,1] into
+        beta (float): Smoothing factor for weight calculation, higher values give more weight to rare values
+        min_weight (float): Minimum weight to apply to any sample
+    """
+    def __init__(self, num_bins=20, beta=0.9, min_weight=1.0):
+        super(DynamicWeightedMSELoss, self).__init__()
+        self.num_bins = num_bins
+        self.beta = beta
+        self.min_weight = min_weight
+        
+    def forward(self, pred, target):
+        # Calculate squared error
+        squared_error = (pred - target) ** 2
+        
+        # Calculate histogram of target values
+        bin_edges = torch.linspace(0, 1, self.num_bins + 1, device=target.device)
+        bin_width = 1.0 / self.num_bins
+        
+        # Assign each target value to a bin
+        target_bins = torch.floor(target / bin_width).long()
+        target_bins = torch.clamp(target_bins, 0, self.num_bins - 1)
+        
+        # Count samples in each bin
+        bin_counts = torch.zeros(self.num_bins, device=target.device)
+        for i in range(self.num_bins):
+            bin_counts[i] = torch.sum(target_bins == i).float()
+            
+        # Avoid division by zero
+        bin_counts = torch.clamp(bin_counts, min=1.0)
+        
+        # Calculate weights inversely proportional to bin counts
+        bin_weights = torch.pow(bin_counts, -self.beta)
+        
+        # Normalize weights
+        if torch.sum(bin_weights) > 0:
+            bin_weights = bin_weights / torch.sum(bin_weights) * self.num_bins
+        
+        # Ensure minimum weight
+        bin_weights = torch.clamp(bin_weights, min=self.min_weight)
+        
+        # Assign weights to each sample based on its bin
+        sample_weights = torch.zeros_like(target)
+        for i in range(len(target)):
+            bin_idx = target_bins[i]
+            sample_weights[i] = bin_weights[bin_idx]
+        
+        # Apply weights to squared errors
+        weighted_squared_error = sample_weights * squared_error
+        
+        # Return mean of weighted squared errors
+        return torch.mean(weighted_squared_error)
 
 
 def load_config(config_path=None):
@@ -272,7 +352,7 @@ def train_epoch(model, data_loader, optimizer, criterion, device, scheduler=None
         scheduler: Learning rate scheduler
 
     Returns:
-        Average training loss for the epoch and MSE/MAE metrics
+        Average training loss for the epoch and metrics
     """
     model.train()
     total_loss = 0
@@ -288,7 +368,7 @@ def train_epoch(model, data_loader, optimizer, criterion, device, scheduler=None
         optimizer.zero_grad()
         outputs = model(data)
         # Ensure non-negative predictions
-        outputs = torch.clamp(outputs,min=1e-5, max=5.0)
+        #outputs = torch.clamp(outputs,min=1e-5, max=5.0)
         loss = criterion(outputs, targets)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -318,11 +398,18 @@ def train_epoch(model, data_loader, optimizer, criterion, device, scheduler=None
         w_distance = wasserstein_distance(all_targets.flatten(), all_outputs.flatten())
     except:
         w_distance = float('inf')
+    
+    # Calculate binary classification metrics
+    binary_metrics = calculate_binary_metrics(all_targets, all_outputs)
 
     metrics = {
         'mae': mae,
         'median_ae': median_ae,
-        'wasserstein': w_distance
+        'wasserstein': w_distance,
+        'precision': binary_metrics['precision'],
+        'recall': binary_metrics['recall'],
+        'f1': binary_metrics['f1'],
+        'accuracy': binary_metrics['accuracy']
     }
 
     return avg_loss, metrics
@@ -357,7 +444,7 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
             # Forward pass
             outputs = model(data)
             # Ensure non-negative predictions
-            outputs = torch.clamp(outputs, min=1e-5, max=5.0)
+            #outputs = torch.clamp(outputs, min=1e-5, max=5.0)
             loss = criterion(outputs, targets)
             total_loss += loss.item()
 
@@ -370,7 +457,9 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
                 for i in range(sample_size):
                     sample_outputs.append({
                         'prediction': outputs[i].item(),
-                        'actual': targets[i].item()
+                        'actual': targets[i].item(),
+                        'binary_pred': 1 if outputs[i].item() >= 0.5 else 0,
+                        'binary_actual': 1 if targets[i].item() >= 0.5 else 0
                     })
 
     avg_loss = total_loss / len(data_loader)
@@ -379,8 +468,8 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
         logger.info("\n===== Sample Outputs =====")
         for i, sample in enumerate(sample_outputs):
             logger.info(f"Sample {i+1}:")
-            logger.info(f"  Prediction: {sample['prediction']:.6f}")
-            logger.info(f"  Actual: {sample['actual']:.6f}")
+            logger.info(f"  Prediction: {sample['prediction']:.6f} (Binary: {sample['binary_pred']})")
+            logger.info(f"  Actual: {sample['actual']:.6f} (Binary: {sample['binary_actual']})")
             logger.info(f"  Difference: {abs(sample['prediction'] - sample['actual']):.6f}")
             logger.info("------------------------")
 
@@ -388,6 +477,7 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
     all_targets = np.array(all_targets)
     print(f"[Val Prediction Range] min: {all_outputs.min():.4f}, max: {all_outputs.max():.4f}, mean: {all_outputs.mean():.4f}, std: {all_outputs.std():.4f}")
     print(f"[Val Target Range] min: {all_targets.min():.4f}, max: {all_targets.max():.4f}, mean: {all_targets.mean():.4f}, std: {all_targets.std():.4f}")
+    
     # Calculate regression metrics
     mae = mean_absolute_error(all_targets, all_outputs)
     median_ae = median_absolute_error(all_targets, all_outputs)
@@ -398,8 +488,8 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
     except:
         w_distance = float('inf')
 
-    # Add threshold-based classification and AUPRC metrics
-    threshold_metrics = calculate_threshold_metrics(all_targets, all_outputs)
+    # Calculate binary classification metrics
+    binary_metrics = calculate_binary_metrics(all_targets, all_outputs)
     
     metrics = {
         'mae': mae,
@@ -407,7 +497,11 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
         'wasserstein': w_distance,
         'predictions': all_outputs,
         'targets': all_targets,
-        'threshold_metrics': threshold_metrics
+        'binary_metrics': binary_metrics,
+        'precision': binary_metrics['precision'],
+        'recall': binary_metrics['recall'],
+        'f1': binary_metrics['f1'],
+        'accuracy': binary_metrics['accuracy']
     }
 
     return avg_loss, metrics
@@ -415,7 +509,7 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
 
 def main(args):
     """
-    Main function to train the Transformer model with soft labels.
+    Main function to train the Transformer model with binary classification.
     
     Args:
         args: Command line arguments
@@ -429,7 +523,7 @@ def main(args):
     
     # Create experiment directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    experiment_name = f"transformer_soft_{timestamp}"
+    experiment_name = f"transformer_binary_{timestamp}"
     if args.experiment_name:
         experiment_name = args.experiment_name
     
@@ -437,7 +531,7 @@ def main(args):
     os.makedirs(experiment_dir, exist_ok=True)
     
     # Set up TensorBoard writer
-    tensorboard_dir = os.path.join("experiments/transformer_soft/tensorboard", experiment_name)
+    tensorboard_dir = os.path.join("experiments/transformer_binary/tensorboard", experiment_name)
     os.makedirs(tensorboard_dir, exist_ok=True)
     writer = SummaryWriter(log_dir=tensorboard_dir)
     logger.info(f"TensorBoard logs will be saved to {tensorboard_dir}")
@@ -484,6 +578,16 @@ def main(args):
         variance_power = config['training'].get('tweedie_variance_power', 1.5)
         criterion = TweedieLoss(variance_power=variance_power)
         logger.info(f"Using Tweedie Loss with variance power: {variance_power}")
+    elif config['training']['loss'] == 'dynamic_weighted_mse':
+        num_bins = config['training'].get('dynamic_weighted_mse_num_bins', 20)
+        beta = config['training'].get('dynamic_weighted_mse_beta', 0.9)
+        min_weight = config['training'].get('dynamic_weighted_mse_min_weight', 1.0)
+        criterion = DynamicWeightedMSELoss(num_bins=num_bins, beta=beta, min_weight=min_weight)
+        logger.info(f"Using Dynamic Weighted MSE Loss with num_bins: {num_bins}, beta: {beta}, min_weight: {min_weight}")
+    elif config['training']['loss'] == 'quantile':
+        quantile = config['training'].get('quantile_value', 0.5)
+        criterion = QuantileLoss(quantile=quantile)
+        logger.info(f"Using Quantile Loss with quantile: {quantile}")
     else:
         criterion = nn.MSELoss()  # Default to MSE if not specified
     logger.info(f"Using loss function: {config['training']['loss']}")
@@ -536,14 +640,13 @@ def main(args):
     early_stopping = EarlyStopping(
         patience=config['training']['early_stopping_patience'],
         min_delta=config['training']['early_stopping_min_delta'],
-        mode='min'  # All our metrics (loss, mae, median_ae, wasserstein) are "lower is better"
+        mode='min'  # Use 'min' for loss and 'max' for f1
     )
     
     # Initialize best metrics
     best_val_loss = float('inf')
-    best_val_wasserstein = float('inf')
-    best_val_mae = float('inf')
-    best_val_median_ae = float('inf')
+    best_val_f1 = 0.0
+    best_val_accuracy = 0.0
     
     # Training loop
     for epoch in range(start_epoch, config['training']['num_epochs']):
@@ -566,12 +669,8 @@ def main(args):
         
         # Update learning rate scheduler if using ReduceLROnPlateau
         if isinstance(scheduler, ReduceLROnPlateau):
-            if config['training']['early_stopping_metric'] == 'wasserstein':
-                scheduler.step(val_metrics['wasserstein'])
-            elif config['training']['early_stopping_metric'] == 'mae':
-                scheduler.step(val_metrics['mae'])
-            elif config['training']['early_stopping_metric'] == 'median_ae':
-                scheduler.step(val_metrics['median_ae'])
+            if config['training']['early_stopping_metric'] == 'f1':
+                scheduler.step(-val_metrics['f1'])  # Negate because ReduceLROnPlateau uses 'min' mode
             else:
                 scheduler.step(val_loss)
         elif scheduler is not None and not isinstance(scheduler, optim.lr_scheduler.CosineAnnealingLR):
@@ -590,30 +689,28 @@ def main(args):
         # Log metrics
         logger.info(f"Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}")
         logger.info(f"Train MAE: {train_metrics['mae']:.6f}, Val MAE: {val_metrics['mae']:.6f}")
-        logger.info(f"Train Median AE: {train_metrics['median_ae']:.6f}, Val Median AE: {val_metrics['median_ae']:.6f}")
-        logger.info(f"Train Wasserstein: {train_metrics['wasserstein']:.6f}, Val Wasserstein: {val_metrics['wasserstein']:.6f}")
+        logger.info(f"Train F1: {train_metrics['f1']:.6f}, Val F1: {val_metrics['f1']:.6f}")
+        logger.info(f"Train Precision: {train_metrics['precision']:.6f}, Val Precision: {val_metrics['precision']:.6f}")
+        logger.info(f"Train Recall: {train_metrics['recall']:.6f}, Val Recall: {val_metrics['recall']:.6f}")
+        logger.info(f"Train Accuracy: {train_metrics['accuracy']:.6f}, Val Accuracy: {val_metrics['accuracy']:.6f}")
         
-        # Log threshold classification metrics
-        logger.info("=== Validation Threshold Classification Metrics ===")
+        # Log binary classification metrics
+        logger.info("=== Validation Binary Classification Metrics ===")
         # Log class distribution
         logger.info("Class Distribution (Ground Truth):")
-        for class_name, stats in val_metrics['threshold_metrics']['class_distribution'].items():
+        for class_name, stats in val_metrics['binary_metrics']['class_distribution'].items():
             logger.info(f"  {class_name}: {stats['target_count']} samples ({stats['percentage_target']:.2f}%)")
             
         logger.info("Class Distribution (Predictions):")
-        for class_name, stats in val_metrics['threshold_metrics']['class_distribution'].items():
+        for class_name, stats in val_metrics['binary_metrics']['class_distribution'].items():
             logger.info(f"  {class_name}: {stats['pred_count']} samples ({stats['percentage_pred']:.2f}%)")
         
-        # Log classification accuracy
-        logger.info(f"Classification Accuracy: {val_metrics['threshold_metrics']['accuracy']:.4f}")
-        
         # Log AUPRC metrics
-        logger.info("AUPRC Metrics:")
-        for threshold, auprc_data in val_metrics['threshold_metrics']['auprc'].items():
-            if "error" in auprc_data:
-                logger.info(f"  {threshold}: Error - {auprc_data['error']}")
-            else:
-                logger.info(f"  {threshold}: AUPRC = {auprc_data['average_precision']:.4f} (Positive rate: {auprc_data['positive_rate']:.2f}%)")
+        auprc_data = val_metrics['binary_metrics']['auprc']
+        if "error" in auprc_data:
+            logger.info(f"  AUPRC Error: {auprc_data['error']}")
+        else:
+            logger.info(f"  AUPRC: {auprc_data['average_precision']:.4f} (Positive rate: {auprc_data['positive_rate']:.2f}%)")
         
         logger.info(f"Epoch completed in {epoch_duration:.2f} seconds")
         
@@ -621,18 +718,18 @@ def main(args):
         writer.add_scalar('val/loss', val_loss, epoch)
         writer.add_scalar('train/mae', train_metrics['mae'], epoch)
         writer.add_scalar('val/mae', val_metrics['mae'], epoch)
-        writer.add_scalar('train/median_ae', train_metrics['median_ae'], epoch)
-        writer.add_scalar('val/median_ae', val_metrics['median_ae'], epoch)
-        writer.add_scalar('train/wasserstein', train_metrics['wasserstein'], epoch)
-        writer.add_scalar('val/wasserstein', val_metrics['wasserstein'], epoch)
+        writer.add_scalar('train/f1', train_metrics['f1'], epoch)
+        writer.add_scalar('val/f1', val_metrics['f1'], epoch)
+        writer.add_scalar('train/precision', train_metrics['precision'], epoch)
+        writer.add_scalar('val/precision', val_metrics['precision'], epoch)
+        writer.add_scalar('train/recall', train_metrics['recall'], epoch)
+        writer.add_scalar('val/recall', val_metrics['recall'], epoch)
+        writer.add_scalar('train/accuracy', train_metrics['accuracy'], epoch)
+        writer.add_scalar('val/accuracy', val_metrics['accuracy'], epoch)
         
         # Add AUPRC metrics to TensorBoard
-        for threshold, auprc_data in val_metrics['threshold_metrics']['auprc'].items():
-            if "average_precision" in auprc_data:
-                writer.add_scalar(f'val/auprc/{threshold}', auprc_data['average_precision'], epoch)
-        
-        # Add classification accuracy to TensorBoard
-        writer.add_scalar('val/classification_accuracy', val_metrics['threshold_metrics']['accuracy'], epoch)
+        if "average_precision" in val_metrics['binary_metrics']['auprc']:
+            writer.add_scalar('val/auprc', val_metrics['binary_metrics']['auprc']['average_precision'], epoch)
         
         # Save current model checkpoint
         save_model(
@@ -649,44 +746,27 @@ def main(args):
             )
             logger.info(f"New best validation loss: {best_val_loss:.6f}")
             
-        # Save best model based on Wasserstein distance
-        if val_metrics['wasserstein'] < best_val_wasserstein:
-            best_val_wasserstein = val_metrics['wasserstein']
+        # Save best model based on F1 score
+        if val_metrics['f1'] > best_val_f1:
+            best_val_f1 = val_metrics['f1']
             save_model(
                 model, optimizer, epoch, train_loss, val_loss, val_metrics,
-                config, os.path.join(experiment_dir, "best_wasserstein")
+                config, os.path.join(experiment_dir, "best_f1")
             )
-            logger.info(f"New best validation Wasserstein distance: {best_val_wasserstein:.6f}")
+            logger.info(f"New best validation F1: {best_val_f1:.6f}")
             
-        # Save best model based on MAE
-        if val_metrics['mae'] < best_val_mae:
-            best_val_mae = val_metrics['mae']
+        # Save best model based on accuracy
+        if val_metrics['accuracy'] > best_val_accuracy:
+            best_val_accuracy = val_metrics['accuracy']
             save_model(
                 model, optimizer, epoch, train_loss, val_loss, val_metrics,
-                config, os.path.join(experiment_dir, "best_mae")
+                config, os.path.join(experiment_dir, "best_accuracy")
             )
-            logger.info(f"New best validation MAE: {best_val_mae:.6f}")
-            
-        # Save best model based on Median AE
-        if val_metrics['median_ae'] < best_val_median_ae:
-            best_val_median_ae = val_metrics['median_ae']
-            save_model(
-                model, optimizer, epoch, train_loss, val_loss, val_metrics,
-                config, os.path.join(experiment_dir, "best_median_ae")
-            )
-            logger.info(f"New best validation Median AE: {best_val_median_ae:.6f}")
+            logger.info(f"New best validation accuracy: {best_val_accuracy:.6f}")
         
         # Check for early stopping
-        if config['training']['early_stopping_metric'] == 'wasserstein':
-            if early_stopping(val_metrics['wasserstein']):
-                logger.info(f"Early stopping triggered after {epoch+1} epochs")
-                break
-        elif config['training']['early_stopping_metric'] == 'mae':
-            if early_stopping(val_metrics['mae']):
-                logger.info(f"Early stopping triggered after {epoch+1} epochs")
-                break
-        elif config['training']['early_stopping_metric'] == 'median_ae':
-            if early_stopping(val_metrics['median_ae']):
+        if config['training']['early_stopping_metric'] == 'f1':
+            if early_stopping(-val_metrics['f1']):  # Negate because EarlyStopping uses 'min' mode
                 logger.info(f"Early stopping triggered after {epoch+1} epochs")
                 break
         else:
@@ -694,134 +774,45 @@ def main(args):
                 logger.info(f"Early stopping triggered after {epoch+1} epochs")
                 break
     
-    # Evaluate on test set using best model (based on Wasserstein)
-    logger.info("Evaluating best model (based on Wasserstein) on test set")
-    best_wasserstein_model_path = os.path.join(experiment_dir, "best_wasserstein", f"checkpoint_epoch_{epoch}.pt")
-    if os.path.exists(best_wasserstein_model_path):
-        model, _, _, _ = load_model(model, None, best_wasserstein_model_path, device)
+    # Evaluate on test set using best model (based on F1)
+    logger.info("Evaluating best model (based on F1) on test set")
+    best_f1_model_path = os.path.join(experiment_dir, "best_f1", f"checkpoint_epoch_{epoch}.pt")
+    if os.path.exists(best_f1_model_path):
+        model, _, _, _ = load_model(model, None, best_f1_model_path, device)
         test_loss, test_metrics = evaluate(model, data_loaders['val'], criterion, device, config)
         
-        logger.info(f"Test Loss (Wasserstein model): {test_loss:.6f}")
-        logger.info(f"Test MAE (Wasserstein model): {test_metrics['mae']:.6f}")
-        logger.info(f"Test Median AE (Wasserstein model): {test_metrics['median_ae']:.6f}")
-        logger.info(f"Test Wasserstein (Wasserstein model): {test_metrics['wasserstein']:.6f}")
+        logger.info(f"Test Loss (F1 model): {test_loss:.6f}")
+        logger.info(f"Test F1 (F1 model): {test_metrics['f1']:.6f}")
+        logger.info(f"Test Precision (F1 model): {test_metrics['precision']:.6f}")
+        logger.info(f"Test Recall (F1 model): {test_metrics['recall']:.6f}")
+        logger.info(f"Test Accuracy (F1 model): {test_metrics['accuracy']:.6f}")
         
-        # Log detailed test threshold metrics for Wasserstein model
-        logger.info("=== Test Threshold Classification Metrics (Wasserstein model) ===")
+        # Log detailed test binary metrics for F1 model
+        logger.info("=== Test Binary Classification Metrics (F1 model) ===")
         logger.info("Class Distribution (Ground Truth):")
-        for class_name, stats in test_metrics['threshold_metrics']['class_distribution'].items():
+        for class_name, stats in test_metrics['binary_metrics']['class_distribution'].items():
             logger.info(f"  {class_name}: {stats['target_count']} samples ({stats['percentage_target']:.2f}%)")
             
         logger.info("Class Distribution (Predictions):")
-        for class_name, stats in test_metrics['threshold_metrics']['class_distribution'].items():
+        for class_name, stats in test_metrics['binary_metrics']['class_distribution'].items():
             logger.info(f"  {class_name}: {stats['pred_count']} samples ({stats['percentage_pred']:.2f}%)")
         
-        logger.info(f"Classification Accuracy: {test_metrics['threshold_metrics']['accuracy']:.4f}")
-        
-        logger.info("AUPRC Metrics:")
-        for threshold, auprc_data in test_metrics['threshold_metrics']['auprc'].items():
-            if "error" in auprc_data:
-                logger.info(f"  {threshold}: Error - {auprc_data['error']}")
-            else:
-                logger.info(f"  {threshold}: AUPRC = {auprc_data['average_precision']:.4f} (Positive rate: {auprc_data['positive_rate']:.2f}%)")
+        # Log AUPRC metrics
+        auprc_data = test_metrics['binary_metrics']['auprc']
+        if "error" in auprc_data:
+            logger.info(f"  AUPRC Error: {auprc_data['error']}")
+        else:
+            logger.info(f"  AUPRC: {auprc_data['average_precision']:.4f} (Positive rate: {auprc_data['positive_rate']:.2f}%)")
         
         # Log test metrics to TensorBoard
-        writer.add_scalar('test_wasserstein_model/loss', test_loss, 0)
-        writer.add_scalar('test_wasserstein_model/mae', test_metrics['mae'], 0)
-        writer.add_scalar('test_wasserstein_model/median_ae', test_metrics['median_ae'], 0)
-        writer.add_scalar('test_wasserstein_model/wasserstein', test_metrics['wasserstein'], 0)
-        writer.add_scalar('test_wasserstein_model/classification_accuracy', test_metrics['threshold_metrics']['accuracy'], 0)
+        writer.add_scalar('test_f1_model/loss', test_loss, 0)
+        writer.add_scalar('test_f1_model/f1', test_metrics['f1'], 0)
+        writer.add_scalar('test_f1_model/precision', test_metrics['precision'], 0)
+        writer.add_scalar('test_f1_model/recall', test_metrics['recall'], 0)
+        writer.add_scalar('test_f1_model/accuracy', test_metrics['accuracy'], 0)
         
-        # Add AUPRC metrics
-        for threshold, auprc_data in test_metrics['threshold_metrics']['auprc'].items():
-            if "average_precision" in auprc_data:
-                writer.add_scalar(f'test_wasserstein_model/auprc/{threshold}', auprc_data['average_precision'], 0)
-    
-    # Evaluate on test set using best model (based on MAE)
-    logger.info("Evaluating best model (based on MAE) on test set")
-    best_mae_model_path = os.path.join(experiment_dir, "best_mae", f"checkpoint_epoch_{epoch}.pt")
-    if os.path.exists(best_mae_model_path):
-        model, _, _, _ = load_model(model, None, best_mae_model_path, device)
-        test_loss, test_metrics = evaluate(model, data_loaders['val'], criterion, device, config)
-        
-        logger.info(f"Test Loss (MAE model): {test_loss:.6f}")
-        logger.info(f"Test MAE (MAE model): {test_metrics['mae']:.6f}")
-        logger.info(f"Test Median AE (MAE model): {test_metrics['median_ae']:.6f}")
-        logger.info(f"Test Wasserstein (MAE model): {test_metrics['wasserstein']:.6f}")
-        
-        # Log detailed test threshold metrics for MAE model
-        logger.info("=== Test Threshold Classification Metrics (MAE model) ===")
-        logger.info("Class Distribution (Ground Truth):")
-        for class_name, stats in test_metrics['threshold_metrics']['class_distribution'].items():
-            logger.info(f"  {class_name}: {stats['target_count']} samples ({stats['percentage_target']:.2f}%)")
-            
-        logger.info("Class Distribution (Predictions):")
-        for class_name, stats in test_metrics['threshold_metrics']['class_distribution'].items():
-            logger.info(f"  {class_name}: {stats['pred_count']} samples ({stats['percentage_pred']:.2f}%)")
-        
-        logger.info(f"Classification Accuracy: {test_metrics['threshold_metrics']['accuracy']:.4f}")
-        
-        logger.info("AUPRC Metrics:")
-        for threshold, auprc_data in test_metrics['threshold_metrics']['auprc'].items():
-            if "error" in auprc_data:
-                logger.info(f"  {threshold}: Error - {auprc_data['error']}")
-            else:
-                logger.info(f"  {threshold}: AUPRC = {auprc_data['average_precision']:.4f} (Positive rate: {auprc_data['positive_rate']:.2f}%)")
-        
-        # Log test metrics to TensorBoard
-        writer.add_scalar('test_mae_model/loss', test_loss, 0)
-        writer.add_scalar('test_mae_model/mae', test_metrics['mae'], 0)
-        writer.add_scalar('test_mae_model/median_ae', test_metrics['median_ae'], 0)
-        writer.add_scalar('test_mae_model/wasserstein', test_metrics['wasserstein'], 0)
-        writer.add_scalar('test_mae_model/classification_accuracy', test_metrics['threshold_metrics']['accuracy'], 0)
-        
-        # Add AUPRC metrics
-        for threshold, auprc_data in test_metrics['threshold_metrics']['auprc'].items():
-            if "average_precision" in auprc_data:
-                writer.add_scalar(f'test_mae_model/auprc/{threshold}', auprc_data['average_precision'], 0)
-    
-    # Evaluate on test set using best model (based on Median AE)
-    logger.info("Evaluating best model (based on Median AE) on test set")
-    best_median_ae_model_path = os.path.join(experiment_dir, "best_median_ae", f"checkpoint_epoch_{epoch}.pt")
-    if os.path.exists(best_median_ae_model_path):
-        model, _, _, _ = load_model(model, None, best_median_ae_model_path, device)
-        test_loss, test_metrics = evaluate(model, data_loaders['val'], criterion, device, config)
-        
-        logger.info(f"Test Loss (Median AE model): {test_loss:.6f}")
-        logger.info(f"Test MAE (Median AE model): {test_metrics['mae']:.6f}")
-        logger.info(f"Test Median AE (Median AE model): {test_metrics['median_ae']:.6f}")
-        logger.info(f"Test Wasserstein (Median AE model): {test_metrics['wasserstein']:.6f}")
-        
-        # Log detailed test threshold metrics for Median AE model
-        logger.info("=== Test Threshold Classification Metrics (Median AE model) ===")
-        logger.info("Class Distribution (Ground Truth):")
-        for class_name, stats in test_metrics['threshold_metrics']['class_distribution'].items():
-            logger.info(f"  {class_name}: {stats['target_count']} samples ({stats['percentage_target']:.2f}%)")
-            
-        logger.info("Class Distribution (Predictions):")
-        for class_name, stats in test_metrics['threshold_metrics']['class_distribution'].items():
-            logger.info(f"  {class_name}: {stats['pred_count']} samples ({stats['percentage_pred']:.2f}%)")
-        
-        logger.info(f"Classification Accuracy: {test_metrics['threshold_metrics']['accuracy']:.4f}")
-        
-        logger.info("AUPRC Metrics:")
-        for threshold, auprc_data in test_metrics['threshold_metrics']['auprc'].items():
-            if "error" in auprc_data:
-                logger.info(f"  {threshold}: Error - {auprc_data['error']}")
-            else:
-                logger.info(f"  {threshold}: AUPRC = {auprc_data['average_precision']:.4f} (Positive rate: {auprc_data['positive_rate']:.2f}%)")
-        
-        # Log test metrics to TensorBoard
-        writer.add_scalar('test_median_ae_model/loss', test_loss, 0)
-        writer.add_scalar('test_median_ae_model/mae', test_metrics['mae'], 0)
-        writer.add_scalar('test_median_ae_model/median_ae', test_metrics['median_ae'], 0)
-        writer.add_scalar('test_median_ae_model/wasserstein', test_metrics['wasserstein'], 0)
-        writer.add_scalar('test_median_ae_model/classification_accuracy', test_metrics['threshold_metrics']['accuracy'], 0)
-        
-        # Add AUPRC metrics
-        for threshold, auprc_data in test_metrics['threshold_metrics']['auprc'].items():
-            if "average_precision" in auprc_data:
-                writer.add_scalar(f'test_median_ae_model/auprc/{threshold}', auprc_data['average_precision'], 0)
+        if "average_precision" in test_metrics['binary_metrics']['auprc']:
+            writer.add_scalar('test_f1_model/auprc', test_metrics['binary_metrics']['auprc']['average_precision'], 0)
     
     # Close TensorBoard writer
     writer.close()
@@ -831,7 +822,7 @@ def main(args):
 
 if __name__ == "__main__":
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Train Transformer model with soft labels for energy anomaly detection")
+    parser = argparse.ArgumentParser(description="Train Transformer model with binary classification for energy anomaly detection")
     parser.add_argument("--config", type=str, default=None, help="Path to configuration file")
     parser.add_argument("--experiment_name", type=str, default=None, help="Name of the experiment")
     parser.add_argument("--test", action="store_true", help="Test the model")

@@ -23,12 +23,20 @@ training:
   batch_size: 64
   num_workers: 2
   num_epochs: 150
-  learning_rate: 0.0001
+  learning_rate: 0.001
   weight_decay: 0.0001
   momentum: 0.9  # Only used for SGD optimizer
   optimizer: "adam"  # Options: adam, adamw, sgd
-  loss: "tweedie"  # Options: mse, bce, tweedie
+  loss: "dynamic_weighted_mse_beta"  # Options: mse, bce, tweedie, dynamic_weighted_mse_beta, quantile
   tweedie_variance_power: 1.5  # Parameter for Tweedie loss (typically 1-2 for zero-inflated data)
+  
+  # Quantile Loss parameters
+  quantile_value: 0.5  # Quantile to predict (0.5 is median, smaller penalizes overestimation, larger penalizes underestimation)
+ 
+  # Dynamic Weighted MSE Loss parameters
+  dynamic_weighted_mse_num_bins: 20  # Number of bins to divide the target range [0,1] into
+  dynamic_weighted_mse_beta: 0.9  # Smoothing factor, higher values give more weight to rare values
+  dynamic_weighted_mse_min_weight: 1.0  # Minimum weight to apply to any sample
   
   # Learning rate scheduling
   lr_scheduler: "reduce_on_plateau"  # Options: reduce_on_plateau, cosine_annealing, none
