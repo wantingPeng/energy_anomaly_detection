@@ -118,7 +118,7 @@ class TweedieLoss(nn.Module):
     def forward(self, pred, target):
         # Avoid numerical instability with small values
         eps = 1e-5
-        pred = torch.clamp(pred, min=eps)
+        pred = torch.clamp(pred, min=eps,max=10.0)
         
         if self.p == 2.0:  # Gamma case
             return torch.mean(pred / target + torch.log(target))
@@ -288,7 +288,7 @@ def train_epoch(model, data_loader, optimizer, criterion, device, scheduler=None
         optimizer.zero_grad()
         outputs = model(data)
         # Ensure non-negative predictions
-        outputs = torch.clamp(outputs, min=0.0)
+        outputs = torch.clamp(outputs,min=1e-5, max=5.0)
         loss = criterion(outputs, targets)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -357,7 +357,7 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
             # Forward pass
             outputs = model(data)
             # Ensure non-negative predictions
-            outputs = torch.clamp(outputs, min=0.0)
+            outputs = torch.clamp(outputs, min=1e-5, max=5.0)
             loss = criterion(outputs, targets)
             total_loss += loss.item()
 
