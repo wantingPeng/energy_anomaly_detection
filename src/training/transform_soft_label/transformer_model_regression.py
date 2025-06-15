@@ -102,7 +102,7 @@ class TransformerModelSoftLabel(nn.Module):
             nn.Dropout(0.1),
             nn.Linear(128, 64),
             nn.ReLU(),
-            nn.Linear(64, 1)
+            nn.Linear(64, 1),
         )
         '''nn.Linear(d_model, 64),
         nn.ReLU(),

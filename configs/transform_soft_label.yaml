@@ -27,7 +27,7 @@ training:
   weight_decay: 0.0001
   momentum: 0.9  # Only used for SGD optimizer
   optimizer: "adam"  # Options: adam, adamw, sgd
-  loss: "tweedie"  # Options: mse, bce, tweedie
+  loss: "mse"  # Options: mse, bce, tweedie
   tweedie_variance_power: 1.5  # Parameter for Tweedie loss (typically 1-2 for zero-inflated data)
   
   # Learning rate scheduling

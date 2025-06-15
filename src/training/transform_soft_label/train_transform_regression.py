@@ -16,17 +16,88 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
-from sklearn.metrics import mean_absolute_error, median_absolute_error
+from sklearn.metrics import mean_absolute_error, median_absolute_error, precision_recall_curve, average_precision_score
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 import argparse
 import time
 import matplotlib.pyplot as plt
 from scipy.stats import wasserstein_distance
+import numpy as np
 
 from src.utils.logger import logger
 from src.training.transform_soft_label.transformer_model_regression import TransformerModelSoftLabel
 from src.training.transformer.transfomer_dataset_no_pro_pos import create_data_loaders
+
+
+def calculate_threshold_metrics(targets, predictions):
+    """
+    Calculate classification metrics based on thresholds and AUPRC.
+    
+    Args:
+        targets: Ground truth values (numpy array)
+        predictions: Predicted values (numpy array)
+        
+    Returns:
+        Dictionary with threshold-based metrics and AUPRC values
+    """
+    # Define thresholds for classification
+    thresholds = [0.0, 0.2, 0.4, 0.6, 1.0]
+    class_names = ["No fault", "Medium risk", "High risk", "Fault"]
+    
+    # Classification based on thresholds
+    target_classes = np.zeros_like(targets, dtype=int)
+    pred_classes = np.zeros_like(predictions, dtype=int)
+    
+    for i in range(len(thresholds) - 1):
+        target_classes[(targets >= thresholds[i]) & (targets < thresholds[i + 1])] = i
+        pred_classes[(predictions >= thresholds[i]) & (predictions < thresholds[i + 1])] = i
+    
+    # Count samples in each class
+    class_counts = {}
+    for i in range(len(class_names)):
+        target_count = np.sum(target_classes == i)
+        pred_count = np.sum(pred_classes == i)
+        class_counts[class_names[i]] = {
+            "target_count": int(target_count),
+            "pred_count": int(pred_count),
+            "percentage_target": float(target_count) / len(targets) * 100 if len(targets) > 0 else 0,
+            "percentage_pred": float(pred_count) / len(predictions) * 100 if len(predictions) > 0 else 0
+        }
+    
+    # Calculate confusion metrics for each class
+    confusion_metrics = {}
+    accuracy = np.mean(target_classes == pred_classes)
+    
+    # Calculate AUPRC for binary classification of each threshold
+    auprc_metrics = {}
+    for i in range(len(thresholds) - 1):
+        # Binary classification for this threshold range
+        # 1 if value is in or above this range, 0 otherwise
+        for j, threshold in enumerate(thresholds[:-1]):
+            binary_targets = (targets >= threshold).astype(int)
+            binary_preds = predictions  # Keep the continuous predictions for PR curve
+            
+            try:
+                ap_score = average_precision_score(binary_targets, binary_preds)
+                precision, recall, _ = precision_recall_curve(binary_targets, binary_preds)
+                auprc_metrics[f">= {threshold:.1f}"] = {
+                    "average_precision": float(ap_score),
+                    "positive_samples": int(np.sum(binary_targets)),
+                    "positive_rate": float(np.mean(binary_targets)) * 100
+                }
+            except Exception as e:
+                auprc_metrics[f">= {threshold:.1f}"] = {
+                    "error": str(e),
+                    "positive_samples": int(np.sum(binary_targets)),
+                    "positive_rate": float(np.mean(binary_targets)) * 100
+                }
+    
+    return {
+        "class_distribution": class_counts,
+        "accuracy": float(accuracy),
+        "auprc": auprc_metrics
+    }
 
 
 class TweedieLoss(nn.Module):
@@ -327,12 +398,16 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
     except:
         w_distance = float('inf')
 
+    # Add threshold-based classification and AUPRC metrics
+    threshold_metrics = calculate_threshold_metrics(all_targets, all_outputs)
+    
     metrics = {
         'mae': mae,
         'median_ae': median_ae,
         'wasserstein': w_distance,
         'predictions': all_outputs,
-        'targets': all_targets
+        'targets': all_targets,
+        'threshold_metrics': threshold_metrics
     }
 
     return avg_loss, metrics
@@ -517,6 +592,29 @@ def main(args):
         logger.info(f"Train MAE: {train_metrics['mae']:.6f}, Val MAE: {val_metrics['mae']:.6f}")
         logger.info(f"Train Median AE: {train_metrics['median_ae']:.6f}, Val Median AE: {val_metrics['median_ae']:.6f}")
         logger.info(f"Train Wasserstein: {train_metrics['wasserstein']:.6f}, Val Wasserstein: {val_metrics['wasserstein']:.6f}")
+        
+        # Log threshold classification metrics
+        logger.info("=== Validation Threshold Classification Metrics ===")
+        # Log class distribution
+        logger.info("Class Distribution (Ground Truth):")
+        for class_name, stats in val_metrics['threshold_metrics']['class_distribution'].items():
+            logger.info(f"  {class_name}: {stats['target_count']} samples ({stats['percentage_target']:.2f}%)")
+            
+        logger.info("Class Distribution (Predictions):")
+        for class_name, stats in val_metrics['threshold_metrics']['class_distribution'].items():
+            logger.info(f"  {class_name}: {stats['pred_count']} samples ({stats['percentage_pred']:.2f}%)")
+        
+        # Log classification accuracy
+        logger.info(f"Classification Accuracy: {val_metrics['threshold_metrics']['accuracy']:.4f}")
+        
+        # Log AUPRC metrics
+        logger.info("AUPRC Metrics:")
+        for threshold, auprc_data in val_metrics['threshold_metrics']['auprc'].items():
+            if "error" in auprc_data:
+                logger.info(f"  {threshold}: Error - {auprc_data['error']}")
+            else:
+                logger.info(f"  {threshold}: AUPRC = {auprc_data['average_precision']:.4f} (Positive rate: {auprc_data['positive_rate']:.2f}%)")
+        
         logger.info(f"Epoch completed in {epoch_duration:.2f} seconds")
         
         writer.add_scalar('train/loss', train_loss, epoch)
@@ -527,6 +625,14 @@ def main(args):
         writer.add_scalar('val/median_ae', val_metrics['median_ae'], epoch)
         writer.add_scalar('train/wasserstein', train_metrics['wasserstein'], epoch)
         writer.add_scalar('val/wasserstein', val_metrics['wasserstein'], epoch)
+        
+        # Add AUPRC metrics to TensorBoard
+        for threshold, auprc_data in val_metrics['threshold_metrics']['auprc'].items():
+            if "average_precision" in auprc_data:
+                writer.add_scalar(f'val/auprc/{threshold}', auprc_data['average_precision'], epoch)
+        
+        # Add classification accuracy to TensorBoard
+        writer.add_scalar('val/classification_accuracy', val_metrics['threshold_metrics']['accuracy'], epoch)
         
         # Save current model checkpoint
         save_model(
@@ -600,11 +706,36 @@ def main(args):
         logger.info(f"Test Median AE (Wasserstein model): {test_metrics['median_ae']:.6f}")
         logger.info(f"Test Wasserstein (Wasserstein model): {test_metrics['wasserstein']:.6f}")
         
+        # Log detailed test threshold metrics for Wasserstein model
+        logger.info("=== Test Threshold Classification Metrics (Wasserstein model) ===")
+        logger.info("Class Distribution (Ground Truth):")
+        for class_name, stats in test_metrics['threshold_metrics']['class_distribution'].items():
+            logger.info(f"  {class_name}: {stats['target_count']} samples ({stats['percentage_target']:.2f}%)")
+            
+        logger.info("Class Distribution (Predictions):")
+        for class_name, stats in test_metrics['threshold_metrics']['class_distribution'].items():
+            logger.info(f"  {class_name}: {stats['pred_count']} samples ({stats['percentage_pred']:.2f}%)")
+        
+        logger.info(f"Classification Accuracy: {test_metrics['threshold_metrics']['accuracy']:.4f}")
+        
+        logger.info("AUPRC Metrics:")
+        for threshold, auprc_data in test_metrics['threshold_metrics']['auprc'].items():
+            if "error" in auprc_data:
+                logger.info(f"  {threshold}: Error - {auprc_data['error']}")
+            else:
+                logger.info(f"  {threshold}: AUPRC = {auprc_data['average_precision']:.4f} (Positive rate: {auprc_data['positive_rate']:.2f}%)")
+        
         # Log test metrics to TensorBoard
         writer.add_scalar('test_wasserstein_model/loss', test_loss, 0)
         writer.add_scalar('test_wasserstein_model/mae', test_metrics['mae'], 0)
         writer.add_scalar('test_wasserstein_model/median_ae', test_metrics['median_ae'], 0)
         writer.add_scalar('test_wasserstein_model/wasserstein', test_metrics['wasserstein'], 0)
+        writer.add_scalar('test_wasserstein_model/classification_accuracy', test_metrics['threshold_metrics']['accuracy'], 0)
+        
+        # Add AUPRC metrics
+        for threshold, auprc_data in test_metrics['threshold_metrics']['auprc'].items():
+            if "average_precision" in auprc_data:
+                writer.add_scalar(f'test_wasserstein_model/auprc/{threshold}', auprc_data['average_precision'], 0)
     
     # Evaluate on test set using best model (based on MAE)
     logger.info("Evaluating best model (based on MAE) on test set")
@@ -618,11 +749,36 @@ def main(args):
         logger.info(f"Test Median AE (MAE model): {test_metrics['median_ae']:.6f}")
         logger.info(f"Test Wasserstein (MAE model): {test_metrics['wasserstein']:.6f}")
         
+        # Log detailed test threshold metrics for MAE model
+        logger.info("=== Test Threshold Classification Metrics (MAE model) ===")
+        logger.info("Class Distribution (Ground Truth):")
+        for class_name, stats in test_metrics['threshold_metrics']['class_distribution'].items():
+            logger.info(f"  {class_name}: {stats['target_count']} samples ({stats['percentage_target']:.2f}%)")
+            
+        logger.info("Class Distribution (Predictions):")
+        for class_name, stats in test_metrics['threshold_metrics']['class_distribution'].items():
+            logger.info(f"  {class_name}: {stats['pred_count']} samples ({stats['percentage_pred']:.2f}%)")
+        
+        logger.info(f"Classification Accuracy: {test_metrics['threshold_metrics']['accuracy']:.4f}")
+        
+        logger.info("AUPRC Metrics:")
+        for threshold, auprc_data in test_metrics['threshold_metrics']['auprc'].items():
+            if "error" in auprc_data:
+                logger.info(f"  {threshold}: Error - {auprc_data['error']}")
+            else:
+                logger.info(f"  {threshold}: AUPRC = {auprc_data['average_precision']:.4f} (Positive rate: {auprc_data['positive_rate']:.2f}%)")
+        
         # Log test metrics to TensorBoard
         writer.add_scalar('test_mae_model/loss', test_loss, 0)
         writer.add_scalar('test_mae_model/mae', test_metrics['mae'], 0)
         writer.add_scalar('test_mae_model/median_ae', test_metrics['median_ae'], 0)
         writer.add_scalar('test_mae_model/wasserstein', test_metrics['wasserstein'], 0)
+        writer.add_scalar('test_mae_model/classification_accuracy', test_metrics['threshold_metrics']['accuracy'], 0)
+        
+        # Add AUPRC metrics
+        for threshold, auprc_data in test_metrics['threshold_metrics']['auprc'].items():
+            if "average_precision" in auprc_data:
+                writer.add_scalar(f'test_mae_model/auprc/{threshold}', auprc_data['average_precision'], 0)
     
     # Evaluate on test set using best model (based on Median AE)
     logger.info("Evaluating best model (based on Median AE) on test set")
@@ -636,11 +792,36 @@ def main(args):
         logger.info(f"Test Median AE (Median AE model): {test_metrics['median_ae']:.6f}")
         logger.info(f"Test Wasserstein (Median AE model): {test_metrics['wasserstein']:.6f}")
         
+        # Log detailed test threshold metrics for Median AE model
+        logger.info("=== Test Threshold Classification Metrics (Median AE model) ===")
+        logger.info("Class Distribution (Ground Truth):")
+        for class_name, stats in test_metrics['threshold_metrics']['class_distribution'].items():
+            logger.info(f"  {class_name}: {stats['target_count']} samples ({stats['percentage_target']:.2f}%)")
+            
+        logger.info("Class Distribution (Predictions):")
+        for class_name, stats in test_metrics['threshold_metrics']['class_distribution'].items():
+            logger.info(f"  {class_name}: {stats['pred_count']} samples ({stats['percentage_pred']:.2f}%)")
+        
+        logger.info(f"Classification Accuracy: {test_metrics['threshold_metrics']['accuracy']:.4f}")
+        
+        logger.info("AUPRC Metrics:")
+        for threshold, auprc_data in test_metrics['threshold_metrics']['auprc'].items():
+            if "error" in auprc_data:
+                logger.info(f"  {threshold}: Error - {auprc_data['error']}")
+            else:
+                logger.info(f"  {threshold}: AUPRC = {auprc_data['average_precision']:.4f} (Positive rate: {auprc_data['positive_rate']:.2f}%)")
+        
         # Log test metrics to TensorBoard
         writer.add_scalar('test_median_ae_model/loss', test_loss, 0)
         writer.add_scalar('test_median_ae_model/mae', test_metrics['mae'], 0)
         writer.add_scalar('test_median_ae_model/median_ae', test_metrics['median_ae'], 0)
         writer.add_scalar('test_median_ae_model/wasserstein', test_metrics['wasserstein'], 0)
+        writer.add_scalar('test_median_ae_model/classification_accuracy', test_metrics['threshold_metrics']['accuracy'], 0)
+        
+        # Add AUPRC metrics
+        for threshold, auprc_data in test_metrics['threshold_metrics']['auprc'].items():
+            if "average_precision" in auprc_data:
+                writer.add_scalar(f'test_median_ae_model/auprc/{threshold}', auprc_data['average_precision'], 0)
     
     # Close TensorBoard writer
     writer.close()
