@@ -24,8 +24,6 @@ import time
 import matplotlib.pyplot as plt
 from scipy.stats import wasserstein_distance
 import numpy as np
-
-from src.training.transform_soft_label.train_transform_regression_2label import QuantileLoss
 from src.utils.logger import logger
 from src.training.transform_soft_label.transformer_model_regression import TransformerModelSoftLabel
 from src.training.transformer.transfomer_dataset_no_pro_pos import create_data_loaders
@@ -441,14 +439,9 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True,e
             loss = criterion(outputs, targets)
             total_loss += loss.item()
 
-            if epoch + 1 >30:
-                outputs = torch.clamp(outputs, min=1e-6) 
-                outputs_adjusted = torch.clamp(outputs ** 0.5, 0, 1)
-            else:
-                outputs_adjusted = outputs
 
             all_targets.extend(targets.cpu().numpy())
-            all_outputs.extend(outputs_adjusted.cpu().numpy())
+            all_outputs.extend(outputs.cpu().numpy())
 
             # Sample output logging
             if print_samples and batch_idx == 0:
@@ -577,6 +570,10 @@ def main(args):
         min_weight = config['training'].get('dynamic_weighted_mse_min_weight', 1.0)
         criterion = DynamicWeightedMSELoss(num_bins=num_bins, beta=beta, min_weight=min_weight)
         logger.info(f"Using Dynamic Weighted MSE Loss with num_bins: {num_bins}, beta: {beta}, min_weight: {min_weight}")
+    elif config['training']['loss'] == 'quantile':
+        quantile = config['training'].get('quantile_value', 0.5)
+        criterion = QuantileLoss(quantile=quantile)
+        logger.info(f"Using Quantile Loss with quantile: {quantile}")   
     else:
         criterion = nn.MSELoss()  # Default to MSE if not specified
     logger.info(f"Using loss function: {config['training']['loss']}")
@@ -641,8 +638,6 @@ def main(args):
     # Training loop
     for epoch in range(start_epoch, config['training']['num_epochs']):
         logger.info(f"Epoch {epoch+1}/{config['training']['num_epochs']}")
-        if epoch + 1 >25:
-            criterion = QuantileLoss(quantile=config['training']['quantile_value'])
         # Record epoch start time
         epoch_start_time = time.time()
         
@@ -654,7 +649,7 @@ def main(args):
         
         # Evaluate on validation set
         val_loss, val_metrics = evaluate(
-            model, data_loaders['val_200'], criterion, device, config,
+            model, data_loaders['val'], criterion, device, config,
             print_samples=(epoch == 0),epoch=epoch  # Print samples only for first epoch
         )
         

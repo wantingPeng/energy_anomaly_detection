@@ -27,11 +27,11 @@ training:
   weight_decay: 0.0001
   momentum: 0.9  # Only used for SGD optimizer
   optimizer: "adam"  # Options: adam, adamw, sgd
-  loss: "dynamic_weighted_mse_beta"  # Options: mse, bce, tweedie, dynamic_weighted_mse_beta, quantile
+  loss: "quantile"  # Options: mse, bce, tweedie, dynamic_weighted_mse_beta, quantile
   tweedie_variance_power: 1.5  # Parameter for Tweedie loss (typically 1-2 for zero-inflated data)
   
   # Quantile Loss parameters
-  quantile_value: 0.5  # Quantile to predict (0.5 is median, smaller penalizes overestimation, larger penalizes underestimation)
+  quantile_value: 0.8  # Quantile to predict (0.5 is median, smaller penalizes overestimation, larger penalizes underestimation)
  
   # Dynamic Weighted MSE Loss parameters
   dynamic_weighted_mse_num_bins: 20  # Number of bins to divide the target range [0,1] into

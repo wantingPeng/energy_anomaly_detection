@@ -1,14 +1,14 @@
 # Data paths
 paths:
   input_dir: 'Data/processed/lsmt_timeFeatures/add_timeFeatures'
-  output_dir: 'Data/processed/soft_label/slidingWindow_600_600_200'
+  output_dir: 'Data/processed/soft_label/slidingWindow_600_600_100'
   anomaly_dict: 'Data/processed/soft_label/anomaly_dict_merged.pkl'
 
 # Sliding window parameters
 sliding_window:
   window_size: 600  # Window size in seconds
   step_size: 600    # Step size in seconds
-  anomaly_step_size: 200
+  anomaly_step_size: 100
 
 # Component processing configuration
 components:

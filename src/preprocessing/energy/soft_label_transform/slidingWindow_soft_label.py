@@ -236,7 +236,7 @@ def process_component_data(
         
     logger.info(f"Found {len(batch_dirs)} batch directories for {component} {data_type}")
     
-    output_dir = os.path.join(config['paths']['output_dir'], 'val_200', component)
+    output_dir = os.path.join(config['paths']['output_dir'], data_type, component)
     os.makedirs(output_dir, exist_ok=True)
     
     # Process each batch directory
@@ -307,7 +307,7 @@ def main():
 
     # Process each data type and component
     #for data_type in ['train', 'val', 'test']:
-    for data_type in [ 'val']:
+    for data_type in [ 'train']:
 
         for component in components:
             process_component_data(

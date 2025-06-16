@@ -163,15 +163,15 @@ def main():
     log_memory("Starting conversion")
     
     # Get paths from config
-    input_dir = "Data/processed/soft_label/slidingWindow_600_600_200"
-    output_dir = "Data/processed/soft_label/projection_pos_encoding_float16_both_200"
+    input_dir = "Data/processed/soft_label/slidingWindow_600_600_200_2"
+    output_dir = "Data/processed/soft_label/projection_pos_encoding_float16_both_200_2"
     
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
     
     # Explicitly define components and data types
     components = ['contact']
-    data_types = ['val_200', 'train']
+    data_types = ['val', 'train']
     
     logger.info(f"Processing data types: {data_types}")
     logger.info(f"Processing components: {components}")
