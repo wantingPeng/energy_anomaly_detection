@@ -82,15 +82,15 @@ def process_batch_file(batch_path, output_dir, component, data_type, linear_proj
     # Load .npz
     data = np.load(batch_path, allow_pickle=True)
     windows = data['windows']
-    labels = data['soft_labels']
+    labels = data['labels']
     logger.info(f"Windows shape: {windows.shape}")
     logger.info(f"Labels shape: {labels.shape}")
     log_memory(f"After loading {os.path.basename(batch_path)}")
 
     # Convert to tensor
     windows_tensor = torch.tensor(windows, dtype=torch.float16)
-    #labels_tensor = torch.LongTensor(labels)
-    labels_tensor = torch.tensor(labels, dtype=torch.float16)
+    labels_tensor = torch.LongTensor(labels)
+    #labels_tensor = torch.tensor(labels, dtype=torch.float16)
     # Apply linear projection and positional encoding
     with torch.no_grad():
         projected = linear_projection(windows_tensor)
@@ -163,8 +163,8 @@ def main():
     log_memory("Starting conversion")
     
     # Get paths from config
-    input_dir = "Data/processed/soft_label/slidingWindow_600_600_200_2"
-    output_dir = "Data/processed/soft_label/projection_pos_encoding_float16_both_200_2"
+    input_dir = "Data/processed/transform/slidingWindow_noOverlap_600_600_50_0.9_0.1"
+    output_dir = "Data/processed/transform/projection_pos_encoding_600_600_50_0.9_0.1"
     
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)

@@ -413,7 +413,8 @@ def main(args):
             
             # Calculate class weights
             class_counts = torch.bincount(all_labels)
-            class_weights = 1.0 / class_counts.float()
+            #class_weights = 1.0 / class_counts.float()
+            class_weights = 1.0 / torch.sqrt(class_counts.float())
             class_weights = class_weights / class_weights.sum()
             
             logger.info(f"Class weights: {class_weights}")

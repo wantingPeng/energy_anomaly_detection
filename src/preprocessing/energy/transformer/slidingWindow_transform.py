@@ -49,7 +49,6 @@ def process_segment(
     step_size: int,
     anomaly_step_size: int,
     anomaly_trees: Dict[str, IntervalTree],
-    anomaly_threshold: float = 0.3
 ) -> Tuple[List, List, List, List, dict]:
     """
     Process a single segment for sliding window creation (for parallel processing).
@@ -114,11 +113,16 @@ def process_segment(
             overlap_ratio = calculate_window_overlap(window_start, window_end, interval_tree)
             current_step_size = anomaly_step_size if overlap_ratio > 0.3 else step_size
 
-
-            label = 1 if overlap_ratio >= anomaly_threshold else 0
-            
-            windows.append(window_data)
-            labels.append(label)
+            # Only keep windows with overlap_ratio > 0.9 (anomaly) or < 0.1 (normal)
+            if overlap_ratio > 0.9:
+                label = 1
+                windows.append(window_data)
+                labels.append(label)
+            elif overlap_ratio < 0.1:
+                label = 0
+                windows.append(window_data)
+                labels.append(label)
+            # Skip windows with overlap_ratio between 0.1 and 0.9
 
         # Move to next window position
         start_idx += current_step_size
@@ -132,7 +136,6 @@ def create_sliding_windows(
     step_size: int,
     anomaly_step_size: int,
     anomaly_trees: Dict[str, IntervalTree],
-    anomaly_threshold: float = 0.3,
     n_jobs: int = 6
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
     """
@@ -175,7 +178,6 @@ def create_sliding_windows(
             step_size,
             anomaly_step_size,
             anomaly_trees,
-            anomaly_threshold
         )
         for segment_data in tqdm(segments, desc="Processing segments")
     )
@@ -267,7 +269,6 @@ def process_component_data(
             config['sliding_window']['step_size'],
             config['sliding_window']['anomaly_step_size'],
             anomaly_trees,
-            config['sliding_window']['anomaly_threshold'],
             n_jobs=6
         )
         

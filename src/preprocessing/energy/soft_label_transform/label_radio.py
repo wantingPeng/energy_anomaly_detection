@@ -112,7 +112,7 @@ def main():
     """
     Main function to analyze soft label distribution from command line.
     """
-    data_dir = "Data/processed/soft_label/slidingWindow_600_600_100/train/contact"
+    data_dir = "Data/processed/transform/slidingWindow_noOverlap_600_600_50_0.95_th0.3/train/contact"
     
     logger.info(f"Analyzing soft label distribution in {data_dir}")
     

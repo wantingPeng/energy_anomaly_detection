@@ -2,7 +2,7 @@
 
 # Paths
 paths:
-  data_dir: "Data/processed/transform/slidingWindow_noOverlap_800_800_100_0.7_th0.5/projection_pos_encoding_float16"
+  data_dir: "Data/processed/transform/projection_pos_encoding_600_600_50_0.9_0.1"
   output_dir: "experiments/transformer"
 
 # Data configuration
@@ -24,7 +24,7 @@ training:
   batch_size: 64
   num_workers: 2
   num_epochs: 150
-  learning_rate: 0.0001
+  learning_rate: 0.01
   weight_decay: 0.0001
   momentum: 0.9  # Only used for SGD optimizer
   optimizer: "adam"  # Options: adam, adamw, sgd

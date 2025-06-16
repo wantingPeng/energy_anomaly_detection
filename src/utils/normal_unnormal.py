@@ -219,11 +219,11 @@ def main():
 
     
 
-    directory_path = "Data/processed/transform/slidingWindow_noOverlap_800_800_100_0.7_th0.5/val/contact"
+    directory_path = "Data/processed/transform/slidingWindow_noOverlap_600_600_50_0.95_th0.3/val/contact"
     analyze_normal_anomaly_distribution_pt(directory_path)
     
     '''# Analyze parquet file with normal/anomaly labels
-    parquet_path = "Data/processed/machinen_learning/individual_model/randomly_spilt/val.parquet"
+    parquet_path = "Data/processed/transform/slidingWindow_noOverlap_600_600_50_0.95_th0.3/train/contact"
     analyze_parquet_labels(parquet_path, label_column='anomaly_label')'''
 
 if __name__ == "__main__":

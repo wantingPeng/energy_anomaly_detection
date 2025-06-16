@@ -58,7 +58,7 @@ class TransformerDataset(Dataset):
         window = self.windows[idx]
         label = self.labels[idx]
         
-        # Convert to torch tensors if they aren't already
+        '''# Convert to torch tensors if they aren't already
         if not isinstance(window, torch.Tensor):
             window = torch.FloatTensor(window)
         
@@ -66,7 +66,7 @@ class TransformerDataset(Dataset):
             label = torch.LongTensor([label])[0]
         
         if self.transform:
-            window = self.transform(window)
+            window = self.transform(window)'''
         
         return window, label
     

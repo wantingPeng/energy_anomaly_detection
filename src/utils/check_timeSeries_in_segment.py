@@ -56,5 +56,5 @@ def check_segment_time_continuity(data_dir: str):
         logger.info("\nNo discontinuous segments found.")
 
 if __name__ == "__main__":
-    data_dir = "Data/processed/lsmt/standerScaler/test.parquet"
+    data_dir = "Data/processed/lsmt_timeFeatures/add_timeFeatures/val/contact/batch_0"
     check_segment_time_continuity(data_dir)

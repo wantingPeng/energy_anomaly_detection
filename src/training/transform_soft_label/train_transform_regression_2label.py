@@ -27,7 +27,7 @@ import numpy as np
 
 from src.utils.logger import logger
 from src.training.transform_soft_label.transformer_model_regression import TransformerModelSoftLabel
-from src.training.transformer.transfomer_dataset_no_pro_pos import create_data_loaders
+from src.training.transform_soft_label.dataloader import create_data_loaders
 
 
 def calculate_threshold_metrics(targets, predictions):
