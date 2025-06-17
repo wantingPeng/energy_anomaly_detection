@@ -41,8 +41,10 @@ def create_interval_tree(anomaly_periods: List[Tuple[str, str]]) -> IntervalTree
     tree = IntervalTree()
     for start, end in anomaly_periods:
         # Convert string timestamps to integers for interval tree
-        start_int = int(pd.Timestamp(start).timestamp())
-        end_int = int(pd.Timestamp(end).timestamp())
+        '''start_int = int(pd.Timestamp(start).timestamp())
+        end_int = int(pd.Timestamp(end).timestamp())'''
+        start_int = int(start.timestamp())
+        end_int = int(end.timestamp())
         
         # 如果开始时间和结束时间相同，将结束时间加1秒
         if start_int == end_int:
@@ -61,7 +63,6 @@ def calculate_window_overlap(window_start: pd.Timestamp,
     
     # Find overlapping intervals
     overlapping_intervals = interval_tree[window_start_int:window_end_int]
-    
     if not overlapping_intervals:
         return 0.0
     

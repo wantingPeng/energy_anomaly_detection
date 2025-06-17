@@ -21,7 +21,7 @@ def preview_parquet(parquet_path, sample_size=1000, output_csv_path=None):
     # 2. Show basic info
     print("\n=== Dataset Info ===")
     print(df.info())
-    print("\n=== First 5 rows ===")
+    print("\n=== last 5 rows ===")
     print(df.tail())
 
     # 3. Sampling a small subset for manual checking
@@ -31,15 +31,15 @@ def preview_parquet(parquet_path, sample_size=1000, output_csv_path=None):
             print(f"\nSaving a sample of {len(sample_df)} rows to {output_csv_path}")
             sample_df.to_csv(output_csv_path, index=False)
         else:
-            print("\nSample data (not saved):")
+            print("\nSample data first 5 rows:")
             print(sample_df.head())
     else:
         print("\nSample size <= 0, no sample saved.")
 
 if __name__ == "__main__":
     # ====== Customize below ======
-    parquet_file = "Data/processed/lsmt_timeFeatures/add_timeFeatures/train/contact/batch_0"
-    sample_output_csv = "Data/data_preview/add_timeFeature/contact_batch_0.csv"
+    parquet_file = "Data/processed/lsmt_timeFeatures/add_timeFeatures/train/contact/batch_0/part.0.parquet"
+    #sample_output_csv = "Data/data_preview/add_timeFeature/contact_batch_0.csv"
     # ====== ================== ======
 
     preview_parquet(parquet_file, sample_size=1000, output_csv_path=None)

@@ -12,16 +12,18 @@ def load_anomaly_dict(pkl_path: str):
     except Exception as e:
         raise RuntimeError(f"Failed to load pickle file: {e}")
 
-def preview_anomaly_dict(anomaly_dict, max_stations=3, max_entries=100):
+def preview_anomaly_dict(anomaly_dict, max_stations=3, max_entries=10):
     for station_idx, (station, intervals) in enumerate(anomaly_dict.items()):
         print(f"Station: {station}")
         for i, (start, end) in enumerate(intervals[:max_entries]):
-            print(f"  [{i}] {start} -> {end}")
+            print(f"  [{i}] {start}  {end}")
+            print(f"      Start: {start} (type={type(start)}, tz={start.tz})")
+            print(f"      End  : {end} (type={type(end)}, tz={end.tz})")    
         if station_idx + 1 >= max_stations:
             break
 
 if __name__ == "__main__":
-    pkl_file_path = "Data/interim/Anomaly_Data/anomaly_dict_merged.pkl"
+    pkl_file_path = "Data/processed/soft_label/anomaly_dict_merged.pkl"
     
     print(f"Loading anomaly dict from: {pkl_file_path}")
     anomaly_dict = load_anomaly_dict(pkl_file_path)

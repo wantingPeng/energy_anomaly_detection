@@ -111,19 +111,23 @@ def process_segment(
         if len(window_data) == window_size:
             # Calculate overlap with anomalies
             overlap_ratio = calculate_window_overlap(window_start, window_end, interval_tree)
-            current_step_size = anomaly_step_size if overlap_ratio > 0.3 else step_size
+            current_step_size = anomaly_step_size if overlap_ratio > 0 else step_size
 
             # Only keep windows with overlap_ratio > 0.9 (anomaly) or < 0.1 (normal)
-            if overlap_ratio > 0.9:
+
+            label = 1 if overlap_ratio >= 0.5 else 0
+
+            '''if overlap_ratio > 0.9:
                 label = 1
                 windows.append(window_data)
                 labels.append(label)
             elif overlap_ratio < 0.1:
                 label = 0
                 windows.append(window_data)
-                labels.append(label)
+                labels.append(label)'''
             # Skip windows with overlap_ratio between 0.1 and 0.9
-
+            windows.append(window_data)
+            labels.append(label)
         # Move to next window position
         start_idx += current_step_size
     return windows, labels
@@ -230,7 +234,7 @@ def process_component_data(
     #os.makedirs(output_component_dir, exist_ok=True)
     # Create interval trees for each station
     anomaly_trees = {station: create_interval_tree(periods) for station, periods in anomaly_dict.items()}
-    
+    print(type(anomaly_trees))
     # Process data in batches by directory
     batch_dirs = glob.glob(os.path.join(component_dir, "batch_*"))
     
@@ -314,7 +318,7 @@ def main():
 
     # Process each data type and component
     #for data_type in ['train', 'val', 'test']:
-    for data_type in [ 'val','train']:
+    for data_type in [ 'val']:
 
         for component in components:
             process_component_data(

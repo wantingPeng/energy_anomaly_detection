@@ -163,15 +163,15 @@ def main():
     log_memory("Starting conversion")
     
     # Get paths from config
-    input_dir = "Data/processed/transform/slidingWindow_noOverlap_600_600_50_0.9_0.1"
-    output_dir = "Data/processed/transform/projection_pos_encoding_600_600_50_0.9_0.1"
+    input_dir = "Data/deepLearning/transform/slidingWindow_noOverlap_600_600_100_0_0.5"
+    output_dir = "Data/deepLearning/transform/projection_pos_encoding_600_600_100_0_0.5"
     
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
     
     # Explicitly define components and data types
     components = ['contact']
-    data_types = ['val', 'train']
+    data_types = ['val','train']
     
     logger.info(f"Processing data types: {data_types}")
     logger.info(f"Processing components: {components}")

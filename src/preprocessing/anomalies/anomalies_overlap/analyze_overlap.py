@@ -11,7 +11,7 @@ from src.utils.logger import logger
 def analyze_overlap():
     # Read the parquet file
     input_path = Path("Data/interim/Anomaly_Data/Duration_of_Anomalies_cleaned.parquet")
-    output_dir = Path("Data/data_preview/soft_label")
+    output_dir = Path("Data/data_preview/Duration_of_Anomalies_cleaned_soft_label")
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / "overlap_analysis.csv"
     logger.info(f"Reading parquet file from {input_path}")

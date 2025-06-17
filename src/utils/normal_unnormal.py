@@ -33,7 +33,7 @@ def analyze_normal_anomaly_distribution(file_path):
             label_type = "Normal" if label == 0 else "Anomaly"
             logger.info(f"{label_type}: {count} samples ({percentage:.2f}%)")
         
-        # Create visualization
+        '''# Create visualization
         plt.figure(figsize=(10, 6))
         plt.bar(['Normal', 'Anomaly'], counts)
         plt.title('Distribution of Normal vs Anomaly Samples')
@@ -50,7 +50,7 @@ def analyze_normal_anomaly_distribution(file_path):
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         plt.savefig(save_path, dpi=300)
         logger.info(f"Distribution plot saved to {save_path}")
-        plt.close()
+        plt.close()'''
 
     except Exception as e:
         logger.error(f"Error analyzing file: {str(e)}")
@@ -85,12 +85,12 @@ def analyze_normal_anomaly_distribution_pt(directory_path):
         # Calculate percentages
         percentages = (counts / total_samples) * 100
 
-        # Log the distribution
+         # Log the distribution
         logger.info(f"Total number of samples: {total_samples}")
         for label, count, percentage in zip(unique_labels, counts, percentages):
             label_type = "Normal" if label == 0 else "Anomaly"
             logger.info(f"{label_type}: {count} samples ({percentage:.2f}%)")
-
+        '''
         # Create visualization
         plt.figure(figsize=(10, 6))
         plt.bar(['Normal', 'Anomaly'], counts)
@@ -108,7 +108,7 @@ def analyze_normal_anomaly_distribution_pt(directory_path):
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         plt.savefig(save_path, dpi=300)
         logger.info(f"Distribution plot saved to {save_path}")
-        plt.close()
+        plt.close()'''
 
     except Exception as e:
         logger.error(f"Error analyzing directory: {str(e)}")
@@ -185,7 +185,7 @@ def analyze_parquet_labels(file_path, label_column='anomaly_label'):
         
         plot_labels = [label_mapping.get(str(label), str(label)) for label in value_counts.index]
         
-        # Create the bar plot
+        '''# Create the bar plot
         bars = plt.bar(plot_labels, counts_for_plot)
         plt.title('Distribution of Normal vs Anomaly Samples')
         plt.ylabel('Number of Samples')
@@ -205,7 +205,7 @@ def analyze_parquet_labels(file_path, label_column='anomaly_label'):
         
         plt.savefig(save_path, dpi=300)
         logger.info(f"Distribution plot saved to {save_path}")
-        plt.close()
+        plt.close()'''
         
         return results
         
@@ -219,7 +219,7 @@ def main():
 
     
 
-    directory_path = "Data/processed/transform/slidingWindow_noOverlap_600_600_50_0.95_th0.3/val/contact"
+    directory_path = "Data/deepLearning/transform/slidingWindow_noOverlap_600_600_100_0_0.5/train/contact"
     analyze_normal_anomaly_distribution_pt(directory_path)
     
     '''# Analyze parquet file with normal/anomaly labels

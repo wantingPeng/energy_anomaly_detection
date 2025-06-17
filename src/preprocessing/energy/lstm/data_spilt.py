@@ -59,8 +59,8 @@ def main():
     #component = ['contact','pcb','ring']
     component = ['contact']
 
-    file = 'Data/processed/lsmt/standerScaler_in_segment/spilt_after_sliding/standscaler/contact/normalized.parquet'
-    output_dir = 'Data/processed/lsmt/standerScaler_in_segment/spilt_before_sliding/spilt'
+    file = 'Data/machine/Energy_time_series/Contacting_time_series.parquet'
+    output_dir = 'Data/deepLearning/transform/spilt'
     for comp in component:
         full_output_dir = os.path.join(output_dir, comp)
         os.makedirs(full_output_dir, exist_ok=True)

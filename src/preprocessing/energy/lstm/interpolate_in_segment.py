@@ -120,9 +120,11 @@ def interpolate_segments(df: pd.DataFrame, output_dir: str, split: str, componen
 
 def main():
     """Main function to process all data splits."""
-    input_dir = 'Data/processed/lsmt/spilt'
-    output_dir = 'Data/processed/lsmt_statisticalFeatures/interpolate'
+    '''input_dir = 'Data/processed/lsmt/spilt'
+    output_dir = 'Data/processed/lsmt_statisticalFeatures/interpolate'''
     
+    input_dir = 'Data/deepLearning/transform/spilt'
+    output_dir = 'Data/deepLearning/transform/interpolated'
     # Define components to process
     component_names = ['contact']   # Full list would be ['contact', 'pcb', 'ring']
  
