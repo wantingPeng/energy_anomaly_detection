@@ -163,8 +163,8 @@ def main():
     log_memory("Starting conversion")
     
     # Get paths from config
-    input_dir = "Data/deepLearning/transform/window_plus_statistic"
-    output_dir = "Data/deepLearning/transform/projection_pos_encoding_window_plus_statistic"
+    input_dir = "Data/deepLearning/transform/slidingWindow_noOverlap_600_600_100_0_0.5_down_20%"
+    output_dir = "Data/deepLearning/transform/projection_pos_encoding_down_20%_d128_600_600_100_0_0.5"
     
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
@@ -184,8 +184,8 @@ def main():
     input_features = sample_data['windows'].shape[2]
     logger.info(f"Input features: {input_features}")
     # Initialize shared layers
-    d_model = 256
-    max_seq_length = 1200
+    d_model = 128
+    max_seq_length = 600
     
     # Create linear projection layer
     linear_projection = nn.Linear(input_features, d_model).half()

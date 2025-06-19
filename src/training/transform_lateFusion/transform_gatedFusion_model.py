@@ -43,12 +43,77 @@ class AttentionPooling(nn.Module):
         
         return pooled_output, attn_weights
 
-class TransformerLateFusionModel(nn.Module):
+
+class GatedFusion(nn.Module):
     """
-    Transformer model with Late Fusion for anomaly detection.
+    Gated Fusion module for combining features from different modalities.
+    This module implements a dynamic fusion mechanism that learns how to combine
+    information from transformer features and statistical features.
+    """
+    def __init__(self, transformer_dim, stat_dim, output_dim):
+        super(GatedFusion, self).__init__()
+        
+        # Gate networks for each modality
+        self.transformer_gate = nn.Sequential(
+            nn.Linear(transformer_dim + stat_dim, transformer_dim),
+            nn.Sigmoid()
+        )
+        
+        self.stat_gate = nn.Sequential(
+            nn.Linear(transformer_dim + stat_dim, stat_dim),
+            nn.Sigmoid()
+        )
+        
+        # Feature transformation networks
+        self.transformer_transform = nn.Linear(transformer_dim, output_dim)
+        self.stat_transform = nn.Linear(stat_dim, output_dim)
+        
+        # Final fusion layer
+        self.fusion_layer = nn.Sequential(
+            nn.Linear(output_dim, output_dim),
+            nn.ReLU(),
+            nn.Dropout(0.1)
+        )
+        
+    def forward(self, transformer_features, stat_features):
+        """
+        Args:
+            transformer_features: Features from transformer branch [batch_size, transformer_dim]
+            stat_features: Statistical features [batch_size, stat_dim]
+            
+        Returns:
+            Fused features [batch_size, output_dim]
+        """
+        # Concatenate features for gate computation
+        concat_features = torch.cat([transformer_features, stat_features], dim=1)
+        
+        # Calculate gates
+        transformer_gate_values = self.transformer_gate(concat_features)
+        stat_gate_values = self.stat_gate(concat_features)
+        
+        # Apply gates to features
+        gated_transformer = transformer_features * transformer_gate_values
+        gated_stat = stat_features * stat_gate_values
+        
+        # Transform features to common dimensionality
+        transformed_transformer = self.transformer_transform(gated_transformer)
+        transformed_stat = self.stat_transform(gated_stat)
+        
+        # Combine gated features
+        fused_features = transformed_transformer + transformed_stat
+        
+        # Final fusion processing
+        output = self.fusion_layer(fused_features)
+        
+        return output
+
+
+class TransformerGatedFusionModel(nn.Module):
+    """
+    Transformer model with Gated Fusion for anomaly detection.
     
     This model uses a transformer encoder to process time series data
-    and combines it with statistical features through late fusion
+    and combines it with statistical features through gated fusion
     for improved anomaly detection.
     """
     def __init__(
@@ -65,7 +130,7 @@ class TransformerLateFusionModel(nn.Module):
         config=None,
     ):
         """
-        Initialize the transformer model with late fusion.
+        Initialize the transformer model with gated fusion.
         
         Args:
             input_dim: Dimension of input features
@@ -78,9 +143,8 @@ class TransformerLateFusionModel(nn.Module):
             activation: Activation function for transformer layers
             stat_features_size: Number of statistical features
             config: Configuration dictionary (optional)
-            config_path: Path to YAML configuration file (optional)
         """
-        super(TransformerLateFusionModel, self).__init__()
+        super(TransformerGatedFusionModel, self).__init__()
         
         
         self.input_dim = input_dim
@@ -105,34 +169,34 @@ class TransformerLateFusionModel(nn.Module):
         self.attention_pooling = AttentionPooling(d_model)
         
         # Transformer branch fully connected layers
+        transformer_output_dim = d_model // 2
         self.transformer_fc = nn.Sequential(
-            nn.Linear(d_model, d_model // 2),
+            nn.Linear(d_model, transformer_output_dim),
             nn.ReLU(),
             nn.Dropout(dropout)
         )
         
         # Statistical features branch
-        '''self.stat_fc = nn.Sequential(
-            nn.Linear(stat_features_size, stat_features_size // 2),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(stat_features_size // 2, stat_features_size // 2),
-            nn.ReLU(),
-        )'''
+        stat_output_dim = stat_features_size * 2
         self.stat_fc = nn.Sequential(
-            nn.Linear(stat_features_size, stat_features_size * 2),  # e.g. 47 → 94
+            nn.Linear(stat_features_size, stat_output_dim),
             nn.ReLU(),
-            nn.BatchNorm1d(stat_features_size * 2),
-            nn.Linear(stat_features_size * 2, stat_features_size * 2),  # 保持 94 → 94
+            nn.BatchNorm1d(stat_output_dim),
+            nn.Linear(stat_output_dim, stat_output_dim),
             nn.ReLU()
         )
-        # Fusion layer
-        fusion_input_size = (d_model // 2) + (stat_features_size * 2)
-        self.fusion_fc = nn.Sequential(
-            nn.Linear(fusion_input_size, 128),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(128, 64),
+        
+        # Gated fusion layer
+        fusion_output_dim = 128
+        self.fusion = GatedFusion(
+            transformer_dim=transformer_output_dim,
+            stat_dim=stat_output_dim,
+            output_dim=fusion_output_dim
+        )
+        
+        # Classification head
+        self.classifier = nn.Sequential(
+            nn.Linear(fusion_output_dim, 64),
             nn.ReLU(),
             nn.Dropout(dropout),
             nn.Linear(64, num_classes)
@@ -140,7 +204,7 @@ class TransformerLateFusionModel(nn.Module):
         
         self.output_activation = nn.Identity()
         
-        logger.info(f"Initialized Transformer Late Fusion model with input_dim={input_dim}, "
+        logger.info(f"Initialized Transformer Gated Fusion model with input_dim={input_dim}, "
                    f"d_model={d_model}, nhead={nhead}, num_layers={num_layers}, "
                    f"stat_features_size={stat_features_size}, num_classes={num_classes}")
         
@@ -149,7 +213,7 @@ class TransformerLateFusionModel(nn.Module):
         
     def forward(self, src: torch.Tensor, stat_features: torch.Tensor, src_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
-        Forward pass of the transformer late fusion model.
+        Forward pass of the transformer gated fusion model.
         
         Args:
             src: Input tensor [batch_size, seq_len, input_dim]
@@ -179,11 +243,11 @@ class TransformerLateFusionModel(nn.Module):
         # Statistical features branch forward pass
         stat_features_out = self.stat_fc(stat_features)
         
-        # Concatenate features for fusion
-        fused_features = torch.cat([transformer_features, stat_features_out], dim=1)
+        # Apply gated fusion
+        fused_features = self.fusion(transformer_features, stat_features_out)
         
-        # Pass through fusion layers
-        out = self.fusion_fc(fused_features)
+        # Classification
+        out = self.classifier(fused_features)
         
         # Apply output activation
         out = self.output_activation(out)

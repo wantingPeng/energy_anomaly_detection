@@ -25,8 +25,8 @@ import matplotlib.pyplot as plt
 
 from src.utils.logger import logger
 from src.training.transformer.transformer_model import TransformerModel
-from src.training.transformer.transformer_dataset import create_data_loaders
-#from src.training.transformer.transfomer_dataset_no_pro_pos import create_data_loaders
+#from src.training.transformer.transformer_dataset import create_data_loaders
+from src.training.transformer.transfomer_dataset_no_pro_pos import create_data_loaders
 
 # Define focal loss for imbalanced dataset
 class FocalLoss(nn.Module):

@@ -24,7 +24,8 @@ import time
 import matplotlib.pyplot as plt
 
 from src.utils.logger import logger
-from src.training.transform_lateFusion.transform_lateFusion_model import TransformerLateFusionModel
+#from src.training.transform_lateFusion.transform_lateFusion_model import TransformerLateFusionModel
+from src.training.transform_lateFusion.transform_gatedFusion_model import TransformerGatedFusionModel
 from src.training.transform_lateFusion.transform_lateFusion_dataset_no_pro_pos import TransformerLateFusionDataset, create_data_loaders
 
 # Define focal loss for imbalanced dataset
@@ -384,7 +385,7 @@ def main(args):
     logger.info(f"Statistical features size: {stat_features_size}")
     
     # Create model
-    model = TransformerLateFusionModel(
+    model = TransformerGatedFusionModel(
         input_dim=input_dim,
         d_model=config['model']['d_model'],
         nhead=config['model']['nhead'],

@@ -19,8 +19,8 @@ import random
 from sklearn.metrics import precision_score, recall_score, f1_score
 
 from src.utils.logger import logger
-from src.training.lsmt.lsmt_fusion.lstm_late_fusion_model import LSTMLateFusionModel
-from src.training.lsmt.lsmt_fusion.lstm_late_fusion_dataset import LSTMLateFusionDataset
+from src.training.lsmt_fusion.lstm_late_fusion_model import LSTMLateFusionModel
+from src.training.lsmt_fusion.lstm_late_fusion_dataset import LSTMLateFusionDataset
 from torch.utils.data import DataLoader, Subset
 
 

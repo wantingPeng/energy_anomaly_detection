@@ -219,7 +219,7 @@ def main():
 
     
 
-    directory_path = "Data/processed/lsmt_timeFeatures/sliding_window_1200s/train_down_25%/contact"
+    directory_path = "Data/deepLearning/transform/slidingWindow_noOverlap_600_600_100_0_0.5_down_20%/train/contact"
     analyze_normal_anomaly_distribution_pt(directory_path)
     
     '''# Analyze parquet file with normal/anomaly labels

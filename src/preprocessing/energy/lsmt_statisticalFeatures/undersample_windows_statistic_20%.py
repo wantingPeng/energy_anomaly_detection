@@ -4,14 +4,15 @@ import time
 from datetime import datetime
 from src.utils.logger import logger
 
-def undersample_normal_windows(sliding_window_path, statistical_features_path, seed=42):
+def undersample_normal_windows(sliding_window_path, statistical_features_path, target_anomaly_ratio=0.20, seed=42):
     """
-    Undersample normal windows in both datasets to ensure anomalies make up 25% of the final dataset.
+    Undersample normal or anomaly windows to ensure anomalies make up the target percentage of the final dataset.
     Maintains alignment between the two datasets.
 
     Parameters:
     - sliding_window_path: str, path to the sliding window dataset directory
     - statistical_features_path: str, path to the statistical features dataset directory
+    - target_anomaly_ratio: float, target ratio of anomalies in the dataset (default: 0.20 or 20%)
     - seed: int, random seed for reproducibility
     """
     # Set random seed for reproducibility
@@ -19,18 +20,18 @@ def undersample_normal_windows(sliding_window_path, statistical_features_path, s
     
     # Setup logging
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_filename = f"undersample_windows_25percent_{timestamp}.log"
+    log_filename = f"undersample_windows_20percent_{timestamp}.log"
     log_filepath = os.path.join("experiments/logs", log_filename)
     os.makedirs("experiments/logs", exist_ok=True)
     
-    logger.info("Starting undersampling of normal windows to achieve 25% anomaly ratio")
+    logger.info(f"Starting resampling to achieve {target_anomaly_ratio*100:.0f}% anomaly ratio")
     
     # Define categories
     categories = ["contact"]
     
     # Create output directories
-    sliding_window_output_path = "Data/processed/lsmt_timeFeatures/sliding_window_600s/train_down_25%"
-    statistical_features_output_path = "Data/processed/lsmt_timeFeatures/statistic_features_standscaler_600s/train_down_25%"
+    sliding_window_output_path = f"Data/deepLearning/transform/slidingWindow_noOverlap_600_600_100_0_0.5_down_{int(target_anomaly_ratio*100)}%/train"
+    statistical_features_output_path = f"Data/deepLearning/transform/statistic_features_600_600_100_0_standardized_down_{int(target_anomaly_ratio*100)}%/train"
     
     for category in categories:
         sliding_window_category_path = os.path.join(sliding_window_path, category)
@@ -84,23 +85,33 @@ def undersample_normal_windows(sliding_window_path, statistical_features_path, s
                 f"Anomaly={anomaly_ratio:.2f}% ({len(anomaly_indices)})"
             )
             
-            # Calculate how many normal samples to keep to achieve 25% anomaly ratio
-            # If anomalies should be 25% of final dataset, normal samples should be 75%
-            # So: anomaly_count / (anomaly_count + normal_count) = 0.25
-            # Solving for normal_count: normal_count = anomaly_count * 3
-            target_normal_count = len(anomaly_indices) * 3
+            current_anomaly_ratio = len(anomaly_indices) / total_samples
             
-            # If we already have fewer normal samples than needed, keep all of them
-            if len(normal_indices) <= target_normal_count:
-                logger.info(f"Batch {batch_file} already has sufficient anomaly ratio, keeping all samples")
-                undersampled_normal_indices = normal_indices
+            # Determine whether we need to undersample normal or anomaly samples
+            if current_anomaly_ratio <= target_anomaly_ratio:
+                # Current anomaly ratio is lower than target, need to reduce normal samples
+                # Calculate how many normal samples to keep
+                target_normal_count = int(len(anomaly_indices) * (1 - target_anomaly_ratio) / target_anomaly_ratio)
+                
+                if len(normal_indices) <= target_normal_count:
+                    # We don't have enough normal samples to reduce further
+                    logger.info(f"Cannot achieve target ratio - not enough normal samples to reduce. Keeping all.")
+                    selected_indices = np.arange(total_samples)
+                else:
+                    # Undersample normal samples
+                    logger.info(f"Undersampling normal samples from {len(normal_indices)} to {target_normal_count}")
+                    np.random.shuffle(normal_indices)
+                    undersampled_normal_indices = normal_indices[:target_normal_count]
+                    selected_indices = np.sort(np.concatenate([undersampled_normal_indices, anomaly_indices]))
             else:
-                # Randomly select normal samples to keep
-                np.random.shuffle(normal_indices)
-                undersampled_normal_indices = normal_indices[:target_normal_count]
-            
-            # Combine indices and sort to maintain original order
-            selected_indices = np.sort(np.concatenate([undersampled_normal_indices, anomaly_indices]))
+                # Current anomaly ratio is higher than target, need to reduce anomaly samples
+                # Calculate how many anomaly samples to keep
+                target_anomaly_count = int(len(normal_indices) * target_anomaly_ratio / (1 - target_anomaly_ratio))
+                
+                logger.info(f"Undersampling anomaly samples from {len(anomaly_indices)} to {target_anomaly_count}")
+                np.random.shuffle(anomaly_indices)
+                undersampled_anomaly_indices = anomaly_indices[:target_anomaly_count]
+                selected_indices = np.sort(np.concatenate([normal_indices, undersampled_anomaly_indices]))
             
             # Subset both datasets using the same indices to maintain alignment
             # For sliding window dataset
@@ -136,12 +147,12 @@ def undersample_normal_windows(sliding_window_path, statistical_features_path, s
             statistical_features_output_file = os.path.join(statistical_features_output_category_dir, batch_file)
             np.savez(statistical_features_output_file, stat_features=stat_features)
             
-            logger.info(f"Saved undersampled data for batch {batch_file}")
+            logger.info(f"Saved resampled data for batch {batch_file}")
     
-    logger.info("Completed undersampling of normal windows")
+    logger.info(f"Completed resampling to {target_anomaly_ratio*100:.0f}% anomaly ratio")
 
 
 if __name__ == "__main__":
-    sliding_window_path = "Data/processed/lsmt_timeFeatures/sliding_window_600s/train"
-    statistical_features_path = "Data/processed/lsmt_timeFeatures/statistic_features_standscaler_600s/train"
-    undersample_normal_windows(sliding_window_path, statistical_features_path)
+    sliding_window_path = "Data/deepLearning/transform/slidingWindow_noOverlap_600_600_100_0_0.5/train"
+    statistical_features_path = "Data/deepLearning/transform/statistic_features_600_600_100_0_standardized/train"
+    undersample_normal_windows(sliding_window_path, statistical_features_path, target_anomaly_ratio=0.20)

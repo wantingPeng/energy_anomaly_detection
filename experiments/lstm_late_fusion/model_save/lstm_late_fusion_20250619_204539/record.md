@@ -1,4 +1,14 @@
-# LSTM Late Fusion Model Configuration
+s]
+[2025-06-19 20:46:27,906] [INFO] [<frozen importlib] - Validation Loss: 0.0255, Accuracy: 0.9256, Precision: 0.3003, Recall: 0.2314, F1: 0.2614
+[2025-06-19 20:46:27,906] [INFO] [<frozen importlib] - Confusion Matrix:
+[[7347  247]
+ [ 352  106]]
+[2025-06-19 20:46:27,906] [INFO] [<frozen importlib] - current best Threshold: 0.31
+[2025-06-19 20:46:27,906] [INFO] [<frozen importlib] - Current learning rate: 0.001
+[2025-06-19 20:46:27,916] [INFO] [<frozen importlib] - Saved best model (loss) at epoch 10
+[2025-06-19 20:46:27,919] [INFO] [<frozen importlib] - Saved best mode
+
+
 
 # Model parameters
 model:
@@ -26,7 +36,7 @@ training:
   
   # Method 3: Focal Loss
   use_focal_loss: true  # Set to true to use Focal Loss
-  focal_loss_alpha: 0.9  # Weight for positive class (higher means more focus on anomalies)
+  focal_loss_alpha: 0.4  # Weight for positive class (higher means more focus on anomalies)
   focal_loss_gamma: 2.0  # Focusing parameter (higher means more focus on hard examples)
 
   early_stopping_metric: "f1"
