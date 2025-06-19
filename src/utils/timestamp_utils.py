@@ -27,7 +27,7 @@ def compare_timestamps(time_str):
     
     # Check if they are equal
     are_equal = utc_int_timestamp == naive_int_timestamp
-    
+     
     result = {
         "are_equal": are_equal,
         "utc_timestamp_int": utc_int_timestamp,

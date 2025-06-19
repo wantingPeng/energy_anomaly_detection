@@ -163,8 +163,8 @@ def main():
     log_memory("Starting conversion")
     
     # Get paths from config
-    input_dir = "Data/deepLearning/transform/slidingWindow_noOverlap_600_600_100_0_0.5"
-    output_dir = "Data/deepLearning/transform/projection_pos_encoding_600_600_100_0_0.5"
+    input_dir = "Data/deepLearning/transform/window_plus_statistic"
+    output_dir = "Data/deepLearning/transform/projection_pos_encoding_window_plus_statistic"
     
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)

@@ -1,271 +1,109 @@
 import numpy as np
 import os
-from pathlib import Path
-import pandas as pd
-import matplotlib.pyplot as plt
 from src.utils.logger import logger
 
-def preview_npz_data(npz_file_path, num_rows=100):
+def preview_npz_file(file_path, max_rows=100):
     """
-    Preview the first num_rows of data from an NPZ file.
+    Preview the contents of an NPZ file by displaying the first 'max_rows' rows of each array.
     
     Args:
-        npz_file_path (str): Path to the NPZ file
-        num_rows (int): Number of rows to preview (default: 100)
+        file_path (str): Path to the NPZ file
+        max_rows (int): Maximum number of rows to display for each array, defaults to 100
+    
+    Returns:
+        dict: Dictionary containing array names and their previews
     """
+    # Check if file exists
+    if not os.path.exists(file_path):
+        logger.error(f"File not found: {file_path}")
+        return None
+    
     try:
-        # Check if file exists
-        if not os.path.exists(npz_file_path):
-            logger.error(f"File not found: {npz_file_path}")
-            return
-            
         # Load the NPZ file
-        logger.info(f"Loading NPZ file: {npz_file_path}")
-        data = np.load(npz_file_path, allow_pickle=True)
+        logger.info(f"Loading NPZ file: {file_path}")
+        data = np.load(file_path, allow_pickle=True)
         
-        # Print the keys in the NPZ file
+        # Log the keys in the file
         logger.info(f"Keys in NPZ file: {data.files}")
         
-        # Preview each array in the NPZ file
+        # Dictionary to store previews
+        previews = {}
+        
+        # Iterate through all arrays in the NPZ file
         for key in data.files:
-            array = data[key]
-            
+            arr = data[key]
             logger.info(f"\nPreview of '{key}':")
-            logger.info(f"Shape: {array.shape}")
-            logger.info(f"Data type: {array.dtype}")
+            logger.info(f"Shape: {arr.shape}")
+            logger.info(f"Data type: {arr.dtype}")
             
-            # Check for NaN values if array is numeric
-            if np.issubdtype(array.dtype, np.number):
-                nan_count = np.isnan(array).sum()
-                total_elements = array.size
-                nan_percentage = (nan_count / total_elements) * 100 if total_elements > 0 else 0
-                logger.info(f"NaN values: {nan_count} out of {total_elements} ({nan_percentage:.2f}%)")
-            else:
-                logger.info("NaN check skipped (non-numeric data type)")
-            
-            # If array is multi-dimensional, reshape it for preview
-            if array.ndim > 1:
-                # For 2D+ arrays, display shape information for each dimension
-                for i, dim in enumerate(array.shape):
-                    logger.info(f"Dimension {i}: {dim} elements")
+            # Get the preview of the array
+            if arr.size > 0:
+                # Check for NaN values if array is numeric
+                if np.issubdtype(arr.dtype, np.number):
+                    nan_count = np.isnan(arr).sum()
+                    logger.info(f"NaN count: {nan_count} ({nan_count/arr.size:.2%} of values)")
+                    
+                    # Log basic statistics
+                    if nan_count < arr.size:  # If not all values are NaN
+                        logger.info(f"Min: {np.nanmin(arr)}")
+                        logger.info(f"Max: {np.nanmax(arr)}")
+                        logger.info(f"Mean: {np.nanmean(arr)}")
+                        logger.info(f"Std: {np.nanstd(arr)}")
+                else:
+                    logger.info(f"NaN check skipped (non-numeric data type)")
                 
-                # If 2D, try to show as a table
-                if array.ndim == 2 and array.shape[0] > 0:
-                    # Preview first num_rows rows (or all if fewer)
-                    preview_rows = min(num_rows, array.shape[0])
+                # Get the first max_rows or fewer rows
+                if arr.ndim >= 2:
+                    preview_rows = min(arr.shape[0], max_rows)
+                    preview = arr[:preview_rows]
                     logger.info(f"\nFirst {preview_rows} rows:")
                     
-                    # Create a DataFrame for prettier display
-                    preview_df = pd.DataFrame(
-                        array[:preview_rows], 
-                        columns=[f"Col_{i}" for i in range(array.shape[1])]
-                    )
-                    
-                    # Convert to string with a fixed width for each column
-                    preview_str = preview_df.to_string(index=True, max_cols=20)
-                    logger.info(preview_str)
-                    
-                # For 3D or higher, show first slice
-                elif array.ndim >= 3 and array.shape[0] > 0:
-                    logger.info(f"\nFirst slice of the first {min(num_rows, array.shape[0])} items:")
-                    for i in range(min(num_rows, array.shape[0])):
-                        logger.info(f"Item {i}, first slice shape: {array[i].shape}")
-                        if i < 3:  # Only show details for first few items
-                            logger.info(f"Preview: {array[i][0][:5]}...")  # First 5 elements of first slice
-            else:
-                # For 1D arrays, show the values directly
-                preview_count = min(num_rows, array.shape[0])
-                logger.info(f"\nFirst {preview_count} values:")
-                
-                # Specially handle object dtype (e.g., datetime, strings, etc.)
-                if array.dtype == np.dtype('O'):
-                    for i in range(preview_count):
-                        logger.info(f"[{i}] {array[i]}")
+                    # For 2D arrays, display in a more readable format
+                    if arr.ndim == 2:
+                        if arr.shape[1] > 20:  # If too many columns, show summary
+                            for i, row in enumerate(preview):
+                                logger.info(f"Row {i}: shape={row.shape}, first 5 values: {row[:5]}, "
+                                          f"last 5 values: {row[-5:] if row.shape[0] >= 5 else row}")
+                        else:  # Otherwise show full rows
+                            for i, row in enumerate(preview):
+                                logger.info(f"Row {i}: {row}")
+                    else:
+                        logger.info(str(preview))
                 else:
-                    logger.info(array[:preview_count])
+                    # Handle 1D arrays
+                    preview_elements = min(arr.size, max_rows)
+                    preview = arr[:preview_elements]
+                    logger.info(f"\nFirst {preview_elements} values:")
+                    logger.info(str(preview))
                 
-            # Check for infinite values if array is numeric
-            if np.issubdtype(array.dtype, np.number):
-                inf_count = np.isinf(array).sum()
-                if inf_count > 0:
-                    logger.warning(f"Warning: {inf_count} infinite values detected in '{key}'")
-                
+                previews[key] = preview
+            else:
+                logger.info(f"Array '{key}' is empty")
+                previews[key] = arr
+        
+        return previews
+    
     except Exception as e:
-        logger.error(f"Error previewing NPZ file: {str(e)}")
+        logger.error(f"Error loading NPZ file: {e}")
+        return None
 
-def check_parquet_for_nans(parquet_file_path):
+def display_preview(file_path, max_rows=10):
     """
-    Check a parquet file for NaN values.
+    Display preview of the NPZ file with nicely formatted output.
     
     Args:
-        parquet_file_path (str): Path to the parquet file
+        file_path (str): Path to the NPZ file
+        max_rows (int): Maximum number of rows to display for each array, defaults to 100
     """
-    try:
-        # Check if file exists
-        if not os.path.exists(parquet_file_path):
-            logger.error(f"File not found: {parquet_file_path}")
-            return
-        
-        # Load the parquet file
-        logger.info(f"Loading parquet file: {parquet_file_path}")
-        df = pd.read_parquet(parquet_file_path)
-        
-        # Print basic info about the dataframe
-        logger.info(f"DataFrame shape: {df.shape}")
-        logger.info(f"DataFrame columns: {df.columns.tolist()}")
-        
-        # Check for NaN values in the entire dataframe
-        total_elements = df.size
-        nan_count = df.isna().sum().sum()
-        nan_percentage = (nan_count / total_elements) * 100 if total_elements > 0 else 0
-        
-        logger.info(f"Total NaN values: {nan_count} out of {total_elements} ({nan_percentage:.2f}%)")
-        
-        # Check for NaN values in each column
-        logger.info("\nNaN values by column:")
-        for column in df.columns:
-            col_nan_count = df[column].isna().sum()
-            col_elements = len(df[column])
-            col_nan_percentage = (col_nan_count / col_elements) * 100 if col_elements > 0 else 0
-            logger.info(f"{column}: {col_nan_count} out of {col_elements} ({col_nan_percentage:.2f}%)")
-        
-        # Show a preview of the first few rows
-        logger.info("\nPreview of the first 5 rows:")
-        logger.info(df.head().to_string())
-        
-        return nan_count > 0
-        
-    except Exception as e:
-        logger.error(f"Error checking parquet file: {str(e)}")
-        return False
-
-def check_directory_for_nans(directory_path):
-    """
-    Check all parquet files in a directory for NaN values.
+    previews = preview_npz_file(file_path, max_rows)
     
-    Args:
-        directory_path (str): Path to the directory containing parquet files
-    """
-    try:
-        # Check if directory exists
-        if not os.path.exists(directory_path):
-            logger.error(f"Directory not found: {directory_path}")
-            return
-        
-        # Get all parquet files in the directory
-        parquet_files = []
-        
-        # Check if directory_path is a file or directory
-        if os.path.isfile(directory_path) and directory_path.endswith('.npz'):
-            parquet_files = [directory_path]
-            logger.info(f"Found 1 parquet file: {directory_path}")
-        else:
-            # Walk through the directory to find all parquet files
-            for root, _, files in os.walk(directory_path):
-                for file in files:
-                    if file.endswith('.parquet'):
-                        parquet_files.append(os.path.join(root, file))
-            
-            logger.info(f"Found {len(parquet_files)} parquet files in {directory_path}")
-        
-        if not parquet_files:
-            logger.warning(f"No parquet files found in {directory_path}")
-            return
-        
-        # Check each parquet file for NaN values
-        files_with_nans = 0
-        for parquet_file in parquet_files:
-            logger.info(f"\n{'='*50}")
-            logger.info(f"Checking file: {parquet_file}")
-            has_nans = check_parquet_for_nans(parquet_file)
-            if has_nans:
-                files_with_nans += 1
-        
-        logger.info(f"\n{'='*50}")
-        logger.info(f"Summary: {files_with_nans} out of {len(parquet_files)} files contain NaN values")
-        
-    except Exception as e:
-        logger.error(f"Error checking directory: {str(e)}")
-
-def analyze_npz_directory(directory_path):
-    """
-    Analyze all NPZ files in a directory and display information about each key.
-    
-    Args:
-        directory_path (str): Path to the directory containing NPZ files
-    """
-    try:
-        # Check if directory exists
-        if not os.path.exists(directory_path):
-            logger.error(f"Directory not found: {directory_path}")
-            return
-        
-        # Get all NPZ files in the directory
-        npz_files = []
-        
-        # Check if directory_path is a file or directory
-        if os.path.isfile(directory_path) and directory_path.endswith('.npz'):
-            npz_files = [directory_path]
-            logger.info(f"Found 1 NPZ file: {directory_path}")
-        else:
-            # Walk through the directory to find all NPZ files
-            for root, _, files in os.walk(directory_path):
-                for file in files:
-                    if file.endswith('.npz'):
-                        npz_files.append(os.path.join(root, file))
-            
-            logger.info(f"Found {len(npz_files)} NPZ files in {directory_path}")
-        
-        if not npz_files:
-            logger.warning(f"No NPZ files found in {directory_path}")
-            return
-        
-        # Analyze each NPZ file
-        for npz_file in npz_files:
-            logger.info(f"\n{'='*50}")
-            logger.info(f"Analyzing file: {npz_file}")
-            
-            try:
-                # Load the NPZ file
-                data = np.load(npz_file, allow_pickle=True)
-                
-                # Print the keys in the NPZ file
-                logger.info(f"Keys in NPZ file: {data.files}")
-                
-                # Analyze each array in the NPZ file
-                for key in data.files:
-                    array = data[key]
-                    
-                    logger.info(f"\nKey: '{key}'")
-                    logger.info(f"  Shape: {array.shape}")
-                    logger.info(f"  Data type: {array.dtype}")
-                    logger.info(f"  Number of elements: {array.size}")
-                    
-                    # Check for NaN values if array is numeric
-                    if np.issubdtype(array.dtype, np.number):
-                        nan_count = np.isnan(array).sum()
-                        total_elements = array.size
-                        nan_percentage = (nan_count / total_elements) * 100 if total_elements > 0 else 0
-                        logger.info(f"  NaN values: {nan_count} out of {total_elements} ({nan_percentage:.2f}%)")
-            
-            except Exception as e:
-                logger.error(f"Error analyzing NPZ file {npz_file}: {str(e)}")
-        
-    except Exception as e:
-        logger.error(f"Error analyzing directory: {str(e)}")
-
-def main():
-    """Main function to run the preview."""
-    #NPZ file preview
-    # npz_file_path = "Data/processed/lsmt/sliding_window_800s/test/contact/batch_0.npz"
-    # preview_npz_data(npz_file_path)
-    
-    # directory_path = "Data/processed/lsmt_standerScaler_in_segment/spilt_after_sliding/sliding_window/contact"
-    # preview_npz_data(directory_path)
-    
-    # Analyze all NPZ files in the directory
-    directory_path = "Data/processed/lsmt_standerScaler_in_segment/spilt_after_sliding/sliding_window/contact"
-    analyze_npz_directory(directory_path)
+    if previews:
+        logger.info(f"=== NPZ File Preview: {file_path} ===")
+        logger.info("Preview complete. See details above.")
+    else:
+        logger.error(f"Failed to preview NPZ file: {file_path}")
 
 if __name__ == "__main__":
-    main()
+    # Example usage
+    npz_file = "Data/deepLearning/transform/statistic_features_600_600_100_0_standardized/train/contact/batch_0.npz"
+    display_preview(npz_file, max_rows=100)

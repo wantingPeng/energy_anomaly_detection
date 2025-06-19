@@ -92,7 +92,7 @@ def get_batch_dirs(data_type, component):
     Returns:
         List of batch directory paths
     """
-    base_dir = f"Data/processed/lsmt_statisticalFeatures/interpolate/{data_type}/{component}"
+    base_dir = f"Data/deepLearning/transform/standscaler/{data_type}/{component}"
     batch_dirs = sorted(glob.glob(os.path.join(base_dir, "batch_*")))
     logger.info(f"Found {len(batch_dirs)} batch directories for {data_type}/{component}")
     return batch_dirs
@@ -180,7 +180,6 @@ def process_segment(
             
         # Calculate overlap with anomalies
         overlap_ratio = calculate_window_overlap(start_time, end_time, interval_tree)
-        print(f"overlap_ratio: {overlap_ratio}")
         current_step_size = anomaly_step_size if overlap_ratio > 0 else step_size
         
         # Add window to list
@@ -271,7 +270,7 @@ def process_batch(batch_dir, output_dir, top_features, interval_tree, component)
         # Create sliding windows with overlap calculation
 
         windows = create_sliding_windows(
-            batch_df, component, 600, 600, 100, interval_tree, 6
+            batch_df, component, 600, 600, 600, interval_tree, 6
         )
         logger.info(f"windows_type: {type(windows)}")
         # Display sample of window data
@@ -316,24 +315,26 @@ def process_batch(batch_dir, output_dir, top_features, interval_tree, component)
         metadata_cols = ['window_start', 'window_end', 'segment_id']
         feature_cols = [col for col in features_df.columns if col not in metadata_cols]
         
-        '''# Apply standardization to numerical features
-        # Create a copy to avoid modifying the original DataFrame
+        # Get the raw feature values without standardization
         stat_features_df = features_df[feature_cols].copy()
+        '''stat_features = stat_features_df.values
         
-        # Apply StandardScaler
+        logger.info(f"Using raw feature values without standardization for {stat_features.shape[1]} features")
+        '''
+         # Apply StandardScaler
         scaler = StandardScaler()
         stat_features = scaler.fit_transform(stat_features_df)
         
-        logger.info(f"Applied standardization to {stat_features.shape[1]} features")'''
+        logger.info(f"Applied standardization to {stat_features.shape[1]} features")
         
-        # Save as numpy array with standardized features
+        # Save as numpy array with raw features
         np_output_file = os.path.join(output_dir, f"{batch_name}.npz")
         np.savez_compressed(
             np_output_file,
-            stat_features=feature_cols,
+            stat_features=stat_features,  # Save the actual raw feature values without standardization
             feature_names=feature_cols  # Save feature names for reference
         )
-        logger.info(f"Saved standardized statistical features as numpy array to {np_output_file}")
+        logger.info(f"Saved raw statistical features as numpy array to {np_output_file}")
         
         return len(features_df)
     
@@ -341,15 +342,7 @@ def process_batch(batch_dir, output_dir, top_features, interval_tree, component)
         logger.error(f"Error processing batch {batch_dir}: {str(e)}")
         return 0
 
-def preview_anomaly_trees(anomaly_trees, max_intervals=3):
-    for station, tree in anomaly_trees.items():
-        print(f"\n--- Station: {station} ---")
-        for i, interval in enumerate(sorted(tree), start=1):
-            start_utc = datetime.fromtimestamp(interval.begin, tz=timezone.utc)
-            end_utc = datetime.fromtimestamp(interval.end, tz=timezone.utc)
-            print(f"Interval {i}: start = {start_utc}, end = {end_utc}, data = {interval.data}")
-            if i >= max_intervals:
-                break
+
 
 def main():
     """Main function to process all data."""
@@ -363,15 +356,13 @@ def main():
     
     # Load anomaly dictionary
     try:
-        anomaly_dict_path = "Data/processed/soft_label/anomaly_dict_merged.pkl"
+        anomaly_dict_path = "Data/machine/Anomaly_Data/anomaly_dict_merged.pkl"
         logger.info(f"Loading anomaly dictionary from {anomaly_dict_path}")
         with open(anomaly_dict_path, 'rb') as f:
             anomaly_dict = pickle.load(f)
         
         # Create interval trees for each station
         anomaly_trees = {station: create_interval_tree(periods) for station, periods in anomaly_dict.items()}
-
-        preview_anomaly_trees(anomaly_trees, max_intervals=5)
 
 
         logger.info(f"Created interval trees for {len(anomaly_trees)} stations")
@@ -386,7 +377,7 @@ def main():
     total_windows = 0
     
     # Process each data type and component
-    data_types = ['train', 'val', 'test']
+    data_types = ['val']
     components = ['contact']  # Add 'pcb', 'ring' if needed
     
     logger.info(f"Starting sliding window feature extraction with dynamic step sizes")
@@ -397,17 +388,12 @@ def main():
             batch_dirs = get_batch_dirs(data_type, component)
             
             # Create output directory
-            output_dir = f"Data/processed/transform/slidingWindow_noOverlap_600_600_100_0/statistic_features/{data_type}/{component}"
+            output_dir = f"Data/deepLearning/transform/statistic_features_600_600_100_0_standardized/{data_type}/{component}"
             os.makedirs(output_dir, exist_ok=True)
 
             station = component_to_station.get(component)
             interval_tree = anomaly_trees[station]
 
-            for i, interval in enumerate(sorted(interval_tree), start=1):
-                print(f"Interval {i}: start = {datetime.fromtimestamp(interval.begin, tz=timezone.utc)}, end = {datetime.fromtimestamp(interval.end, tz=timezone.utc)}, data = {interval.data}")
-                if i >= 5:
-                    break
-                
             batch_windows = 0
             for batch_idx, batch_dir in enumerate(batch_dirs):
                 logger.info(f"Processing batch {batch_idx+1}/{len(batch_dirs)} for {data_type}/{component}")
@@ -419,7 +405,7 @@ def main():
             total_windows += batch_windows
     
     logger.info(f"Total windows processed: {total_windows}")
-    logger.info(f"Processing complete. Results saved to Data/processed/transform/slidingWindow_withOverlap_*/statistic_features_standscaler/")
+    logger.info(f"Processing complete. Results saved to Data/deepLearning/transform/statistic_features_600_600_100_0/{data_type}/{component}")
 
 if __name__ == "__main__":
     main()

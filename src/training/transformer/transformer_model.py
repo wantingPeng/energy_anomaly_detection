@@ -96,7 +96,12 @@ class TransformerModel(nn.Module):
         self.attention_pooling = AttentionPooling(d_model)
         
         # Output layer for classification
-        self.classifier = nn.Linear(d_model, num_classes)
+        self.classifier = nn.Sequential(
+            nn.Linear(d_model, d_model // 2),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(d_model // 2, num_classes)
+        )
         
     def forward(self, src: torch.Tensor, src_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """

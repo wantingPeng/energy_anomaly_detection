@@ -179,7 +179,7 @@ class TransformerDataset(Dataset):
             
             # Extract windows and labels
             windows = data['windows']
-            labels = data['soft_labels']
+            labels = data['labels']
             
             # Convert to tensor
             windows_tensor = torch.FloatTensor(windows)
