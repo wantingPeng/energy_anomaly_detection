@@ -1,0 +1,47 @@
+{
+    "training": {
+        "timestamp": "20250622_205333",
+        "duration_seconds": 208.97647762298584,
+        "config_file": "configs/train_xgboost.yaml",
+        "hyperparam_tuning": true
+    },
+    "data": {
+        "train_samples": 609411,
+        "val_samples": 86615,
+        "test_samples": "not evaluated",
+        "features": 378,
+        "class_distribution": {
+            "train": {
+                "false": 379957,
+                "true": 229454
+            },
+            "val": {
+                "false": 81419,
+                "true": 5196
+            },
+            "test": "not evaluated"
+        }
+    },
+    "model": {
+        "optimal_threshold": 0.74,
+        "best_params": {
+            "subsample": 0.7,
+            "scale_pos_weight": 3,
+            "min_child_weight": 1,
+            "max_depth": 7,
+            "learning_rate": 0.05,
+            "gamma": 0,
+            "colsample_bytree": 0.7
+        }
+    },
+    "metrics": {
+        "validation": {
+            "f1": 0.6283783783783784,
+            "precision": 0.5839391936549901,
+            "recall": 0.6801385681293303,
+            "accuracy": 0.9517404606592391,
+            "roc_auc": 0.9624328208482869
+        },
+        "test": "not evaluated"
+    }
+}

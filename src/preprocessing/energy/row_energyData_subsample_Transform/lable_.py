@@ -66,8 +66,8 @@ for split in splits:
         anomaly_periods = anomaly_dict[station]
         
         # Load the data
-        input_path = f"Data/row_energyData_subsample_Transform/standscaler/{split}/{component}/part.0.parquet"
-        output_path = f"Data/row_energyData_subsample_Transform/labeled/{split}/{component}/part.0.parquet"
+        input_path = f"Data/row_energyData_subsample_xgboost/slidingWindow/{component}/{split}.parquet"
+        output_path = f"Data/row_energyData_subsample_xgboost/labeled/{component}/{split}.parquet"
         
         if not os.path.exists(input_path):
             logger.warning(f"File not found: {input_path}")
@@ -84,7 +84,7 @@ for split in splits:
         
         # Add anomaly label column
         logger.info("Adding anomaly labels...")
-        df['anomaly_label'] = df['TimeStamp'].apply(lambda ts: is_anomaly(ts, anomaly_periods))
+        df['anomaly_label'] = df['window_start'].apply(lambda ts: is_anomaly(ts, anomaly_periods))
         
         # Count anomalies
         anomaly_count = df['anomaly_label'].sum()
@@ -94,7 +94,7 @@ for split in splits:
         logger.info("\nSample of labeled data:")
         sample = df.sample(min(5, len(df)))
         for _, row in sample.iterrows():
-            logger.info(f"Timestamp: {row['TimeStamp']}, Label: {row['anomaly_label']}")
+            logger.info(f"window_start: {row['window_start']}, Label: {row['anomaly_label']}")
         
         # Save the labeled data
         logger.info(f"Saving labeled data to {output_path}...")

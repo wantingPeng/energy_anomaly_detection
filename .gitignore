@@ -16,3 +16,5 @@ venv/
 *.xz
 *.tar.xz
 *.tar.gz
+events.out.tfevents.*
+*.pyc
