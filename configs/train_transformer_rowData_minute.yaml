@@ -1,0 +1,55 @@
+# Transformer Model Configuration for Energy Anomaly Detection
+
+# Paths
+paths:
+  data_dir: "Data/row_energyData_subsample_Transform/position_encoding"
+  output_dir: "experiments/row_energyData_subsample_Transform"
+
+# Data configuration
+data:
+  component: "contact"  # Options: contact, pcb, ring
+
+# Model configuration
+model:
+  d_model: 128  # Dimension of the model
+  nhead: 8  # Number of heads in multi-head attention
+  num_layers: 2  # Number of transformer layers
+  dim_feedforward: 512  # Dimension of the feedforward network
+  dropout: 0.1  # Dropout probability
+  num_classes: 2  # Number of output classes (binary classification)
+  activation: "gelu"  # Activation function for transformer layers
+
+# Training configuration
+training:
+  batch_size: 128
+  num_workers: 2
+  num_epochs: 150
+  learning_rate: 0.01
+  weight_decay: 0.0001
+  momentum: 0.9  # Only used for SGD optimizer
+  optimizer: "adam"  # Options: adam
+  
+  # Learning rate scheduling
+  lr_scheduler: "reduce_on_plateau"  # Options: reduce_on_plateau, cosine_annealing, none
+  lr_reduce_factor: 0.5  # Factor by which the learning rate will be reduced (ReduceLROnPlateau)
+  lr_reduce_patience: 5  # Number of epochs with no improvement after which learning rate will be reduced
+  min_lr: 1.0e-6  # Minimum learning rate for CosineAnnealingLR
+  
+  # Early stopping
+  early_stopping_patience: 15  # Number of epochs with no improvement after which training will be stopped
+  early_stopping_min_delta: 0.0001  # Minimum change to qualify as an improvement
+  early_stopping_metric: "optimal_f1"  # Metric to monitor for early stopping, options: loss, f1, auprc, optimal_f1
+  
+  # Class weighting and loss function
+  use_focal_loss: true   # Whether to use focal loss instead of cross entropy loss
+  focal_loss_alpha: 0.4  # Alpha parameter for focal loss (weight for the rare class)
+  focal_loss_gamma: 2.0  # Gamma parameter for focal loss (focusing parameter)
+
+# Hardware configuration
+hardware:
+  precision: "float32"  # Options: float32, float16 (mixed precision)
+
+# Sequence labeling configuration
+sequence_labeling:
+  use_threshold_optimization: true  # Whether to optimize threshold for binary classification
+  evaluation_metric: "optimal_f1"  # Primary metric for model evaluation (f1, optimal_f1, auprc) 

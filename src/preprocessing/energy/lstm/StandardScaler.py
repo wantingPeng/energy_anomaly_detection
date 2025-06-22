@@ -21,8 +21,8 @@ def standardize_dataframes():
                                  'component_type_ring'
     """
     # Set input and output directories
-    input_dir = 'Data/deepLearning/transform/interpolated'
-    output_dir = 'Data/deepLearning/transform/standscaler'
+    input_dir = 'Data/row_energyData_subsample_Transform/downsampled_1min'
+    output_dir = 'Data/row_energyData_subsample_Transform/standscaler'
     os.makedirs(output_dir, exist_ok=True)
     
     logger.info("Starting data standardization process with separate scalers for each component type")
