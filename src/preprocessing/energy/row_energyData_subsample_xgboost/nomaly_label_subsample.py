@@ -97,10 +97,10 @@ def downsample_normal_data(
 
 def main():
     # Input file path
-    input_file = "Data/row_energyData_subsample_xgboost/ranmdly_REspilt/contact/train.parquet"
+    input_file = "Data/row_energyData_subsample_Transform/labeled/train/contact/part.0.parquet"
     
     # Output directory
-    output_dir = "Data/row_energyData_subsample_xgboost/ranmdly_REspilt/contact/train_downsampled"
+    output_dir = "Data/row_energyData_subsample_Transform/labeled/train/contact/train_downsampled"
     
     # Target ratio (75:25 means 3:1 ratio of normal to anomaly)
     normal_anomaly_ratio = 3.0

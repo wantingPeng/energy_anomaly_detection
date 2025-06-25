@@ -62,7 +62,7 @@ def calculate_anomaly_ratio(file_path: str, verbose: bool = True):
 
 def main():
     # File path
-    file_path = "Data/processed/machinen_learning/individual_model/randomly_spilt/train.parquet"
+    file_path = "Data/row_energyData_subsample_Transform/labeled/train/contact/part.0.parquet"
     
     # Calculate ratio
     calculate_anomaly_ratio(file_path)

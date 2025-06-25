@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-from typing import Optional
+from typing import Optional, Tuple
 
 
 class AttentionPooling(nn.Module):
@@ -42,10 +42,12 @@ class AttentionPooling(nn.Module):
 
 class TransformerModel(nn.Module):
     """
-    Transformer model for anomaly detection with per-timestep predictions.
+    Transformer model for anomaly detection with both per-timestep predictions
+    and sequence-level predictions using attention pooling.
     
     This model uses a transformer encoder to process time series data
-    and predict anomalies for each timestep in the sequence.
+    and predicts anomalies for each timestep in the sequence and
+    provides a sequence-level classification using attention pooling.
     """
     def __init__(
         self,
@@ -76,8 +78,6 @@ class TransformerModel(nn.Module):
         self.input_dim = input_dim
         self.d_model = d_model
         
-        # Feature projection and positional encoding are assumed to be already applied in data preprocessing
-        
         # Transformer encoder
         encoder_layers = nn.TransformerEncoderLayer(
             d_model=d_model,
@@ -93,14 +93,23 @@ class TransformerModel(nn.Module):
         )
         
         # Output layer for per-timestep classification
-        self.classifier = nn.Sequential(
+        self.timestep_classifier = nn.Sequential(
             nn.Linear(d_model, d_model // 2),
             nn.ReLU(),
             nn.Dropout(dropout),
             nn.Linear(d_model // 2, num_classes)
         )
         
-    def forward(self, src: torch.Tensor, src_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        # Attention pooling for sequence-level prediction
+        self.attention_pooling = AttentionPooling(d_model)
+        self.sequence_classifier = nn.Sequential(
+            nn.Linear(d_model, d_model // 2),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(d_model // 2, num_classes)
+        )
+        
+    def forward(self, src: torch.Tensor, src_mask: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Forward pass of the transformer model.
         
@@ -109,15 +118,23 @@ class TransformerModel(nn.Module):
             src_mask: Optional mask for src sequence
             
         Returns:
-            Output tensor with class logits for each timestep [batch_size, seq_len, num_classes]
+            A tuple containing:
+            - timestep_logits: Class logits for each timestep [batch_size, seq_len, num_classes]
+            - sequence_logits: Class logits for sequence-level classification [batch_size, num_classes]
+            - attention_weights: Attention weights from pooling [batch_size, seq_len, 1]
         """
-        # Apply transformer encoder directly since projection and positional encoding
-        # are already applied during preprocessing
+        # Apply transformer encoder
         encoder_output = self.transformer_encoder(src, mask=src_mask)
         
         # Apply classifier to each timestep
         # [batch_size, seq_len, d_model] -> [batch_size, seq_len, num_classes]
-        logits = self.classifier(encoder_output)
+        timestep_logits = self.timestep_classifier(encoder_output)
         
-        return logits
+        # Apply attention pooling to get sequence-level representation
+        pooled_output, attention_weights = self.attention_pooling(encoder_output)
+        
+        # Apply sequence classifier
+        sequence_logits = self.sequence_classifier(pooled_output)
+        
+        return timestep_logits, sequence_logits, attention_weights
 

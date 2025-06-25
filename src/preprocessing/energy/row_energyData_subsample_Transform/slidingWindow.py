@@ -8,7 +8,7 @@ from datetime import datetime
 from src.utils.logger import logger
 
 
-def create_sliding_windows(data_types=None, components=None, window_size=60, step_size=60, preview=False):
+def create_sliding_windows(data_types=None, components=None, window_size=10, step_size=10, preview=False):
     """
     Create sliding windows from the labeled data.
     
@@ -24,13 +24,13 @@ def create_sliding_windows(data_types=None, components=None, window_size=60, ste
     """
     # Default parameters if not provided
     if data_types is None:
-        data_types = ['train', 'val', 'test']
+        data_types = ['train_downsampled', 'val', 'test']
     if components is None:
         components = ['contact', 'pcb', 'ring']
         
     # Input and output directories
     input_base_dir = "Data/row_energyData_subsample_Transform/labeled"
-    output_base_dir = "Data/row_energyData_subsample_Transform/slidingWindow"
+    output_base_dir = "Data/row_energyData_subsample_Transform/slidingWindow_10"
     
     # Process each data type and component
     for data_type in data_types:
@@ -130,12 +130,12 @@ def create_sliding_windows(data_types=None, components=None, window_size=60, ste
 def main():
     """Main function to run the sliding window creation."""
     # Set parameters
-    window_size = 60
-    step_size = 60
+    window_size = 10
+    step_size = 10
     
     # Create sliding windows
     create_sliding_windows(
-        data_types=['train', 'val', 'test'],
+        data_types=['train_downsampled', 'val', 'test'],
         components=['contact'],  # Add 'pcb', 'ring' if needed
         window_size=window_size,
         step_size=step_size,

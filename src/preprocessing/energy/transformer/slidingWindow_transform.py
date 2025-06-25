@@ -115,7 +115,7 @@ def process_segment(
 
             # Only keep windows with overlap_ratio > 0.9 (anomaly) or < 0.1 (normal)
 
-            label = 1 if overlap_ratio >= 0.5 else 0
+            label = 1 if overlap_ratio >= 0.3 else 0
 
             '''if overlap_ratio > 0.9:
                 label = 1
@@ -318,7 +318,7 @@ def main():
 
     # Process each data type and component
     #for data_type in ['train', 'val', 'test']:
-    for data_type in [ 'val']:
+    for data_type in [ 'train']:
 
         for component in components:
             process_component_data(

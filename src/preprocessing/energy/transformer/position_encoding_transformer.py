@@ -163,8 +163,8 @@ def main():
     log_memory("Starting conversion")
     
     # Get paths from config
-    input_dir = "Data/row_energyData_subsample_Transform/slidingWindow"
-    output_dir = "Data/row_energyData_subsample_Transform/position_encoding"
+    input_dir = "Data/row_energyData_subsample_Transform/slidingWindow_10"
+    output_dir = "Data/row_energyData_subsample_Transform/position_encoding_10"
     
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)

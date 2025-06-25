@@ -222,10 +222,9 @@ def train_epoch(model, data_loader, optimizer, criterion, device, scheduler=None
         data = data.float()
 
         optimizer.zero_grad()
-        logits = model(data)  # shape: [batch_size, seq_len, num_classes]
+        timestep_logits, sequence_logits, attention_weights = model(data)
         
-        # Compute loss
-        loss = criterion(logits, labels)
+        loss = criterion(timestep_logits, labels)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
@@ -233,28 +232,21 @@ def train_epoch(model, data_loader, optimizer, criterion, device, scheduler=None
         if scheduler is not None and not isinstance(scheduler, ReduceLROnPlateau):
             scheduler.step()
 
-        # Get predictions
-        preds = torch.argmax(logits, dim=2)  # [batch_size, seq_len]
+        preds = torch.argmax(timestep_logits, dim=2)  # [batch_size, seq_len]
         
-        # Collect predictions and labels for metrics calculation
         all_preds.append(preds.detach().cpu())
         all_labels.append(labels.cpu())
 
         total_loss += loss.item()
         pbar.set_postfix({'loss': loss.item()})
 
-    # Calculate metrics
     all_preds = torch.cat(all_preds, dim=0).numpy().flatten()  # [total_samples * seq_len]
     all_labels = torch.cat(all_labels, dim=0).numpy().flatten()  # [total_samples * seq_len]
     
-    # Calculate metrics
     accuracy = accuracy_score(all_labels, all_preds)
     precision, recall, f1, _ = precision_recall_fscore_support(
         all_labels, all_preds, average='binary', zero_division=0
     )
-    
-    # For AUPRC, we need probability scores
-    # We'll skip AUPRC for training metrics since it's computationally expensive
     
     metrics = {
         'accuracy': accuracy,
@@ -287,6 +279,7 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
     all_logits = []
     all_preds = []
     all_labels = []
+    all_attention_weights = []
     sample_outputs = []
 
     with torch.no_grad():
@@ -294,34 +287,31 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
             data, labels = data.to(device), labels.to(device)
             data = data.float()
 
-            # Forward pass
-            logits = model(data)  # [batch_size, seq_len, num_classes]
-            loss = criterion(logits, labels)
+            timestep_logits, sequence_logits, attention_weights = model(data)
+            loss = criterion(timestep_logits, labels)
             total_loss += loss.item()
 
-            # Get predictions
-            probs = torch.softmax(logits, dim=2)  # [batch_size, seq_len, num_classes]
-            preds = torch.argmax(logits, dim=2)  # [batch_size, seq_len]
+            probs = torch.softmax(timestep_logits, dim=2)  # [batch_size, seq_len, num_classes]
+            preds = torch.argmax(timestep_logits, dim=2)  # [batch_size, seq_len]
 
-            # Collect for metrics calculation
-            all_logits.append(logits.cpu())
+            all_logits.append(timestep_logits.cpu())
             all_preds.append(preds.cpu())
             all_labels.append(labels.cpu())
+            all_attention_weights.append(attention_weights.cpu())
 
-            # Sample output logging
             if print_samples and batch_idx == 0:
                 sample_size = min(2, len(data))
                 for i in range(sample_size):
                     sample_outputs.append({
-                        'logits': logits[i].cpu().numpy(),
+                        'logits': timestep_logits[i].cpu().numpy(),
                         'probs': probs[i, :, 1].cpu().numpy(),  # Probability of anomaly for each timestep
                         'preds': preds[i].cpu().numpy(),
-                        'actual': labels[i].cpu().numpy()
+                        'actual': labels[i].cpu().numpy(),
+                        'attention': attention_weights[i].cpu().numpy()
                     })
 
     avg_loss = total_loss / len(data_loader)
 
-    # Print sample outputs if available
     if print_samples and sample_outputs:
         logger.info("\n===== Sample Outputs =====")
         for i, sample in enumerate(sample_outputs):
@@ -329,32 +319,27 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
             logger.info(f"  Predictions: {sample['preds']}")
             logger.info(f"  Actual: {sample['actual']}")
             logger.info(f"  Anomaly Probs: {sample['probs']}")
+            logger.info(f"  Attention Weights: {sample['attention'].mean(axis=0)[:5]}...")
             logger.info("------------------------")
 
-    # Concatenate and reshape for metric calculation
     all_logits = torch.cat(all_logits, dim=0)  # [total_samples, seq_len, num_classes]
     all_preds = torch.cat(all_preds, dim=0).numpy()  # [total_samples, seq_len]
     all_labels = torch.cat(all_labels, dim=0).numpy()  # [total_samples, seq_len]
     
-    # Flatten for metrics calculation
     flat_preds = all_preds.flatten()
     flat_labels = all_labels.flatten()
     
-    # Get anomaly probabilities for all timesteps
     all_probs = torch.softmax(all_logits, dim=2)[:, :, 1].numpy().flatten()  # Probability of anomaly class
     
-    # Calculate AUPRC (Average Precision)
     auprc = average_precision_score(flat_labels, all_probs)
 
     cm = confusion_matrix(flat_labels, flat_preds)
     
-    # Find optimal threshold
     precision_curve, recall_curve, thresholds = precision_recall_curve(flat_labels, all_probs)
     f1_scores = 2 * precision_curve * recall_curve / (precision_curve + recall_curve + 1e-10)
     optimal_idx = np.argmax(f1_scores)
     optimal_threshold = thresholds[optimal_idx] if optimal_idx < len(thresholds) else 0.5
     
-    # Recalculate metrics with optimal threshold
     optimal_preds = (all_probs >= optimal_threshold).astype(int)
     optimal_accuracy = accuracy_score(flat_labels, optimal_preds)
     optimal_precision, optimal_recall, optimal_f1, _ = precision_recall_fscore_support(

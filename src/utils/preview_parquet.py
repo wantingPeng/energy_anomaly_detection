@@ -38,7 +38,7 @@ def preview_parquet(parquet_path, sample_size=1000, output_csv_path=None):
 
 if __name__ == "__main__":
     # ====== Customize below ======
-    parquet_file = "Data/processed/machinen_learning/val_94:6.parquet"
+    parquet_file = "Data/row_energyData_subsample_Transform/labeled/test/contact/part.0.parquet"
     #sample_output_csv = "Data/data_preview/add_timeFeature/contact_batch_0.csv"
     # ====== ================== ======
 
