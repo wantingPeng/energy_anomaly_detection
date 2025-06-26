@@ -3,6 +3,7 @@
 # This script launches TensorBoard to visualize the training logs for the Transformer model.
 
 # Set the default log directory
+
 LOG_DIR="experiments/lstm_sequence/tensorboard/lstm_sequence_20250622_142544"
 
 # Check if a specific log directory is provided as an argument
@@ -13,4 +14,4 @@ fi
 # Launch TensorBoard
 
 echo "Launching TensorBoard with log directory: $LOG_DIR"
-tensorboard --logdir "$LOG_DIR" --host 0.0.0.0 --port 6007 
+tensorboard --logdir "$LOG_DIR" --host 0.0.0.0 --port 6008 
