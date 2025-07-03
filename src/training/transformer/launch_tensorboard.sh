@@ -3,7 +3,7 @@
 # This script launches TensorBoard to visualize the training logs for the Transformer model.
 
 # Set the default log directory
-LOG_DIR="experiments/row_energyData_subsample_Transform/tensorboard/transformer_20250621_190813"
+LOG_DIR="experiments/lstm_sequence/tensorboard/lstm_sequence_20250629_220310"
 
 # Check if a specific log directory is provided as an argument
 if [ "$#" -gt 0 ]; then

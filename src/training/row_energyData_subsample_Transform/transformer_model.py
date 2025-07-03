@@ -4,6 +4,52 @@ import torch.nn.functional as F
 import math
 from typing import Optional, Tuple
 
+class PositionalEncoding(nn.Module):
+    """
+    Positional encoding for Transformer models.
+    
+    Implementation of the sinusoidal position encoding described in 
+    "Attention Is All You Need" paper.
+    """
+    
+    def __init__(self, d_model, max_seq_length=1200):
+        """
+        Initialize positional encoding.
+        
+        Args:
+            d_model: Dimensionality of the model
+            max_seq_length: Maximum sequence length
+        """
+        super(PositionalEncoding, self).__init__()
+        
+        # Create positional encoding matrix
+        pe = torch.zeros(max_seq_length, d_model)
+        position = torch.arange(0, max_seq_length, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+        
+        # Apply sine to even indices and cosine to odd indices
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        
+        # Add batch dimension
+        pe = pe.unsqueeze(0)
+        
+        # Register as buffer (not a parameter)
+        self.register_buffer('pe', pe)
+        
+    def forward(self, x):
+        """
+        Add positional encoding to input tensor.
+        
+        Args:
+            x: Input tensor of shape [batch_size, seq_length, d_model]
+            
+        Returns:
+            Tensor with positional encoding added
+        """
+        x = x + self.pe[:, :x.size(1), :]
+        return x
+
 
 class AttentionPooling(nn.Module):
     """
@@ -78,6 +124,15 @@ class TransformerModel(nn.Module):
         self.input_dim = input_dim
         self.d_model = d_model
         
+        # Input projection layer to convert from input_dim to d_model
+        self.input_projection = nn.Linear(input_dim, d_model)
+        # Initialize weights properly
+        nn.init.xavier_uniform_(self.input_projection.weight)
+        nn.init.zeros_(self.input_projection.bias)
+        
+        # Positional encoding
+        self.pe = PositionalEncoding(d_model)
+        
         # Transformer encoder
         encoder_layers = nn.TransformerEncoderLayer(
             d_model=d_model,
@@ -123,7 +178,11 @@ class TransformerModel(nn.Module):
             - sequence_logits: Class logits for sequence-level classification [batch_size, num_classes]
             - attention_weights: Attention weights from pooling [batch_size, seq_len, 1]
         """
-        # Apply transformer encoder
+        # Project input from input_dim to d_model
+        src = self.input_projection(src)
+        
+        # Apply positional encoding
+        src = self.pe(src)
         encoder_output = self.transformer_encoder(src, mask=src_mask)
         
         # Apply classifier to each timestep
@@ -131,10 +190,10 @@ class TransformerModel(nn.Module):
         timestep_logits = self.timestep_classifier(encoder_output)
         
         # Apply attention pooling to get sequence-level representation
-        pooled_output, attention_weights = self.attention_pooling(encoder_output)
+        # pooled_output, attention_weights = self.attention_pooling(encoder_output)
         
         # Apply sequence classifier
-        sequence_logits = self.sequence_classifier(pooled_output)
+        # sequence_logits = self.sequence_classifier(pooled_output)
         
-        return timestep_logits, sequence_logits, attention_weights
+        return timestep_logits
 

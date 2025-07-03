@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
-from sklearn.metrics import precision_recall_fscore_support, accuracy_score, confusion_matrix, f1_score
+from sklearn.metrics import precision_recall_fscore_support, accuracy_score, confusion_matrix, f1_score, average_precision_score
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -24,8 +24,8 @@ import argparse
 
 from src.utils.logger import logger
 from src.training.lstm.focal_loss import FocalLoss
-from src.training.row_energyData_subsample_LSTMLateFusion.lstm_late_fusion_model import LSTMSequenceModel
-from src.training.row_energyData_subsample_LSTMLateFusion.lstm_late_fusion_dataset import create_data_loaders
+from src.training.row_energyData_subsample_LSTM.lstm_model import LSTMSequenceModel
+from src.training.row_energyData_subsample_LSTM.lstm_dataset import create_data_loaders
 
 def load_config(config_path=None):
     """
@@ -104,12 +104,13 @@ def train(model, data_loader, criterion, optimizer, device, threshold=0.3, epoch
         epoch: Current epoch number
         
     Returns:
-        Tuple of (average loss, accuracy, precision, recall, f1, confusion matrix)
+        Tuple of (average loss, accuracy, precision, recall, f1, pr_auc, confusion matrix)
     """
     model.train()
     total_loss = 0
     all_preds = []
     all_labels = []
+    all_scores = []
     
     for windows, label_sequences in tqdm(data_loader, desc="Training"):
         # Move data to device
@@ -141,17 +142,19 @@ def train(model, data_loader, criterion, optimizer, device, threshold=0.3, epoch
         anomaly_scores = probs[:, 1]  # Probability for anomaly class
         preds_flat = (anomaly_scores > threshold).long()
         
-        # Store predictions and labels for metric calculation
+        # Store predictions, scores and labels for metric calculation
         all_preds.extend(preds_flat.cpu().detach().numpy())
         all_labels.extend(labels_flat.cpu().detach().numpy())
+        all_scores.extend(anomaly_scores.cpu().detach().numpy())
     
     # Calculate metrics
     avg_loss = total_loss / len(data_loader)
     accuracy = accuracy_score(all_labels, all_preds)
     precision, recall, f1, _ = precision_recall_fscore_support(all_labels, all_preds, average='binary', zero_division=0)
+    pr_auc = average_precision_score(all_labels, all_scores)
     conf_matrix = confusion_matrix(all_labels, all_preds)
     
-    return avg_loss, accuracy, precision, recall, f1, conf_matrix
+    return avg_loss, accuracy, precision, recall, f1, pr_auc, conf_matrix
 
 
 def evaluate(model, data_loader, criterion, device, epoch=None, find_optimal_threshold=True):
@@ -167,7 +170,7 @@ def evaluate(model, data_loader, criterion, device, epoch=None, find_optimal_thr
         find_optimal_threshold: Whether to find the optimal threshold based on F1 score
         
     Returns:
-        Tuple of (average loss, accuracy, precision, recall, f1, confusion matrix, optimal_threshold)
+        Tuple of (average loss, accuracy, precision, recall, f1, pr_auc, confusion matrix, optimal_threshold)
     """
     model.eval()
     total_loss = 0
@@ -230,9 +233,10 @@ def evaluate(model, data_loader, criterion, device, epoch=None, find_optimal_thr
     avg_loss = total_loss / len(data_loader)
     accuracy = accuracy_score(all_labels, all_preds)
     precision, recall, f1, _ = precision_recall_fscore_support(all_labels, all_preds, average='binary', zero_division=0)
+    pr_auc = average_precision_score(all_labels, all_scores)
     conf_matrix = confusion_matrix(all_labels, all_preds)
     
-    return avg_loss, accuracy, precision, recall, f1, conf_matrix, threshold
+    return avg_loss, accuracy, precision, recall, f1, pr_auc, conf_matrix, threshold
 
 
 def load_model(model, optimizer, checkpoint_path, device):
@@ -318,6 +322,7 @@ def main(args):
     precisions = []
     recalls = []
     f1s = []
+    pr_aucs = []
     best_val_loss = float('inf')
     best_f1 = 0
     
@@ -361,12 +366,12 @@ def main(args):
         
         # Train
         train_results = train(model, data_loaders['train'], criterion, optimizer, device, threshold=eval_threshold, epoch=epoch)
-        train_loss, train_accuracy, train_precision, train_recall, train_f1, train_conf_matrix = train_results
+        train_loss, train_accuracy, train_precision, train_recall, train_f1, train_pr_auc, train_conf_matrix = train_results
         train_losses.append(train_loss)
         
         # Log training metrics
         logger.info(f"Training Loss: {train_loss:.4f}, Accuracy: {train_accuracy:.4f}, "
-                   f"Precision: {train_precision:.4f}, Recall: {train_recall:.4f}, F1: {train_f1:.4f}")
+                   f"Precision: {train_precision:.4f}, Recall: {train_recall:.4f}, F1: {train_f1:.4f}, PR-AUC: {train_pr_auc:.4f}")
         
         # Log training metrics to TensorBoard
         writer.add_scalar('Loss/train', train_loss, epoch)
@@ -374,21 +379,23 @@ def main(args):
         writer.add_scalar('Metrics/train_precision', train_precision, epoch)
         writer.add_scalar('Metrics/train_recall', train_recall, epoch)
         writer.add_scalar('Metrics/train_f1', train_f1, epoch)
+        writer.add_scalar('Metrics/train_pr_auc', train_pr_auc, epoch)
         
         # Evaluate
         val_results = evaluate(
             model, data_loaders['val'], criterion, device, epoch=epoch
         )
-        val_loss, accuracy, precision, recall, f1, conf_matrix, threshold = val_results
+        val_loss, accuracy, precision, recall, f1, pr_auc, conf_matrix, threshold = val_results
         
         val_losses.append(val_loss)
         accuracies.append(accuracy)
         precisions.append(precision)
         recalls.append(recall)
         f1s.append(f1)
+        pr_aucs.append(pr_auc)
         
         logger.info(f"Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f}, "
-                   f"Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}")
+                   f"Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}, PR-AUC: {pr_auc:.4f}")
         logger.info(f"Confusion Matrix:\n{conf_matrix}")
         logger.info(f"Current best Threshold: {threshold}")
         
@@ -398,6 +405,7 @@ def main(args):
         writer.add_scalar('Metrics/val_precision', precision, epoch)
         writer.add_scalar('Metrics/val_recall', recall, epoch)
         writer.add_scalar('Metrics/val_f1', f1, epoch)
+        writer.add_scalar('Metrics/val_pr_auc', pr_auc, epoch)
         
         # Update learning rate
         scheduler.step(val_loss)
@@ -413,12 +421,14 @@ def main(args):
             'precision': precision,
             'recall': recall,
             'f1': f1,
+            'pr_auc': pr_auc,
             'confusion_matrix': conf_matrix.tolist(),
             'threshold': threshold,
             'train_accuracy': train_accuracy,
             'train_precision': train_precision,
             'train_recall': train_recall,
             'train_f1': train_f1,
+            'train_pr_auc': train_pr_auc,
             'train_confusion_matrix': train_conf_matrix.tolist()
         }
         
@@ -466,10 +476,10 @@ def main(args):
         test_results = evaluate(
             model, data_loaders['test'], criterion, device, threshold=threshold
         )
-        test_loss, test_accuracy, test_precision, test_recall, test_f1, test_conf_matrix, _ = test_results
+        test_loss, test_accuracy, test_precision, test_recall, test_f1, test_pr_auc, test_conf_matrix, _ = test_results
         
         logger.info(f"Test Loss: {test_loss:.4f}, Accuracy: {test_accuracy:.4f}, "
-                   f"Precision: {test_precision:.4f}, Recall: {test_recall:.4f}, F1: {test_f1:.4f}")
+                   f"Precision: {test_precision:.4f}, Recall: {test_recall:.4f}, F1: {test_f1:.4f}, PR-AUC: {test_pr_auc:.4f}")
         logger.info(f"Test Confusion Matrix:\n{test_conf_matrix}")
         
         # Save test metrics
@@ -479,6 +489,7 @@ def main(args):
             'precision': test_precision,
             'recall': test_recall,
             'f1': test_f1,
+            'pr_auc': test_pr_auc,
             'confusion_matrix': test_conf_matrix.tolist(),
             'threshold': threshold
         }

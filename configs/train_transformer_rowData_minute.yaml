@@ -2,7 +2,7 @@
 
 # Paths
 paths:
-  data_dir: "Data/row_energyData_subsample_Transform/position_encoding_10"
+  data_dir: "Data/row_energyData_subsample_Transform/slidingWindow_60"
   output_dir: "experiments/row_energyData_subsample_Transform"
 
 # Data configuration

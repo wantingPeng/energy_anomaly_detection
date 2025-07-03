@@ -25,7 +25,7 @@ evaluation:
 
 # Data paths
 paths:
-  lstm_data_dir: "Data/row_energyData_subsample_Transform/slidingWindow"
+  lstm_data_dir: "Data/row_energyData_subsample_Transform/slidingWindow_60"
   output_dir: "experiments/lstm_sequence"
 
 # Data parameters

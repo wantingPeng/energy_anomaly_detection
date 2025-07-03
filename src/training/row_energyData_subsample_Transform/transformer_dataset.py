@@ -1,5 +1,6 @@
 import os
 import torch
+import numpy as np
 from torch.utils.data import Dataset, DataLoader
 import glob
 from typing import Dict, List, Tuple, Optional, Union
@@ -9,7 +10,7 @@ class TransformerDataset(Dataset):
     """
     Dataset for Transformer model for anomaly detection.
     
-    This dataset loads sliding window data from .pt files to feed into a transformer model.
+    This dataset loads sliding window data from .npz files to feed into a transformer model.
     Data is formatted as [batch_size, seq_len, features] to support batch_first=True in transformer models.
     Labels are now sequences [batch_size, seq_len], with one label per timestep.
     """
@@ -73,28 +74,31 @@ class TransformerDataset(Dataset):
     
     def _load_data(self):
         """
-        Load sliding window data from .pt files.
+        Load sliding window data from .npz files.
         
         Returns:
             Tuple of (windows, labels)
         """
-        # Find all .pt files in the component directory
-        pt_files = sorted(glob.glob(os.path.join(self.component_dir, "*.pt")))
-        if not pt_files:
-            raise ValueError(f"No .pt files found in {self.component_dir}")
+        # Find all .npz files in the component directory
+        npz_files = sorted(glob.glob(os.path.join(self.component_dir, "*.npz")))
+        if not npz_files:
+            raise ValueError(f"No .npz files found in {self.component_dir}")
         
         # Load and concatenate data from all files
         all_windows = []
         all_labels = []
         
-        for pt_file in pt_files:
-            logger.info(f"Loading {pt_file}")
-            data = torch.load(pt_file)
+        for npz_file in npz_files:
+            logger.info(f"Loading {npz_file}")
+            data = np.load(npz_file)
             if 'windows' in data and 'labels' in data:
-                all_windows.append(data['windows'])
-                all_labels.append(data['labels'])
+                # Convert numpy arrays to torch tensors
+                windows_tensor = torch.from_numpy(data['windows']).float()
+                labels_tensor = torch.from_numpy(data['labels']).long()
+                all_windows.append(windows_tensor)
+                all_labels.append(labels_tensor)
             else:
-                raise ValueError(f"Unknown data structure in {pt_file}")
+                raise ValueError(f"Unknown data structure in {npz_file}")
            
         windows = torch.cat(all_windows, dim=0)
         labels = torch.cat(all_labels, dim=0)
