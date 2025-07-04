@@ -70,7 +70,7 @@ def point_adjustment(gt, pred):
     
     return gt, pred
 
-def evaluate_with_adjustment(all_preds, all_labels, all_probs, sequence_level=True):
+def evaluate_with_adjustment(all_preds, all_labels, all_probs, sequence_level=False):
     """
     Evaluate predictions with point adjustment strategy.
     
@@ -81,7 +81,7 @@ def evaluate_with_adjustment(all_preds, all_labels, all_probs, sequence_level=Tr
         sequence_level: Whether to apply adjustment at sequence level (True) or global level (False)
     
     Returns:
-        Dictionary containing adjusted metrics
+        Dictionary containing adjusted metrics and anomaly ratio statistics
     """
     if sequence_level and len(all_preds.shape) == 2:
         # Apply adjustment to each sequence individually
@@ -103,7 +103,23 @@ def evaluate_with_adjustment(all_preds, all_labels, all_probs, sequence_level=Tr
         flat_preds = all_preds.flatten() if len(all_preds.shape) > 1 else all_preds
         flat_labels = all_labels.flatten() if len(all_labels.shape) > 1 else all_labels
         
+ 
+        # 检查point_adjustment函数的调用顺序是否正确
+        # 注意：point_adjustment返回(gt, pred)，顺序是(labels, preds)
         adjusted_labels, adjusted_preds = point_adjustment(flat_labels, flat_preds)
+        
+        # DEBUG: 打印调整前后的非零元素位置，验证调整逻辑
+        if np.sum(flat_preds) < 100:  # 只在元素较少时打印以避免日志过大
+            logger.info(f"DEBUG: Original pred non-zeros: {np.where(flat_preds == 1)[0]}")
+            logger.info(f"DEBUG: Adjusted pred non-zeros: {np.where(adjusted_preds == 1)[0]}")
+        
+        
+        # Verify that point_adjustment only increases the number of anomaly predictions
+        original_anomaly_count = np.sum(flat_preds == 1)
+        adjusted_anomaly_count = np.sum(adjusted_preds == 1)
+        logger.info(f"DEBUG: Original anomaly count: {original_anomaly_count}, Adjusted: {adjusted_anomaly_count}, Diff: {adjusted_anomaly_count - original_anomaly_count}")
+
+
     
     # Calculate metrics with adjusted predictions
     adj_accuracy = accuracy_score(adjusted_labels, adjusted_preds)
@@ -111,34 +127,18 @@ def evaluate_with_adjustment(all_preds, all_labels, all_probs, sequence_level=Tr
         adjusted_labels, adjusted_preds, average='binary', zero_division=0
     )
     
-    # Calculate AUPRC with adjusted labels (using original probabilities)
-    flat_probs = all_probs.flatten() if len(all_probs.shape) > 1 else all_probs
-    adj_auprc = average_precision_score(adjusted_labels, flat_probs)
+
     
-    # Find optimal threshold with adjusted labels
-    precision_curve, recall_curve, thresholds = precision_recall_curve(adjusted_labels, flat_probs)
-    f1_scores = 2 * precision_curve * recall_curve / (precision_curve + recall_curve + 1e-10)
-    optimal_idx = np.argmax(f1_scores)
-    adj_optimal_threshold = thresholds[optimal_idx] if optimal_idx < len(thresholds) else 0.5
-    
-    # Recalculate metrics with optimal threshold
-    adj_optimal_preds = (flat_probs >= adj_optimal_threshold).astype(int)
-    adj_optimal_accuracy = accuracy_score(adjusted_labels, adj_optimal_preds)
-    adj_optimal_precision, adj_optimal_recall, adj_optimal_f1, _ = precision_recall_fscore_support(
-        adjusted_labels, adj_optimal_preds, average='binary', zero_division=0
-    )
+
+    # 添加调整后的预测数量
+    adjusted_preds_count = np.sum(adjusted_preds == 1)
     
     return {
         'adj_accuracy': adj_accuracy,
         'adj_precision': adj_precision,
         'adj_recall': adj_recall,
         'adj_f1': adj_f1,
-        'adj_auprc': adj_auprc,
-        'adj_optimal_threshold': adj_optimal_threshold,
-        'adj_optimal_accuracy': adj_optimal_accuracy,
-        'adj_optimal_precision': adj_optimal_precision,
-        'adj_optimal_recall': adj_optimal_recall,
-        'adj_optimal_f1': adj_optimal_f1
+        'adjusted_preds_count': adjusted_preds_count  # 新增：调整后的预测数量
     }
 
 # Define focal loss for imbalanced dataset
@@ -462,7 +462,14 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
     )
     
     # === Point Adjustment Evaluation ===
-    adj_metrics = evaluate_with_adjustment(all_preds, all_labels, all_probs, sequence_level=False)
+    # 添加日志，记录使用optimal_preds而不是all_preds的原因
+    logger.info(f"\n===== Before Point Adjustment =====")
+    logger.info(f"Using optimal_preds for point adjustment (threshold: {optimal_threshold:.6f})")
+    logger.info(f"optimal_preds anomaly count: {np.sum(optimal_preds == 1)}, ratio: {np.sum(optimal_preds == 1) / len(optimal_preds):.4f}")
+    logger.info(f"all_preds anomaly count: {np.sum(flat_preds == 1)}, ratio: {np.sum(flat_preds == 1) / len(flat_preds):.4f}")
+    
+    logger.info(f"optimal_preds shape: {optimal_preds.shape}, flat_labels shape: {flat_labels.shape}")
+    adj_metrics = evaluate_with_adjustment(optimal_preds, flat_labels, optimal_threshold, sequence_level=False)
     
     logger.info(f"\n===== Original Point-wise Evaluation =====")
     logger.info(f"Optimal threshold: {optimal_threshold:.6f}")
@@ -470,9 +477,10 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
     logger.info(f"AUPRC: {auprc:.4f}")
     
     logger.info(f"\n===== Point Adjustment Evaluation =====")
-    logger.info(f"Adjusted optimal threshold: {adj_metrics['adj_optimal_threshold']:.6f}")
-    logger.info(f"Adjusted optimal F1: {adj_metrics['adj_optimal_f1']:.4f}, Precision: {adj_metrics['adj_optimal_precision']:.4f}, Recall: {adj_metrics['adj_optimal_recall']:.4f}")
-    logger.info(f"Adjusted AUPRC: {adj_metrics['adj_auprc']:.4f}")
+    logger.info(f"Using point-adjusted predictions (not threshold-based)")
+    logger.info(f"Adjusted predictions count: {np.sum(optimal_preds) if 'optimal_preds' in locals() else 0} -> "
+               f"{adj_metrics.get('adjusted_preds_count', np.nan)}")
+    logger.info(f"Adjusted F1: {adj_metrics['adj_f1']:.4f}, Precision: {adj_metrics['adj_precision']:.4f}, Recall: {adj_metrics['adj_recall']:.4f}")
 
     metrics = {
         # Original metrics
@@ -484,12 +492,11 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
         'optimal_recall': optimal_recall,
         'optimal_f1': optimal_f1,
         # Point adjustment metrics
-        'adj_auprc': adj_metrics['adj_auprc'],
-        'adj_optimal_threshold': adj_metrics['adj_optimal_threshold'],
-        'adj_optimal_accuracy': adj_metrics['adj_optimal_accuracy'],
-        'adj_optimal_precision': adj_metrics['adj_optimal_precision'],
-        'adj_optimal_recall': adj_metrics['adj_optimal_recall'],
-        'adj_optimal_f1': adj_metrics['adj_optimal_f1']
+        'adj_accuracy': adj_metrics['adj_accuracy'],
+        'adj_precision': adj_metrics['adj_precision'],
+        'adj_recall': adj_metrics['adj_recall'],
+        'adj_f1': adj_metrics['adj_f1'],
+        'adjusted_preds_count': adj_metrics['adjusted_preds_count']
     }
 
     return avg_loss, metrics
@@ -654,8 +661,8 @@ def main(args):
         logger.info(f"Val Precision: {val_metrics['optimal_precision']:.4f}, Val Recall: {val_metrics['optimal_recall']:.4f}")
         logger.info(f"Val AUPRC: {val_metrics['auprc']:.4f}")
         logger.info(f"Val Threshold: {val_metrics['optimal_threshold']:.4f}")
-        logger.info(f"Val Adjusted F1: {val_metrics['adj_optimal_f1']:.4f}, Adjusted AUPRC: {val_metrics['adj_auprc']:.4f}")
-        logger.info(f"Epoch completed in {epoch_duration:.2f} seconds")
+        logger.info(f"Val Adjusted F1: {val_metrics['adj_f1']:.4f}")
+        logger.info(f"Epoch completed :in {epoch_duration:.2f} seconds")
         
         writer.add_scalar('train/loss', train_loss, epoch)
         writer.add_scalar('val/loss', val_loss, epoch)
@@ -666,11 +673,10 @@ def main(args):
         writer.add_scalar('val/optimal_f1', val_metrics['optimal_f1'], epoch)
         writer.add_scalar('val/optimal_threshold', val_metrics['optimal_threshold'], epoch)
         # Add point adjustment metrics
-        writer.add_scalar('val/adj_auprc', val_metrics['adj_auprc'], epoch)
-        writer.add_scalar('val/adj_optimal_precision', val_metrics['adj_optimal_precision'], epoch)
-        writer.add_scalar('val/adj_optimal_recall', val_metrics['adj_optimal_recall'], epoch)
-        writer.add_scalar('val/adj_optimal_f1', val_metrics['adj_optimal_f1'], epoch)
-        writer.add_scalar('val/adj_optimal_threshold', val_metrics['adj_optimal_threshold'], epoch)
+        writer.add_scalar('val/adj_f1', val_metrics['adj_f1'], epoch)
+        writer.add_scalar('val/adj_precision', val_metrics['adj_precision'], epoch)
+        writer.add_scalar('val/adj_recall', val_metrics['adj_recall'], epoch)
+        writer.add_scalar('val/adj_accuracy', val_metrics['adj_accuracy'], epoch)
         
         # Save current model checkpoint
         save_model(
@@ -706,23 +712,14 @@ def main(args):
             logger.info(f"New best validation AUPRC: {best_val_auprc:.4f}")
         
         # Save best model based on adjusted F1 score
-        if val_metrics['adj_optimal_f1'] > best_val_adj_f1:
-            best_val_adj_f1 = val_metrics['adj_optimal_f1']
+        if val_metrics['adj_f1'] > best_val_adj_f1:
+            best_val_adj_f1 = val_metrics['adj_f1']
             save_model(
                 model, optimizer, epoch, train_loss, val_loss, val_metrics,
                 config, os.path.join(experiment_dir, "best_adj_f1")
             )
             logger.info(f"New best validation adjusted F1: {best_val_adj_f1:.4f}")
-        
-        # Save best model based on adjusted AUPRC
-        if val_metrics['adj_auprc'] > best_val_adj_auprc:
-            best_val_adj_auprc = val_metrics['adj_auprc']
-            save_model(
-                model, optimizer, epoch, train_loss, val_loss, val_metrics,
-                config, os.path.join(experiment_dir, "best_adj_auprc")
-            )
-            logger.info(f"New best validation adjusted AUPRC: {best_val_adj_auprc:.4f}")
-        
+    
         # Check for early stopping
         if config['training']['early_stopping_metric'] == 'optimal_f1':
             if early_stopping(val_metrics['optimal_f1']):
@@ -732,12 +729,8 @@ def main(args):
             if early_stopping(val_metrics['auprc']):
                 logger.info(f"Early stopping triggered after {epoch+1} epochs")
                 break
-        elif config['training']['early_stopping_metric'] == 'adj_optimal_f1':
-            if early_stopping(val_metrics['adj_optimal_f1']):
-                logger.info(f"Early stopping triggered after {epoch+1} epochs")
-                break
-        elif config['training']['early_stopping_metric'] == 'adj_auprc':
-            if early_stopping(val_metrics['adj_auprc']):
+        elif config['training']['early_stopping_metric'] == 'adj_f1':
+            if early_stopping(val_metrics['adj_f1']):
                 logger.info(f"Early stopping triggered after {epoch+1} epochs")
                 break
         else:
@@ -756,9 +749,7 @@ def main(args):
         logger.info(f"Test AUPRC: {test_metrics['auprc']:.4f}")
         logger.info(f"Test Optimal F1: {test_metrics['optimal_f1']:.4f}")
         logger.info(f"Test Optimal Threshold: {test_metrics['optimal_threshold']:.6f}")
-        logger.info(f"Test Adjusted AUPRC: {test_metrics['adj_auprc']:.4f}")
-        logger.info(f"Test Adjusted F1: {test_metrics['adj_optimal_f1']:.4f}")
-        logger.info(f"Test Adjusted Threshold: {test_metrics['adj_optimal_threshold']:.6f}")
+        logger.info(f"Test Adjusted F1: {test_metrics['adj_f1']:.4f}")
         
         # Log test metrics to TensorBoard
         writer.add_scalar('test/loss', test_loss, 0)
@@ -779,9 +770,7 @@ def main(args):
         logger.info(f"Test AUPRC (AUPRC model): {test_metrics['auprc']:.4f}")
         logger.info(f"Test Optimal F1 (AUPRC model): {test_metrics['optimal_f1']:.4f}")
         logger.info(f"Test Optimal Threshold (AUPRC model): {test_metrics['optimal_threshold']:.6f}")
-        logger.info(f"Test Adjusted AUPRC (AUPRC model): {test_metrics['adj_auprc']:.4f}")
-        logger.info(f"Test Adjusted F1 (AUPRC model): {test_metrics['adj_optimal_f1']:.4f}")
-        logger.info(f"Test Adjusted Threshold (AUPRC model): {test_metrics['adj_optimal_threshold']:.6f}")
+        logger.info(f"Test Adjusted F1 (AUPRC model): {test_metrics['adj_f1']:.4f}")
         
         # Log test metrics to TensorBoard for AUPRC model
         writer.add_scalar('test_auprc_model/loss', test_loss, 0)
