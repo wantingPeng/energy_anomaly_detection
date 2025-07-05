@@ -70,65 +70,19 @@ def point_adjustment(gt, pred):
     
     return gt, pred
 
-def evaluate_with_adjustment(all_preds, all_labels, all_probs, sequence_level=False):
-    """
-    Evaluate predictions with point adjustment strategy.
-    
-    Args:
-        all_preds: Predicted labels [n_sequences, seq_len] or flattened
-        all_labels: True labels [n_sequences, seq_len] or flattened  
-        all_probs: Prediction probabilities for threshold optimization
-        sequence_level: Whether to apply adjustment at sequence level (True) or global level (False)
-    
-    Returns:
-        Dictionary containing adjusted metrics and anomaly ratio statistics
-    """
-    if sequence_level and len(all_preds.shape) == 2:
-        # Apply adjustment to each sequence individually
-        adjusted_preds_list = []
-        adjusted_labels_list = []
-        
-        for seq_idx in range(all_preds.shape[0]):
-            seq_preds = all_preds[seq_idx]
-            seq_labels = all_labels[seq_idx]
-            
-            adj_labels, adj_preds = point_adjustment(seq_labels, seq_preds)
-            adjusted_preds_list.append(adj_preds)
-            adjusted_labels_list.append(adj_labels)
-        
-        adjusted_preds = np.array(adjusted_preds_list).flatten()
-        adjusted_labels = np.array(adjusted_labels_list).flatten()
-    else:
-        # Apply adjustment globally (flatten first)
-        flat_preds = all_preds.flatten() if len(all_preds.shape) > 1 else all_preds
-        flat_labels = all_labels.flatten() if len(all_labels.shape) > 1 else all_labels
-        
- 
-        # 检查point_adjustment函数的调用顺序是否正确
-        # 注意：point_adjustment返回(gt, pred)，顺序是(labels, preds)
-        adjusted_labels, adjusted_preds = point_adjustment(flat_labels, flat_preds)
-        
-        # DEBUG: 打印调整前后的非零元素位置，验证调整逻辑
-        if np.sum(flat_preds) < 100:  # 只在元素较少时打印以避免日志过大
-            logger.info(f"DEBUG: Original pred non-zeros: {np.where(flat_preds == 1)[0]}")
-            logger.info(f"DEBUG: Adjusted pred non-zeros: {np.where(adjusted_preds == 1)[0]}")
-        
-        
-        # Verify that point_adjustment only increases the number of anomaly predictions
-        original_anomaly_count = np.sum(flat_preds == 1)
-        adjusted_anomaly_count = np.sum(adjusted_preds == 1)
-        logger.info(f"DEBUG: Original anomaly count: {original_anomaly_count}, Adjusted: {adjusted_anomaly_count}, Diff: {adjusted_anomaly_count - original_anomaly_count}")
+def evaluate_with_adjustment(flat_preds, flat_labels):
 
+    flat_labels, adjusted_preds = point_adjustment(flat_labels, flat_preds)
 
-    
+    original_anomaly_count = np.sum(flat_preds == 1)
+    adjusted_anomaly_count = np.sum(adjusted_preds == 1)
+    logger.info(f"DEBUG: Original anomaly count: {original_anomaly_count}, Adjusted: {adjusted_anomaly_count}, Diff: {adjusted_anomaly_count - original_anomaly_count}")
+  
     # Calculate metrics with adjusted predictions
-    adj_accuracy = accuracy_score(adjusted_labels, adjusted_preds)
+    adj_accuracy = accuracy_score(flat_labels, adjusted_preds)
     adj_precision, adj_recall, adj_f1, _ = precision_recall_fscore_support(
-        adjusted_labels, adjusted_preds, average='binary', zero_division=0
+        flat_labels, adjusted_preds, average='binary', zero_division=0
     )
-    
-
-    
 
     # 添加调整后的预测数量
     adjusted_preds_count = np.sum(adjusted_preds == 1)
@@ -462,14 +416,11 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
     )
     
     # === Point Adjustment Evaluation ===
-    # 添加日志，记录使用optimal_preds而不是all_preds的原因
     logger.info(f"\n===== Before Point Adjustment =====")
     logger.info(f"Using optimal_preds for point adjustment (threshold: {optimal_threshold:.6f})")
-    logger.info(f"optimal_preds anomaly count: {np.sum(optimal_preds == 1)}, ratio: {np.sum(optimal_preds == 1) / len(optimal_preds):.4f}")
-    logger.info(f"all_preds anomaly count: {np.sum(flat_preds == 1)}, ratio: {np.sum(flat_preds == 1) / len(flat_preds):.4f}")
-    
     logger.info(f"optimal_preds shape: {optimal_preds.shape}, flat_labels shape: {flat_labels.shape}")
-    adj_metrics = evaluate_with_adjustment(optimal_preds, flat_labels, optimal_threshold, sequence_level=False)
+
+    adj_metrics = evaluate_with_adjustment(optimal_preds, flat_labels)
     
     logger.info(f"\n===== Original Point-wise Evaluation =====")
     logger.info(f"Optimal threshold: {optimal_threshold:.6f}")
@@ -477,15 +428,11 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
     logger.info(f"AUPRC: {auprc:.4f}")
     
     logger.info(f"\n===== Point Adjustment Evaluation =====")
-    logger.info(f"Using point-adjusted predictions (not threshold-based)")
-    logger.info(f"Adjusted predictions count: {np.sum(optimal_preds) if 'optimal_preds' in locals() else 0} -> "
-               f"{adj_metrics.get('adjusted_preds_count', np.nan)}")
     logger.info(f"Adjusted F1: {adj_metrics['adj_f1']:.4f}, Precision: {adj_metrics['adj_precision']:.4f}, Recall: {adj_metrics['adj_recall']:.4f}")
 
     metrics = {
         # Original metrics
         'auprc': auprc,
-        'confusion_matrix': cm,
         'optimal_threshold': optimal_threshold,
         'optimal_accuracy': optimal_accuracy,
         'optimal_precision': optimal_precision,
@@ -614,7 +561,6 @@ def main(args):
     best_val_f1 = 0.0
     best_val_auprc = 0.0
     best_val_adj_f1 = 0.0
-    best_val_adj_auprc = 0.0
     
     # Training loop
     for epoch in range(start_epoch, config['training']['num_epochs']):
@@ -657,11 +603,7 @@ def main(args):
 
         # Log metrics
         logger.info(f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
-        logger.info(f"Train F1: {train_metrics['f1']:.4f}, Val F1: {val_metrics['optimal_f1']:.4f}")
-        logger.info(f"Val Precision: {val_metrics['optimal_precision']:.4f}, Val Recall: {val_metrics['optimal_recall']:.4f}")
-        logger.info(f"Val AUPRC: {val_metrics['auprc']:.4f}")
-        logger.info(f"Val Threshold: {val_metrics['optimal_threshold']:.4f}")
-        logger.info(f"Val Adjusted F1: {val_metrics['adj_f1']:.4f}")
+        logger.info(f"Train F1: {train_metrics['f1']:.4f}")
         logger.info(f"Epoch completed :in {epoch_duration:.2f} seconds")
         
         writer.add_scalar('train/loss', train_loss, epoch)

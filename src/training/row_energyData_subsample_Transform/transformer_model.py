@@ -98,9 +98,9 @@ class TransformerModel(nn.Module):
     def __init__(
         self,
         input_dim: int,
-        d_model: int = 256,
+        d_model: int = 64,
         nhead: int = 8,
-        num_layers: int = 3,
+        num_layers: int = 2,
         dim_feedforward: int = 512,
         dropout: float = 0.1,
         num_classes: int = 2,
