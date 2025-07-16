@@ -221,6 +221,32 @@ def main():
             }
         }
         
+        # Add feature importance information if available
+        if hasattr(model, 'feature_importances') and model.feature_importances:
+            # Get top N features to include in summary
+            top_n = config['feature_config'].get('top_features_to_plot', 20)
+            importance_type = config['feature_config']['importance_type']
+            
+            # Create DataFrame for manipulation
+            if hasattr(model, 'feature_names') and model.feature_names:
+                importance_df = pd.DataFrame({
+                    'Feature': model.feature_names,
+                    'Importance': [model.feature_importances.get(f, 0) for f in model.feature_names]
+                })
+                importance_df = importance_df.sort_values('Importance', ascending=False)
+                
+                # Add top features to summary
+                top_features = importance_df.head(top_n).to_dict('records')
+                summary['feature_importance'] = {
+                    'importance_type': importance_type,
+                    'top_features': top_features,
+                    'feature_importance_file': str(Path(config['data_config']['save_dir']) / f"feature_importance_{importance_type}.csv")
+                }
+                
+                logger.info(f"Top {top_n} important features:")
+                for i, row in enumerate(top_features[:10], 1):  # Log only top 10
+                    logger.info(f"  {i}. {row['Feature']}: {row['Importance']:.6f}")
+        
         # Save summary
         with open(os.path.join(config['data_config']['save_dir'], "training_summary.json"), "w") as f:
             json.dump(summary, f, indent=4)

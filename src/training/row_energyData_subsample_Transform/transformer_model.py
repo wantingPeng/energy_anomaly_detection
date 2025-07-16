@@ -183,7 +183,7 @@ class TransformerModel(nn.Module):
         
         # Apply positional encoding
         src = self.pe(src)
-        encoder_output = self.transformer_encoder(src, mask=src_mask)
+        encoder_output = self.transformer_encoder(src)
         
         # Apply classifier to each timestep
         # [batch_size, seq_len, d_model] -> [batch_size, seq_len, num_classes]

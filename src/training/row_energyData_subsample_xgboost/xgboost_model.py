@@ -207,6 +207,9 @@ class XGBoostAnomalyDetector:
         # Get feature importances
         self.feature_importances = self.model.get_score(importance_type=self.config['feature_config']['importance_type'])
         
+        # Plot feature importance
+        self.plot_feature_importance(top_n=self.config['feature_config'].get('top_n', 20))
+        
         # Optimize threshold
         self.optimize_threshold(X_val, y_val)
         
@@ -502,3 +505,50 @@ class XGBoostAnomalyDetector:
             logger.warning("Feature names file not found.")
         
         return instance
+
+    def plot_feature_importance(self, top_n=20):
+        """
+        Plot and save feature importance.
+        
+        Args:
+            top_n (int): Number of top features to display
+            
+        Returns:
+            pd.DataFrame: DataFrame with all feature importances sorted
+        """
+        logger.info(f"Plotting feature importance (top {top_n} features)...")
+        
+        if self.feature_importances is None or not self.feature_names:
+            logger.warning("Feature importances not available. Model might not be trained yet.")
+            return None
+            
+        # Convert to DataFrame for easier manipulation
+        importance_type = self.config['feature_config']['importance_type']
+        importance_df = pd.DataFrame({
+            'Feature': self.feature_names,
+            'Importance': [self.feature_importances.get(f, 0) for f in self.feature_names]
+        })
+        
+        # Sort by importance
+        importance_df = importance_df.sort_values('Importance', ascending=False)
+        
+        # Save full feature importance to CSV
+        importance_file = self.model_save_dir / f"feature_importance_{importance_type}.csv"
+        importance_df.to_csv(importance_file, index=False)
+        logger.info(f"Full feature importance saved to {importance_file}")
+        
+        # Plot top N features
+        plt.figure(figsize=(12, 8))
+        top_features = importance_df.head(top_n)
+        plt.barh(top_features['Feature'][::-1], top_features['Importance'][::-1])
+        plt.xlabel(f'Importance ({importance_type})')
+        plt.title(f'Top {top_n} Feature Importance')
+        plt.tight_layout()
+        
+        # Save plot
+        plot_file = self.model_save_dir / f"feature_importance_{importance_type}.png"
+        plt.savefig(plot_file, dpi=300)
+        plt.close()
+        logger.info(f"Feature importance plot saved to {plot_file}")
+        
+        return importance_df

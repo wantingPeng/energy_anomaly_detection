@@ -2,9 +2,15 @@
 
 # Data paths
 data_config:
-  train_data: "Data/processed/machinen_learning/individual_model/randomly_spilt/train.parquet"
-  val_data: "Data/processed/machinen_learning/val_94:6.parquet"
-  test_data: "Data/row_energyData_subsample_xgboost/ranmdly_REspilt/contact/test.parquet"
+  # train_data: "Data/processed/machinen_learning/individual_model/randomly_spilt/train.parquet"
+  # val_data: "Data/processed/machinen_learning/individual_model/randomly_spilt/val_94:6.parquet"
+  # test_data: "Data/processed/machinen_learning/individual_model/randomly_spilt/test.parquet"
+  # target_column: "anomaly_label"
+  # save_dir: "experiments/xgboost_anomaly_detection
+  
+  train_data: "Data/row_energyData_subsample_xgboost/ranmdly_REspilt/contact/train_downsampled/train.parquet"
+  val_data: "Data/row_energyData_subsample_xgboost/ranmdly_REspilt/contact/val.parquet"
+  test_data: "Data/processed/machinen_learning/individual_model/randomly_spilt/test.parquet"
   target_column: "anomaly_label"
   save_dir: "experiments/xgboost_anomaly_detection"
   
