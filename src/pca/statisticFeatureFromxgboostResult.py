@@ -45,7 +45,7 @@ def setup_logger(script_name):
 def filter_data_by_top_features(
     data_dir="Data/row_energyData_subsample_xgboost/labeled/contact",
     feature_importance_path="experiments/xgboost_anomaly_detection/xgboost_20250706_142250/model_20250706_142251/feature_importance_gain.csv",
-    output_dir="Data/pc/statistic_40",
+    output_dir="Data/pc/statistic_100",
     top_n=40
 ):
     """
@@ -86,7 +86,6 @@ def filter_data_by_top_features(
         top_features = importance_df.head(top_n)['Feature'].tolist()
         
         logger.info(f"成功提取前{len(top_features)}个重要特征")
-        logger.info(f"前5个重要特征: {', '.join(top_features[:5])}")
         
         # 保存特征列表到输出目录
         with open(os.path.join(output_dir, "top_features.txt"), "w") as f:
@@ -94,7 +93,7 @@ def filter_data_by_top_features(
                 f.write(f"{feature}\n")
         
         # 处理每个数据文件
-        data_files = ["train.parquet", "val.parquet", "test.parquet"]
+        data_files = ["train.parquet"]
         
         for file in data_files:
             file_path = os.path.join(data_dir, file)

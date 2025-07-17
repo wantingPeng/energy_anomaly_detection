@@ -4,7 +4,7 @@
 
 # Set the default log directory
 #LOG_DIR="experiments/transformer/bestVal_F10.24_600_window_statistic_focalloss/transformer_20250618_210738 copy"
-LOG_DIR="experiments/lstm_late_fusion/tensorboard_inportant/lstm_late_fusion_20250619_204539_600_down20__focloss_0.4_f10.26"
+LOG_DIR="experiments/row_energyData_subsample_Transform/bestModel/optimalF1_0.32_adjustF10.42/transformer_20250705_124546 tensorbord"
 
 
 # Check if a specific log directory is provided as an argument
@@ -15,4 +15,4 @@ fi
 # Launch TensorBoard
 
 echo "Launching TensorBoard with log directory: $LOG_DIR"
-tensorboard --logdir "$LOG_DIR" --host 0.0.0.0 --port 6006 
+tensorboard --logdir "$LOG_DIR" --host 0.0.0.0 --port 6007 

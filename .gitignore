@@ -18,3 +18,4 @@ venv/
 *.tar.gz
 events.out.tfevents.*
 *.pyc
+experiments/**/model_save/**/config/config.yaml

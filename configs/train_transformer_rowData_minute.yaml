@@ -2,20 +2,27 @@
 
 # Paths
 paths:
-  data_dir: "Data/row_energyData_subsample_Transform/slidingWindow_60"
+  data_dir: "Data/row_energyData_subsample_Transform/labeled"
   output_dir: "experiments/row_energyData_subsample_Transform"
 
 # Data configuration
 data:
   component: "contact"  # Options: contact, pcb, ring
+  
+  # Sliding window parameters
+  window_size: 200  # Size of sliding window (number of timesteps)
+  step_size: 200    # Step size for sliding window (stride)
+  
+  # Feature columns to exclude (non-feature columns)
+  exclude_columns: ["TimeStamp", "segment_id", "anomaly_label"]
 
 # Model configuration
 model:
   d_model: 128  # Dimension of the model
   nhead: 8  # Number of heads in multi-head attention
-  num_layers: 2  # Number of transformer layers
+  num_layers: 1  # Number of transformer layers
   dim_feedforward: 512  # Dimension of the feedforward network
-  dropout: 0.1  # Dropout probability
+  dropout: 0.3  # Dropout probability
   num_classes: 2  # Number of output classes (binary classification)
   activation: "gelu"  # Activation function for transformer layers
 

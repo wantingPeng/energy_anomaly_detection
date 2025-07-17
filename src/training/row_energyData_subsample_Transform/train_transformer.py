@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 
 from src.utils.logger import logger
 from src.training.row_energyData_subsample_Transform.transformer_model import TransformerModel
-from src.training.row_energyData_subsample_Transform.transformer_dataset import create_data_loaders
+from src.training.row_energyData_subsample_Transform.dataSet_update import create_data_loaders
 
 def point_adjustment(gt, pred):
     """
@@ -217,17 +217,25 @@ def save_model(model, optimizer, epoch, train_loss, val_loss, metrics, config, s
     """
     os.makedirs(save_dir, exist_ok=True)
     
+    # Save config as a separate YAML file
+    config_dir = os.path.join(save_dir, "config")
+    os.makedirs(config_dir, exist_ok=True)
+    config_path = os.path.join(config_dir, "config.yaml")
+    with open(config_path, "w") as f:
+        yaml.dump(config, f, default_flow_style=False)
+    logger.info(f"Saved config to {config_path}")
+    
     checkpoint = {
         'epoch': epoch,
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
         'train_loss': train_loss,
         'val_loss': val_loss,
-        'metrics': metrics,
-        'config': config
+        'metrics': metrics
+        # Config is now saved in a separate file
     }
     
-    checkpoint_path = os.path.join(save_dir, f"checkpoint_epoch_{epoch}.pt")
+    checkpoint_path = os.path.join(save_dir, "best_model.pt")
     torch.save(checkpoint, checkpoint_path)
     logger.info(f"Saved checkpoint to {checkpoint_path}")
 
@@ -258,6 +266,19 @@ def load_model(model, optimizer, checkpoint_path, device):
     
     # Get starting epoch (checkpoint's epoch + 1)
     start_epoch = checkpoint.get('epoch', 0) + 1
+    
+    # Try to load config from file
+    config_path = os.path.join(os.path.dirname(checkpoint_path), "config", "config.yaml")
+    config = None
+    
+    if os.path.exists(config_path):
+        with open(config_path, "r") as f:
+            config = yaml.safe_load(f)
+        logger.info(f"Loaded config from {config_path}")
+    elif 'config' in checkpoint:
+        # Backward compatibility: load config from checkpoint if available
+        config = checkpoint['config']
+        logger.info("Loaded config from checkpoint (legacy format)")
     
     logger.info(f"Loaded model from epoch {checkpoint.get('epoch', 0)}")
     
@@ -483,7 +504,10 @@ def main(args):
         data_dir=config['paths']['data_dir'],
         batch_size=config['training']['batch_size'],
         num_workers=config['training']['num_workers'],
-        component=config['data']['component']
+        component=config['data']['component'],
+        window_size=config['data']['window_size'],
+        step_size=config['data']['step_size'],
+        exclude_columns=config['data']['exclude_columns']
     )
     
     # Get a sample batch to determine input dimension
@@ -562,6 +586,12 @@ def main(args):
     best_val_auprc = 0.0
     best_val_adj_f1 = 0.0
     
+    # Create directories for different best model types
+    best_loss_dir = os.path.join(experiment_dir, "best_loss")
+    best_f1_dir = os.path.join(experiment_dir, "best_f1") 
+    best_auprc_dir = os.path.join(experiment_dir, "best_auprc")
+    best_adj_f1_dir = os.path.join(experiment_dir, "best_adj_f1")
+    
     # Training loop
     for epoch in range(start_epoch, config['training']['num_epochs']):
         logger.info(f"Epoch {epoch+1}/{config['training']['num_epochs']}")
@@ -620,18 +650,12 @@ def main(args):
         writer.add_scalar('val/adj_recall', val_metrics['adj_recall'], epoch)
         writer.add_scalar('val/adj_accuracy', val_metrics['adj_accuracy'], epoch)
         
-        # Save current model checkpoint
-        save_model(
-            model, optimizer, epoch, train_loss, val_loss, val_metrics,
-            config, os.path.join(experiment_dir, "checkpoints")
-        )
-        
         # Save best model based on validation loss
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             save_model(
                 model, optimizer, epoch, train_loss, val_loss, val_metrics,
-                config, os.path.join(experiment_dir, "best_loss")
+                config, best_loss_dir
             )
             logger.info(f"New best validation loss: {best_val_loss:.4f}")
         
@@ -640,7 +664,7 @@ def main(args):
             best_val_f1 = val_metrics['optimal_f1']
             save_model(
                 model, optimizer, epoch, train_loss, val_loss, val_metrics,
-                config, os.path.join(experiment_dir, "best_f1")
+                config, best_f1_dir
             )
             logger.info(f"New best validation optimal F1: {best_val_f1:.4f}")
         
@@ -649,7 +673,7 @@ def main(args):
             best_val_auprc = val_metrics['auprc']
             save_model(
                 model, optimizer, epoch, train_loss, val_loss, val_metrics,
-                config, os.path.join(experiment_dir, "best_auprc")
+                config, best_auprc_dir
             )
             logger.info(f"New best validation AUPRC: {best_val_auprc:.4f}")
         
@@ -658,7 +682,7 @@ def main(args):
             best_val_adj_f1 = val_metrics['adj_f1']
             save_model(
                 model, optimizer, epoch, train_loss, val_loss, val_metrics,
-                config, os.path.join(experiment_dir, "best_adj_f1")
+                config, best_adj_f1_dir
             )
             logger.info(f"New best validation adjusted F1: {best_val_adj_f1:.4f}")
     
@@ -682,7 +706,7 @@ def main(args):
     
     # Evaluate on test set using best model (based on F1)
     logger.info("Evaluating best model (based on F1) on test set")
-    best_model_path = os.path.join(experiment_dir, "best_f1", f"checkpoint_epoch_{epoch}.pt")
+    best_model_path = os.path.join(best_f1_dir, "best_model.pt")
     if os.path.exists(best_model_path):
         model, _, _, _ = load_model(model, None, best_model_path, device)
         test_loss, test_metrics = evaluate(model, data_loaders['test'], criterion, device, config)
@@ -696,14 +720,13 @@ def main(args):
         # Log test metrics to TensorBoard
         writer.add_scalar('test/loss', test_loss, 0)
         writer.add_scalar('test/auprc', test_metrics['auprc'], 0)
-        writer.add_scalar('test/f1', test_metrics['f1'], 0)
         writer.add_scalar('test/optimal_f1', test_metrics['optimal_f1'], 0)
-        writer.add_scalar('test/precision', test_metrics['precision'], 0)
-        writer.add_scalar('test/recall', test_metrics['recall'], 0)
+        writer.add_scalar('test/optimal_precision', test_metrics['optimal_precision'], 0)
+        writer.add_scalar('test/optimal_recall', test_metrics['optimal_recall'], 0)
     
     # Evaluate on test set using best model (based on AUPRC)
     logger.info("Evaluating best model (based on AUPRC) on test set")
-    best_auprc_model_path = os.path.join(experiment_dir, "best_auprc", f"checkpoint_epoch_{epoch}.pt")
+    best_auprc_model_path = os.path.join(best_auprc_dir, "best_model.pt")
     if os.path.exists(best_auprc_model_path):
         model, _, _, _ = load_model(model, None, best_auprc_model_path, device)
         test_loss, test_metrics = evaluate(model, data_loaders['test'], criterion, device, config)
@@ -717,11 +740,10 @@ def main(args):
         # Log test metrics to TensorBoard for AUPRC model
         writer.add_scalar('test_auprc_model/loss', test_loss, 0)
         writer.add_scalar('test_auprc_model/auprc', test_metrics['auprc'], 0)
-        writer.add_scalar('test_auprc_model/f1', test_metrics['f1'], 0)
         writer.add_scalar('test_auprc_model/optimal_f1', test_metrics['optimal_f1'], 0)
-        writer.add_scalar('test_auprc_model/precision', test_metrics['precision'], 0)
-        writer.add_scalar('test_auprc_model/recall', test_metrics['recall'], 0)
-        writer.add_scalar('test_auprc_model/accuracy', test_metrics['accuracy'], 0)
+        writer.add_scalar('test_auprc_model/optimal_precision', test_metrics['optimal_precision'], 0)
+        writer.add_scalar('test_auprc_model/optimal_recall', test_metrics['optimal_recall'], 0)
+        writer.add_scalar('test_auprc_model/optimal_accuracy', test_metrics['optimal_accuracy'], 0)
     
     # Close TensorBoard writer
     writer.close()

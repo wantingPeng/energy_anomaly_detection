@@ -1,138 +1,93 @@
 import os
 import torch
-from pathlib import Path
-from typing import Dict, List, Tuple, Any, Optional
 from src.utils.logger import logger
+from datetime import datetime
+import numpy as np
+import torch.serialization
 
-def analyze_pt_files(base_dir: str = "Data/row_energyData_subsample_Transform/position_encoding/train/contact") -> Dict[str, List[Dict[str, Any]]]:
+def load_display_checkpoint(checkpoint_path):
     """
-    Analyze PyTorch (.pt) files in the specified directory and its subdirectories.
+    Load and display the contents of a PyTorch checkpoint file.
     
     Args:
-        base_dir: Base directory to look for .pt files
+        checkpoint_path (str): Path to the checkpoint file
         
     Returns:
-        A dictionary with subdirectory names as keys and lists of dictionaries containing 
-        information about each .pt file as values
+        dict: The loaded checkpoint data
     """
-    base_path = Path(base_dir)
-    result = {}
-    
-    if not base_path.exists():
-        logger.error(f"Directory {base_dir} does not exist")
-        return result
-    
-    # Iterate through subdirectories
-    for subdir in [d for d in base_path.iterdir() if d.is_dir()]:
-        subdir_name = subdir.name
-        result[subdir_name] = []
+    try:
+        # Check if file exists
+        if not os.path.isfile(checkpoint_path):
+            logger.error(f"Checkpoint file not found: {checkpoint_path}")
+            return None
         
-        logger.info(f"Analyzing .pt files in {subdir}")
+        # Load checkpoint - handle PyTorch 2.6+ security restrictions
+        logger.info(f"Loading checkpoint from: {checkpoint_path}")
         
-        # Find all .pt files in the subdirectory
-        pt_files = [f for f in subdir.glob("*.pt")]
+        try:
+            # First try: Add numpy scalar to safe globals list (more secure approach)
+            torch.serialization.add_safe_globals(['numpy._core.multiarray.scalar'])
+            checkpoint = torch.load(checkpoint_path, map_location=torch.device('cpu'))
+        except Exception as e:
+            logger.warning(f"First loading attempt failed: {str(e)}")
+            # Second try: Use weights_only=False (less secure but compatible with older checkpoints)
+            logger.info("Attempting to load with weights_only=False")
+            checkpoint = torch.load(checkpoint_path, map_location=torch.device('cpu'), weights_only=False)
         
-        for pt_file in pt_files:
-            try:
-                # Load the .pt file
-                data = torch.load(pt_file, map_location=torch.device('cpu'))
-                
-                file_info = {
-                    "file_name": pt_file.name,
-                    "file_path": str(pt_file),
-                    "file_size_mb": pt_file.stat().st_size / (1024 * 1024)
-                }
-                
-                # If data is a dict, extract information from each key
-                if isinstance(data, dict):
-                    file_info["type"] = "dict"
-                    file_info["keys"] = list(data.keys())
-                    file_info["data_shapes"] = {k: tuple(v.shape) if hasattr(v, 'shape') else str(type(v)) for k, v in data.items()}
-                    file_info['dtype_windows'] = data['windows'].dtype
-                    file_info['dtype_labels'] = data['labels'].dtype
-
-                    # Try to extract feature names if available
-                    if 'feature_names' in data:
-                        file_info["feature_names"] = data['feature_names']
-                    elif hasattr(data.get('features', None), 'names'):
-                        file_info["feature_names"] = data['features'].names
-                    elif hasattr(data.get('columns', None), 'names'):
-                        file_info["feature_names"] = data['columns'].names
-                
-                # If data is a tensor, extract its shape
-                elif isinstance(data, torch.Tensor):
-                    file_info["type"] = "tensor"
-                    file_info["shape"] = tuple(data.shape)
-                    file_info["dtype"] = str(data.dtype)
-                
-                # For other types, just record the type
+        # Display checkpoint keys
+        logger.info(f"Checkpoint contains the following keys: {list(checkpoint.keys())}")
+        
+        # Display basic information
+        if 'epoch' in checkpoint:
+            logger.info(f"Epoch: {checkpoint['epoch']}")
+        if 'train_loss' in checkpoint:
+            logger.info(f"Train Loss: {checkpoint['train_loss']}")
+        if 'val_loss' in checkpoint:
+            logger.info(f"Validation Loss: {checkpoint['val_loss']}")
+        
+        # Display metrics if available
+        if 'metrics' in checkpoint:
+            logger.info(f"Metrics: {checkpoint['metrics']}")
+        
+        # Display model architecture info
+        if 'model_state_dict' in checkpoint:
+            model_dict = checkpoint['model_state_dict']
+            logger.info(f"Model has {len(model_dict)} layers/parameters")
+            for key, value in model_dict.items():
+                if hasattr(value, 'shape'):
+                    logger.info(f"  {key}: {value.shape}")
                 else:
-                    file_info["type"] = str(type(data))
-                
-                result[subdir_name].append(file_info)
-                logger.info(f"Analyzed {pt_file.name} - Shape information: {file_info.get('data_shapes', file_info.get('shape', 'Unknown'))}")
-                
-            except Exception as e:
-                logger.error(f"Error analyzing {pt_file}: {e}")
-                result[subdir_name].append({
-                    "file_name": pt_file.name,
-                    "file_path": str(pt_file),
-                    "error": str(e)
-                })
-    
-    return result
-
-def print_pt_summary(analysis_result: Dict[str, List[Dict[str, Any]]]) -> None:
-    """
-    Print a summary of the analyzed PyTorch files
-    
-    Args:
-        analysis_result: Result from analyze_pt_files
-    """
-    for subdir, files_info in analysis_result.items():
-        logger.info(f"\n{'='*20} {subdir} {'='*20}")
+                    logger.info(f"  {key}: {type(value)}")
         
-        for file_info in files_info:
-            logger.info(f"\nFile: {file_info['file_name']} ({file_info['file_size_mb']:.2f} MB)")
-            
-            if 'error' in file_info:
-                logger.error(f"  Error: {file_info['error']}")
-                continue
-                
-            if file_info['type'] == 'dict':
-                logger.info(f"  Keys: {file_info['keys']}")
-                logger.info(f"  Data shapes:")
-                logger.info(f"  Data type windows: {file_info['dtype_windows']}")
-                logger.info(f"  Data type labels: {file_info['dtype_labels']}")
-                for k, shape in file_info['data_shapes'].items():
-                    logger.info(f"    - {k}: {shape}")
-                #logger.info(f"  Data type: {file_info['dtype']}")
-                if 'feature_names' in file_info:
-                    logger.info(f"  Feature names: {file_info['feature_names']}")
-            
-            elif file_info['type'] == 'tensor':
-                logger.info(f"  Shape: {file_info['shape']}")
-                logger.info(f"  Data type: {file_info['dtype']}")
-            
-            else:
-                logger.info(f"  Type: {file_info['type']}")
-
-def analyze_and_print_pt_structure(base_dir: str = "Data/row_energyData_subsample_Transform/position_encoding/train/contact") -> Dict[str, List[Dict[str, Any]]]:
-    """
-    Convenience function to analyze PyTorch files and print a summary
-    
-    Args:
-        base_dir: Base directory to look for .pt files
+        # Display optimizer info
+        if 'optimizer_state_dict' in checkpoint:
+            logger.info("Optimizer state dict is present")
         
-    Returns:
-        Analysis result dictionary
-    """
-    logger.info(f"Starting analysis of PyTorch files in {base_dir}")
-    result = analyze_pt_files(base_dir)
-    print_pt_summary(result)
-    logger.info("Analysis complete")
-    return result
+        # Display config if available
+        if 'config' in checkpoint:
+            logger.info(f"Configuration: {checkpoint['config']}")
+        
+        return checkpoint
+    
+    except Exception as e:
+        logger.error(f"Error loading checkpoint: {str(e)}")
+        return None
 
-if __name__ == "__main__":
+def main():
+    """
+    Main function to demonstrate checkpoint loading functionality
+    """
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_filename = f"load_checkpoint_{timestamp}.log"
+    
     # Example usage
-    analyze_and_print_pt_structure()
+    checkpoint_path = "experiments/row_energyData_subsample_Transform/bestModel/op0.3_ad0.48/transformer_20250706_171102_op0.3_ad0.48/best_adj_f1/checkpoint_epoch_0.pt"
+    checkpoint = load_display_checkpoint(checkpoint_path)
+    
+    if checkpoint:
+        logger.info("Checkpoint loaded successfully")
+    else:
+        logger.error("Failed to load checkpoint")
+    
+if __name__ == "__main__":
+    main()

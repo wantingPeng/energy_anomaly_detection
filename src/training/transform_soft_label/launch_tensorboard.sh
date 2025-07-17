@@ -4,7 +4,7 @@
 
 # Set the default log directory
 
-LOG_DIR="experiments/pc_transformer/tensorboard/transformer_20250705_184030"
+LOG_DIR="experiments/row_energyData_subsample_Transform/tensorboard"
 
 # Check if a specific log directory is provided as an argument
 if [ "$#" -gt 0 ]; then

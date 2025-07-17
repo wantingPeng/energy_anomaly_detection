@@ -46,7 +46,7 @@ def process_data(df):
     
     return X, feature_columns, timestamps, labels
 
-def perform_pca(X, n_components=4):
+def perform_pca(X, n_components=20):
     """Perform PCA and extract the first n_components."""
     logger.info(f"Performing PCA to extract {n_components} components...")
     pca = PCA(n_components=n_components)
@@ -80,8 +80,7 @@ def create_pc_dataframe(X_pca, timestamps, labels):
 
 def save_results(pc_df):
     """Save the PC results to parquet file."""
-    timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
-    output_path = f"Data/pc/pc_features_{timestamp_str}.parquet"
+    output_path = f"Data/pc/pc_features_train_20.parquet"
     
     pc_df.to_parquet(output_path, index=False)
     logger.info(f"PC features saved to: {output_path}")
@@ -102,7 +101,7 @@ def main():
     X, feature_columns, timestamps, labels = process_data(df)
     
     # Perform PCA
-    X_pca, pca_model = perform_pca(X, n_components=4)
+    X_pca, pca_model = perform_pca(X, n_components=20)
     
     # Create DataFrame with PCs and metadata
     pc_df = create_pc_dataframe(X_pca, timestamps, labels)
