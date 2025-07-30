@@ -4,7 +4,7 @@ from tqdm import tqdm
 from torch.utils.data import Dataset
 import torch.nn as nn
 import random
-from transformers import AutoModel, AutoConfig, Trainer, TrainingArguments
+from transformers import AutoModel, AutoConfig, Trainer, TrainingArguments, EarlyStoppingCallback
 from torch.nn.utils.rnn import pad_sequence
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
@@ -16,31 +16,40 @@ def compute_metrics(eval_pred):
     predictions, labels = eval_pred
     if predictions.ndim == 2 and predictions.shape[1] == 2:
         positive_probs = predictions[:, 1]
-        predictions_labels = (positive_probs >= 0.5).astype(int)
     else:
         positive_probs = 1 / (1 + np.exp(-predictions))
-        predictions_labels = (positive_probs >= 0.5).astype(int)
 
-    accuracy_metric = evaluate.load("accuracy")
-    f1_metric = evaluate.load("f1")
-    precision_metric = evaluate.load("precision")
-    recall_metric = evaluate.load("recall")
+    # 计算PR曲线
+    precision_curve, recall_curve, thresholds = precision_recall_curve(labels, positive_probs)
     
+    # 计算每个阈值下的F1分数
+    f1_scores = 2 * (precision_curve * recall_curve) / (precision_curve + recall_curve + 1e-8)
+    
+    # 找到最佳F1阈值
+    best_f1_idx = np.argmax(f1_scores)
+    best_threshold = thresholds[best_f1_idx] if best_f1_idx < len(thresholds) else 0.5
+    best_f1 = f1_scores[best_f1_idx]
+    best_precision = precision_curve[best_f1_idx]
+    best_recall = recall_curve[best_f1_idx]
+    
+    # 使用最佳阈值生成预测标签
+    predictions_labels = (positive_probs >= best_threshold).astype(int)
+    
+    # 计算准确率（使用最佳阈值）
+    accuracy_metric = evaluate.load("accuracy")
     accuracy = accuracy_metric.compute(predictions=predictions_labels, references=labels)
-    f1 = f1_metric.compute(predictions=predictions_labels, references=labels)
-    precision = precision_metric.compute(predictions=predictions_labels, references=labels)
-    recall = recall_metric.compute(predictions=predictions_labels, references=labels)
-
-    precision_curve, recall_curve, _ = precision_recall_curve(labels, positive_probs)
+    
+    # 计算PR-AUC
     prauc = auc(recall_curve, precision_curve)
     
     # 合并结果并返回
     return {
         "accuracy": accuracy["accuracy"],
-        "f1": f1["f1"],
-        "precision": precision["precision"],
-        "recall": recall["recall"],
-        "prauc": prauc
+        "f1": best_f1,
+        "precision": best_precision,
+        "recall": best_recall,
+        "prauc": prauc,
+        "best_threshold": best_threshold
     }
     
 
@@ -255,7 +264,7 @@ def main_train(neg_rate, learning_rate, batch_size):
     evaldataset = NumericDataset(evalsamples, mean, std)
 
     # 加载预训练模型
-    model = NumericClassifier(backbone_name="deberta_v3_small", num_labels=2)
+    model = NumericClassifier(backbone_name="Microsoft/deberta-v3-base", num_labels=2)
     # model = MLPClassifier()
     model.to(device)
     outputpath = 'trained_models/'+str(neg_rate)+'_'+str(learning_rate)+'_'+str(batch_size)
@@ -273,7 +282,7 @@ def main_train(neg_rate, learning_rate, batch_size):
         remove_unused_columns=False,
         dataloader_drop_last=False,
         load_best_model_at_end=True,
-        metric_for_best_model="accuracy",
+        metric_for_best_model="prauc",
         greater_is_better=True,
         bf16=True,
         dataloader_num_workers=1,
@@ -282,26 +291,90 @@ def main_train(neg_rate, learning_rate, batch_size):
         gradient_accumulation_steps=1
     )
 
+    # 配置 Early Stopping
+    early_stopping = EarlyStoppingCallback(
+        early_stopping_patience=5,      # 连续5个epoch没有改善就停止
+        early_stopping_threshold=0.001  # 改善的最小阈值 (0.1%)
+    )
+    
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=dataset,
         eval_dataset=evaldataset,
         data_collator=collate_numeric,
-        compute_metrics=compute_metrics
+        compute_metrics=compute_metrics,
+        callbacks=[early_stopping]      # 添加 early stopping callback
     )
     trainer.train()
     trainer.save_model(f"{outputpath}/bestmodel")
+    return trainer
     
 if __name__ == '__main__':
     negrate_list = [1, 2, 3, 4, 5]
     learning_rate_list = [1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 5e-3, 1e-6, 5e-6, 7e-6]
     batch_size_list = [128, 256, 512, 1024]
     total_ = len(negrate_list) * len(learning_rate_list) * len(batch_size_list)
-    count_ = 0 
+    count_ = 0
+    
+    # 跟踪最佳模型
+    best_prauc = -1
+    best_config = None
+    best_model_path = None
+    results_log = []
+    
     for neg_rate in negrate_list:
         for learning_rate in learning_rate_list:
             for batch_size in batch_size_list:
                 count_ += 1
                 print(f'------------------------------ [{count_}/{total_}] ------------------------------')
-                main_train(neg_rate, learning_rate, batch_size)
+                
+                # 训练模型并获取最终结果
+                trainer = main_train(neg_rate, learning_rate, batch_size)
+                
+                # 获取最终评估结果
+                eval_results = trainer.evaluate()
+                current_prauc = eval_results.get('eval_prauc', -1)
+                
+                # 记录结果
+                config = f"neg_rate={neg_rate}, lr={learning_rate}, batch_size={batch_size}"
+                model_path = f'trained_models/{neg_rate}_{learning_rate}_{batch_size}/bestmodel'
+                
+                results_log.append({
+                    'config': config,
+                    'path': model_path,
+                    'f1': eval_results.get('eval_f1', -1),
+                    'accuracy': eval_results.get('eval_accuracy', -1),
+                    'precision': eval_results.get('eval_precision', -1),
+                    'recall': eval_results.get('eval_recall', -1),
+                    'prauc': current_prauc
+                })
+                
+                # 更新最佳模型
+                if current_prauc > best_prauc:
+                    best_prauc = current_prauc
+                    best_config = config
+                    best_model_path = model_path
+                
+                print(f"Current PR-AUC: {current_prauc:.4f}, Best PR-AUC so far: {best_prauc:.4f}")
+    
+    # 输出最终结果
+    print("\n" + "="*80)
+    print("TRAINING COMPLETED!")
+    print("="*80)
+    print(f"Best PR-AUC Score: {best_prauc:.4f}")
+    print(f"Best Configuration: {best_config}")
+    print(f"Best Model Path: {best_model_path}")
+    print("="*80)
+    
+    # 保存所有结果到文件
+    import json
+    with open('training_results.json', 'w') as f:
+        json.dump({
+            'best_prauc': best_prauc,
+            'best_config': best_config,
+            'best_model_path': best_model_path,
+            'all_results': results_log
+        }, f, indent=2)
+    
+    print("All results saved to 'training_results.json'")
