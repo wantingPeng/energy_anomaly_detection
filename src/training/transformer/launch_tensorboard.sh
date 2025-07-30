@@ -3,7 +3,7 @@
 # This script launches TensorBoard to visualize the training logs for the Transformer model.
 
 # Set the default log directory
-LOG_DIR="experiments/statistic_40_transformer/tensorboard"
+LOG_DIR="/home/wanting/energy_anomaly_detection/trained_models/runs/Jul28_14-57-47_jerry/events.out.tfevents.1753707467.jerry.43360.0"
 
 # Check if a specific log directory is provided as an argument
 if [ "$#" -gt 0 ]; then
