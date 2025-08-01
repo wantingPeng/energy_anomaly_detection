@@ -10,6 +10,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 import evaluate
 import numpy as np
+import pandas as pd
 from sklearn.metrics import precision_recall_curve, auc
 
 def compute_metrics(eval_pred):
@@ -19,38 +20,108 @@ def compute_metrics(eval_pred):
     else:
         positive_probs = 1 / (1 + np.exp(-predictions))
 
-    # 计算PR曲线
+    # 计算PR曲线和PR-AUC
     precision_curve, recall_curve, thresholds = precision_recall_curve(labels, positive_probs)
-    
-    # 计算每个阈值下的F1分数
-    f1_scores = 2 * (precision_curve * recall_curve) / (precision_curve + recall_curve + 1e-8)
-    
-    # 找到最佳F1阈值
-    best_f1_idx = np.argmax(f1_scores)
-    best_threshold = thresholds[best_f1_idx] if best_f1_idx < len(thresholds) else 0.5
-    best_f1 = f1_scores[best_f1_idx]
-    best_precision = precision_curve[best_f1_idx]
-    best_recall = recall_curve[best_f1_idx]
-    
-    # 使用最佳阈值生成预测标签
-    predictions_labels = (positive_probs >= best_threshold).astype(int)
-    
-    # 计算准确率（使用最佳阈值）
-    accuracy_metric = evaluate.load("accuracy")
-    accuracy = accuracy_metric.compute(predictions=predictions_labels, references=labels)
-    
-    # 计算PR-AUC
     prauc = auc(recall_curve, precision_curve)
     
-    # 合并结果并返回
-    return {
-        "accuracy": accuracy["accuracy"],
-        "f1": best_f1,
-        "precision": best_precision,
-        "recall": best_recall,
-        "prauc": prauc,
-        "best_threshold": best_threshold
+    # 异常检测任务推荐的阈值策略
+    from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+    
+    # 调试信息：打印预测概率分布
+    print(f"[DEBUG] 预测概率范围: [{positive_probs.min():.6f}, {positive_probs.max():.6f}]")
+    print(f"[DEBUG] 预测概率均值: {positive_probs.mean():.6f}, 中位数: {np.median(positive_probs):.6f}")
+    print(f"[DEBUG] 正样本比例: {np.mean(labels):.4f}")
+    
+    # 策略1: 固定阈值0.5 (标准做法)
+    threshold_05 = 0.5
+    pred_05 = (positive_probs >= threshold_05).astype(int)
+    
+    # 策略2: 基于Youden Index (Sensitivity + Specificity - 1 最大化)
+    # 对于不平衡数据更稳定
+    from sklearn.metrics import roc_curve
+    fpr, tpr, roc_thresholds = roc_curve(labels, positive_probs)
+    youden_scores = tpr - fpr
+    youden_idx = np.argmax(youden_scores)
+    
+    # 添加边界条件处理
+    if youden_idx < len(roc_thresholds):
+        threshold_youden = roc_thresholds[youden_idx]
+        # 防止极端阈值
+        if np.isinf(threshold_youden) or threshold_youden > 0.99:
+            threshold_youden = 0.5
+        elif threshold_youden < 0.01:
+            threshold_youden = 0.01
+    else:
+        threshold_youden = 0.5
+    
+    pred_youden = (positive_probs >= threshold_youden).astype(int)
+    
+    # 调试信息：Youden Index策略结果
+    print(f"[DEBUG] Youden阈值: {threshold_youden:.6f}")
+    print(f"[DEBUG] Youden策略预测正样本比例: {np.mean(pred_youden):.4f}")
+    
+    # 策略3: 基于分位数的异常检测阈值 (保守策略)
+    # 使用95分位数作为阈值，假设5%的数据是异常
+    threshold_percentile = np.percentile(positive_probs, 95)
+    pred_percentile = (positive_probs >= threshold_percentile).astype(int)
+    
+    # 策略4: 在合理的recall范围内找最佳precision (如recall >= 0.7) 
+    valid_indices = recall_curve >= 0.7
+    if np.any(valid_indices):
+        best_idx = np.argmax(precision_curve[valid_indices])
+        actual_idx = np.where(valid_indices)[0][best_idx]
+        threshold_balanced = thresholds[actual_idx] if actual_idx < len(thresholds) else 0.5
+    else:
+        threshold_balanced = 0.5
+    pred_balanced = (positive_probs >= threshold_balanced).astype(int)
+    
+    # 调试信息：分位数策略结果
+    print(f"[DEBUG] 95分位数阈值: {threshold_percentile:.6f}")
+    print(f"[DEBUG] 分位数策略预测正样本比例: {np.mean(pred_percentile):.4f}")
+    
+    # 计算各策略的指标
+    metrics_05 = {
+        "accuracy_05": accuracy_score(labels, pred_05),
+        "precision_05": precision_score(labels, pred_05, zero_division=0),
+        "recall_05": recall_score(labels, pred_05, zero_division=0),
+        "f1_05": f1_score(labels, pred_05, zero_division=0),
     }
+    
+    metrics_youden = {
+        "accuracy_youden": accuracy_score(labels, pred_youden),
+        "precision_youden": precision_score(labels, pred_youden, zero_division=0),
+        "recall_youden": recall_score(labels, pred_youden, zero_division=0),
+        "f1_youden": f1_score(labels, pred_youden, zero_division=0),
+    }
+    
+    metrics_percentile = {
+        "accuracy_percentile": accuracy_score(labels, pred_percentile),
+        "precision_percentile": precision_score(labels, pred_percentile, zero_division=0),
+        "recall_percentile": recall_score(labels, pred_percentile, zero_division=0),
+        "f1_percentile": f1_score(labels, pred_percentile, zero_division=0),
+    }
+    
+    metrics_balanced = {
+        "accuracy_balanced": accuracy_score(labels, pred_balanced),
+        "precision_balanced": precision_score(labels, pred_balanced, zero_division=0),
+        "recall_balanced": recall_score(labels, pred_balanced, zero_division=0),
+        "f1_balanced": f1_score(labels, pred_balanced, zero_division=0),
+    }
+    
+    # 主要指标使用分位数策略 (对异常检测任务更稳定)
+    main_metrics = {
+        "accuracy": metrics_percentile["accuracy_percentile"],
+        "precision": metrics_percentile["precision_percentile"], 
+        "recall": metrics_percentile["recall_percentile"],
+        "f1": metrics_percentile["f1_percentile"],
+        "prauc": prauc,
+        "threshold": threshold_percentile,
+        "pos_ratio": np.mean(labels),  # 添加数据分布信息
+        "pred_ratio": np.mean(pred_percentile),  # 预测正样本比例
+    }
+    
+    # 合并所有指标
+    return {**main_metrics, **metrics_05, **metrics_youden, **metrics_balanced}
     
 
 class NumericDataset(Dataset):
@@ -207,8 +278,7 @@ class MLPClassifier(nn.Module):
             return {"logits": logits}
 
 
-def process_rawdata(input_path, model, neg_rate):
-    import pandas as pd
+def process_rawdata(df, model, neg_rate):
     if model == 'train':
         count_map = {
             0:0,
@@ -216,7 +286,6 @@ def process_rawdata(input_path, model, neg_rate):
         }
         data_list = []
         data_0_list = []
-        df = pd.read_parquet(input_path)
         dict_list = df.to_dict(orient="records")
         for line in tqdm(dict_list):
             count_map[line['anomaly_label']] += 1
@@ -239,7 +308,6 @@ def process_rawdata(input_path, model, neg_rate):
         return data_list
     else:
         data_list = []
-        df = pd.read_parquet(input_path)
         dict_list = df.to_dict(orient="records")
         for line in tqdm(dict_list):
             cur_input = []
@@ -253,12 +321,20 @@ def process_rawdata(input_path, model, neg_rate):
         return data_list
 
 
-def main_train(neg_rate, learning_rate, batch_size):
-    device = torch.device("cpu")
-    print('[INFO] loading data...')
-    samples = process_rawdata('Data/row_energyData_subsample_Transform/labeled/train/contact/part.0.parquet', 'train', neg_rate)
-    evalsamples = process_rawdata('Data/row_energyData_subsample_Transform/labeled/val/contact/part.0.parquet', 'val', neg_rate)
-    print('[INFO] data loaded...')
+def main_train(neg_rate, learning_rate, batch_size, raw_train_data, raw_val_data):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f'[INFO] Using device: {device}')
+    print('[INFO] processing data...')
+    samples = process_rawdata(raw_train_data, 'train', neg_rate)
+    evalsamples = process_rawdata(raw_val_data, 'val', neg_rate)
+    
+    # 打印数据分布信息
+    train_pos = sum(1 for s in samples if s['label'] == 1)
+    val_pos = sum(1 for s in evalsamples if s['label'] == 1)
+    print(f'[INFO] 训练集: {len(samples)} 样本, 正样本: {train_pos} ({train_pos/len(samples)*100:.2f}%)')
+    print(f'[INFO] 验证集: {len(evalsamples)} 样本, 正样本: {val_pos} ({val_pos/len(evalsamples)*100:.2f}%)')
+    print('[INFO] data processed...')
+    
     dataset = NumericDataset(samples)
     mean, std = dataset.get_stats()
     evaldataset = NumericDataset(evalsamples, mean, std)
@@ -267,7 +343,7 @@ def main_train(neg_rate, learning_rate, batch_size):
     model = NumericClassifier(backbone_name="Microsoft/deberta-v3-base", num_labels=2)
     # model = MLPClassifier()
     model.to(device)
-    outputpath = 'trained_models/'+str(neg_rate)+'_'+str(learning_rate)+'_'+str(batch_size)
+    outputpath = 'trained_models_1/'+str(neg_rate)+'_'+str(learning_rate)+'_'+str(batch_size)
     # 训练参数配置
     training_args = TrainingArguments(
         output_dir=outputpath,
@@ -282,7 +358,7 @@ def main_train(neg_rate, learning_rate, batch_size):
         remove_unused_columns=False,
         dataloader_drop_last=False,
         load_best_model_at_end=True,
-        metric_for_best_model="prauc",
+        metric_for_best_model="prauc",  # PR-AUC对异常检测任务最稳定
         greater_is_better=True,
         bf16=True,
         dataloader_num_workers=1,
@@ -293,10 +369,10 @@ def main_train(neg_rate, learning_rate, batch_size):
 
     # 配置 Early Stopping
     early_stopping = EarlyStoppingCallback(
-        early_stopping_patience=5,      # 连续5个epoch没有改善就停止
+        early_stopping_patience=10,      # 连续5个epoch没有改善就停止
         early_stopping_threshold=0.001  # 改善的最小阈值 (0.1%)
     )
-    
+
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -311,9 +387,24 @@ def main_train(neg_rate, learning_rate, batch_size):
     return trainer
     
 if __name__ == '__main__':
-    negrate_list = [1, 2, 3, 4, 5]
-    learning_rate_list = [1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 5e-3, 1e-6, 5e-6, 7e-6]
-    batch_size_list = [128, 256, 512, 1024]
+    # 预加载数据，避免重复读取
+    print("🔄 Pre-loading training data...")
+    raw_train_data = pd.read_parquet('Data/row_energyData_subsample_Transform/labeled/train/contact/part.0.parquet')
+    raw_val_data = pd.read_parquet('Data/row_energyData_subsample_Transform/labeled/val/contact/part.0.parquet')
+    print("✅ Data pre-loaded successfully!")
+    
+    # 🎯 优化建议：先用较少参数组合快速筛选，再精细化搜索
+    #negrate_list = [1, 2, 3, 4, 5]
+    negrate_list = [3]
+    # 建议：先用这个较小的范围快速找到合理区间
+    learning_rate_list = [0.0001]  # 快速搜索
+    #learning_rate_list = [1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 5e-3, 1e-6, 5e-6, 7e-6]  # 快速搜索
+    # learning_rate_list = [1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 5e-3, 1e-6, 5e-6, 7e-6]  # 完整搜索
+    
+    # 建议：batch_size 通常 128-512 就够了，太大可能效果不好
+    # batch_size_list = [128, 256, 512, 1024]
+    #batch_size_list = [128, 256, 512]
+    batch_size_list = [256]
     total_ = len(negrate_list) * len(learning_rate_list) * len(batch_size_list)
     count_ = 0
     
@@ -323,40 +414,95 @@ if __name__ == '__main__':
     best_model_path = None
     results_log = []
     
+    # 时间追踪
+    import time
+    start_time = time.time()
+    completed_count = 0
+    
     for neg_rate in negrate_list:
         for learning_rate in learning_rate_list:
             for batch_size in batch_size_list:
                 count_ += 1
                 print(f'------------------------------ [{count_}/{total_}] ------------------------------')
                 
-                # 训练模型并获取最终结果
-                trainer = main_train(neg_rate, learning_rate, batch_size)
-                
-                # 获取最终评估结果
-                eval_results = trainer.evaluate()
-                current_prauc = eval_results.get('eval_prauc', -1)
-                
-                # 记录结果
                 config = f"neg_rate={neg_rate}, lr={learning_rate}, batch_size={batch_size}"
                 model_path = f'trained_models/{neg_rate}_{learning_rate}_{batch_size}/bestmodel'
                 
-                results_log.append({
-                    'config': config,
-                    'path': model_path,
-                    'f1': eval_results.get('eval_f1', -1),
-                    'accuracy': eval_results.get('eval_accuracy', -1),
-                    'precision': eval_results.get('eval_precision', -1),
-                    'recall': eval_results.get('eval_recall', -1),
-                    'prauc': current_prauc
-                })
-                
-                # 更新最佳模型
-                if current_prauc > best_prauc:
-                    best_prauc = current_prauc
-                    best_config = config
-                    best_model_path = model_path
-                
-                print(f"Current PR-AUC: {current_prauc:.4f}, Best PR-AUC so far: {best_prauc:.4f}")
+                try:
+                    # 训练模型并获取最终结果
+                    trainer = main_train(neg_rate, learning_rate, batch_size, raw_train_data, raw_val_data)
+                    
+                    # 获取最终评估结果
+                    eval_results = trainer.evaluate()
+                    current_prauc = eval_results.get('eval_prauc', -1)
+                    
+                    # 记录结果 - 包含多种阈值策略的指标
+                    results_log.append({
+                        'config': config,
+                        'path': model_path,
+                        'prauc': current_prauc,
+                        # 主要指标 (分位数策略)
+                        'f1': eval_results.get('eval_f1', -1),
+                        'accuracy': eval_results.get('eval_accuracy', -1),
+                        'precision': eval_results.get('eval_precision', -1),
+                        'recall': eval_results.get('eval_recall', -1),
+                        'threshold': eval_results.get('eval_threshold', -1),
+                        # 固定阈值0.5的指标
+                        'f1_05': eval_results.get('eval_f1_05', -1),
+                        'accuracy_05': eval_results.get('eval_accuracy_05', -1),
+                        'precision_05': eval_results.get('eval_precision_05', -1),
+                        'recall_05': eval_results.get('eval_recall_05', -1),
+                        # Youden Index策略
+                        'f1_youden': eval_results.get('eval_f1_youden', -1),
+                        'accuracy_youden': eval_results.get('eval_accuracy_youden', -1),
+                        'precision_youden': eval_results.get('eval_precision_youden', -1),
+                        'recall_youden': eval_results.get('eval_recall_youden', -1),
+                        # 平衡策略
+                        'f1_balanced': eval_results.get('eval_f1_balanced', -1),
+                        'precision_balanced': eval_results.get('eval_precision_balanced', -1),
+                        'recall_balanced': eval_results.get('eval_recall_balanced', -1),
+                        # 数据分布信息
+                        'pos_ratio': eval_results.get('eval_pos_ratio', -1),
+                        'pred_ratio': eval_results.get('eval_pred_ratio', -1),
+                        'status': 'completed'
+                    })
+                    
+                    # 更新最佳模型
+                    if current_prauc > best_prauc:
+                        best_prauc = current_prauc
+                        best_config = config
+                        best_model_path = model_path
+                    
+                    completed_count += 1
+                    
+                    # 时间估算
+                    elapsed_time = time.time() - start_time
+                    avg_time_per_model = elapsed_time / completed_count
+                    remaining_models = total_ - completed_count
+                    estimated_remaining_time = avg_time_per_model * remaining_models
+                    
+                    print(f"✅ Current PR-AUC: {current_prauc:.4f}, Best PR-AUC so far: {best_prauc:.4f}")
+                    print(f"⏱️  Avg time per model: {avg_time_per_model/60:.1f}min, ETA: {estimated_remaining_time/3600:.1f}h")
+                    
+                except Exception as e:
+                    print(f"❌ Training failed for {config}: {str(e)}")
+                    results_log.append({
+                        'config': config,
+                        'path': model_path,
+                        'f1': -1,
+                        'accuracy': -1,
+                        'precision': -1,
+                        'recall': -1,
+                        'prauc': -1,
+                        'status': 'failed',
+                        'error': str(e)
+                    })
+                    
+                    # 清理GPU内存（如果使用GPU）
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                    
+                    continue
     
     # 输出最终结果
     print("\n" + "="*80)
