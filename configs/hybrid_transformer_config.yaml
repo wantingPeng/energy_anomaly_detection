@@ -1,0 +1,118 @@
+# Configuration for Hybrid Transformer Model (CNN + TCN + Transformer)
+# This model combines multiple architectures for enhanced anomaly detection
+
+data:
+  exclude_columns:
+    - TimeStamp
+    - anomaly_label
+  step_size: 50
+  test_ratio: 0.15
+  train_ratio: 0.7
+  val_ratio: 0.15
+  window_size: 50
+
+hardware:
+  precision: float32
+
+model:
+  # Model type selection
+  model_type: hybrid  # 'transformer' for original, 'hybrid' for enhanced model
+  
+  # Core model parameters
+  activation: gelu
+  d_model: 128
+  dim_feedforward: 512
+  dropout: 0.1
+  nhead: 8
+  num_classes: 2
+  
+  # Transformer-specific parameters
+  num_layers: 3  # Will be used as num_transformer_layers for hybrid model
+  num_transformer_layers: 3
+  
+  # TCN-specific parameters (for hybrid model)
+  num_tcn_layers: 4
+  
+  # Multi-task learning options
+  use_auxiliary_loss: true  # Enable auxiliary losses for CNN, TCN, Transformer branches
+  auxiliary_loss_weight: 0.3
+
+paths:
+  data_dir: Data/downsampleData_scratch_1minut/Contacting_cleaned_1minut_20250802_170647.parquet
+  output_dir: experiments/downsampleData_scratch_1minut
+
+preprocessing:
+  fit_on_train: true
+  normalization: standard
+
+sequence_labeling:
+  evaluation_metric: optimal_f1
+  use_threshold_optimization: true
+
+training:
+  # Training parameters optimized for hybrid model
+  batch_size: 32  # Reduced batch size due to increased model complexity
+  early_stopping_metric: optimal_f1
+  early_stopping_min_delta: 0.0001
+  early_stopping_patience: 25  # Increased patience for complex model
+  focal_loss_alpha: 0.3
+  focal_loss_gamma: 2.0
+  learning_rate: 0.0005  # Slightly reduced LR for stability
+  lr_reduce_factor: 0.8
+  lr_reduce_patience: 10
+  lr_scheduler: reduce_on_plateau
+  min_lr: 1.0e-06
+  num_epochs: 150  # More epochs for complex model
+  num_workers: 4
+  optimizer: adam
+  use_focal_loss: true
+  weight_decay: 0.0001
+
+# Hybrid model specific configurations
+hybrid_model:
+  # CNN branch configuration
+  cnn:
+    kernel_sizes: [3, 5, 7, 11]  # Multi-scale convolutions
+    use_batch_norm: true
+    
+  # TCN branch configuration  
+  tcn:
+    kernel_size: 3
+    max_dilation: 8
+    use_causal_conv: true
+    
+  # Multi-scale attention configuration
+  attention:
+    num_scales: 3
+    scale_factors: [1, 2, 4]
+    
+  # Feature fusion configuration
+  fusion:
+    attention_based: true
+    residual_connections: true
+
+# Model size variants (can be selected via command line)
+model_variants:
+  small:
+    d_model: 64
+    nhead: 4
+    num_transformer_layers: 2
+    num_tcn_layers: 3
+    dim_feedforward: 256
+    batch_size: 64
+    
+  base:
+    d_model: 128
+    nhead: 8
+    num_transformer_layers: 3
+    num_tcn_layers: 4
+    dim_feedforward: 512
+    batch_size: 32
+    
+  large:
+    d_model: 256
+    nhead: 16
+    num_transformer_layers: 4
+    num_tcn_layers: 6
+    dim_feedforward: 1024
+    batch_size: 16

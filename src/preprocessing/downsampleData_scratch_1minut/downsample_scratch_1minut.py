@@ -159,7 +159,7 @@ def save_downsampled_data(df: pd.DataFrame, output_dir: str) -> str:
     
     # Generate output filename with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_filename = f"Contacting_cleaned_1minut_{timestamp}.parquet"
+    output_filename = f"Ring_cleaned_1minut_{timestamp}.parquet"
     output_path = os.path.join(output_dir, output_filename)
     
     # Save to parquet format
@@ -213,18 +213,6 @@ def load_anomaly_dict(anomaly_file_path: str) -> dict:
             anomaly_dict = pickle.load(f)
         
         logger.info(f"Keys in anomaly dict: {list(anomaly_dict.keys())}")
-        
-        # Check if Kontaktieren station exists
-        if 'Kontaktieren' in anomaly_dict:
-            num_periods = len(anomaly_dict['Kontaktieren'])
-            logger.info(f"Found {num_periods} anomaly periods for Kontaktieren station")
-            
-            # Log first few anomaly periods for verification
-            logger.info("Example anomaly periods for Kontaktieren:")
-            for i, (start, end) in enumerate(anomaly_dict['Kontaktieren'][:3]):
-                logger.info(f"  {i+1}. {start} to {end}")
-        else:
-            logger.warning("Kontaktieren station not found in anomaly dictionary")
             
         return anomaly_dict
         
@@ -306,10 +294,10 @@ def add_anomaly_labels(df: pd.DataFrame, anomaly_dict: dict, station_name: str =
 def main():
     """
     Main function to orchestrate the downsampling pipeline.
-    """
+    """ 
     # Define file paths
-    input_file = "Data/machine/cleaning_utc/Contacting_cleaned.parquet"
-    output_dir = "Data/downsampleData_scratch_1minut"
+    input_file = "Data/machine/cleaning_utc/Contacting_cleaned_1.parquet"
+    output_dir = "Data/downsampleData_scratch_1minut_contact"
     anomaly_file = "Data/machine/Anomaly_Data/anomaly_dict_merged.pkl"
     
     try:
