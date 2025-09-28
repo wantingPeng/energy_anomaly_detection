@@ -82,21 +82,17 @@ def cleaning(df):
         report_content.append("- Sorted data by TimeStamp in ascending order\n")
     
     # Save the report
-    report_path = "Data/machine/cleaning_utc/Energy_Data_contact_cleaned.md"
+    report_path = "Data/machine/cleaning_utc/Energy_Data_contact_cleaned_1.md"
     os.makedirs(os.path.dirname(report_path), exist_ok=True)
     with open(report_path, 'w') as f:
         f.write('\n'.join(report_content))
-        
-    # Print preview of processed data
-    logger.info("Preview of processed data (first 5 rows):")
-    logger.info(df.head())
-    
+
     # Manually save the data
     output_dir = "Data/machine/cleaning_utc"
     os.makedirs(output_dir, exist_ok=True)
     
     # Save as parquet
-    output_file = os.path.join(output_dir, "Contacting_cleaned.parquet")
+    output_file = os.path.join(output_dir, "Contacting_cleaned_1.parquet")
     df.to_parquet(output_file)
     logger.info(f"Saved cleaned data to {output_file}")
     
@@ -104,11 +100,11 @@ def cleaning(df):
 
 if __name__ == "__main__":
     # Load data from specified path
-    input_path = "Data/interim/Energy_Data/Contacting"
+    input_path = "Data/row/Energy_Data/Contacting"
     logger.info(f"Loading data from {input_path}")
     
-    # Use Dask to read parquet files
-    df = dd.read_parquet(input_path)
+    # Use Dask to read all CSV files in the directory
+    df = dd.read_csv(os.path.join(input_path, "*.csv"))
     
     # Process the data
     cleaned_df = cleaning(df)

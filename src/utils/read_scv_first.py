@@ -40,14 +40,14 @@ def read_first_n_rows(
 
 if __name__ == "__main__":
     # Example usage (modify paths as needed)
-    input_csv = "Data/row/Anomaly_Data/Duration_of_Anomalies.csv"
-    output_csv = "Data/data_preview/row_anomaly_data.csv"  # Optional
+    input_csv = "Data/row/Energy_Data/Contacting/August_2024.csv"
+    #output_csv = "Data/data_preview/row_anomaly_data.csv"  # Optional
     
     try:
         df = read_first_n_rows(
             csv_path=input_csv,
             nrows=1000,
-            output_path=output_csv,  # Set to None if you don't want to save
+            #output_path=output_csv,  # Set to None if you don't want to save
         )
         logger.info(f"Data preview (first 5 rows):\n{df.head()}")
         logger.info(f"Data shape: {df.shape}")
