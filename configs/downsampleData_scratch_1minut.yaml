@@ -2,19 +2,19 @@
 
 # Paths
 paths:
-  data_dir: "Data/downsampleData_scratch_1minut"
+  data_dir: "Data/downsampleData_scratch_1minut/Contacting_cleaned_1minut_20250802_170647.parquet"
   output_dir: "experiments/downsampleData_scratch_1minut"
-  scaler_save_path: "experiments/models/scaler_downsample_1min.pkl"
 
 # Data configuration
 data:
-  component: "contact"  # Options: contact, pcb, ring
-  # Data split configuration
-  split_timestamp: "2025-01-01 00:00:00+00:00"  # Before: train, After: validation
+  # Data split configuration (sequential split)
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
   
   # Sliding window parameters
-  window_size: 200   # Size of sliding window (number of timesteps) - 1 hour of 1-minute data
-  step_size: 200     # Step size for sliding window (stride) - 50% overlap
+  window_size: 50   # Size of sliding window (number of timesteps) - 1 hour of 1-minute data
+  step_size: 50     # Step size for sliding window (stride) - 50% overlap
   
   # Feature columns to exclude (non-feature columns)
   exclude_columns: ["TimeStamp", "anomaly_label"]

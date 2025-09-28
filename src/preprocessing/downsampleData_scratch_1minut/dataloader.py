@@ -1,8 +1,9 @@
 """
-Data loader with train/validation split, normalization, and sliding window functionality.
+Data loader with train/validation/test split, normalization, and sliding window functionality.
 
-This module provides functionality to load energy data, split into train/validation sets
-based on timestamp, apply normalization, and create sliding windows for transformer model training.
+This module provides functionality to load energy data, split into train/validation/test sets
+based on configurable ratios (default: 70% train, 15% val, 15% test), apply normalization, 
+and create sliding windows for transformer model training.
 """
 
 import os
@@ -20,13 +21,15 @@ from utils.logger import logger
 
 class EnergyDataProcessor:
     """
-    Processes energy data with train/validation split, normalization, and sliding windows.
+    Processes energy data with train/validation/test split, normalization, and sliding windows.
     """
     
     def __init__(
         self,
         data_dir: str,
-        split_timestamp: str = "2025-01-01 00:00:00+00:00",
+        train_ratio: float = 0.7,
+        val_ratio: float = 0.15,
+        test_ratio: float = 0.15,
         window_size: int = 60,
         step_size: int = 1,
         exclude_columns: List[str] = None
@@ -36,15 +39,23 @@ class EnergyDataProcessor:
         
         Args:
             data_dir: Directory containing parquet data files
-            split_timestamp: Timestamp to split train/validation (before: train, after: val)
+            train_ratio: Ratio of data for training (default: 0.7)
+            val_ratio: Ratio of data for validation (default: 0.15)
+            test_ratio: Ratio of data for testing (default: 0.15)
             window_size: Size of sliding window (number of timesteps)
             step_size: Step size for sliding window (stride)
             exclude_columns: List of column names to exclude from features
         """
         self.data_dir = data_dir
-        self.split_timestamp = pd.to_datetime(split_timestamp)
+        self.train_ratio = train_ratio
+        self.val_ratio = val_ratio
+        self.test_ratio = test_ratio
         self.window_size = window_size
         self.step_size = step_size
+        
+        # Validate ratios
+        if abs(train_ratio + val_ratio + test_ratio - 1.0) > 1e-6:
+            raise ValueError(f"Train, validation, and test ratios must sum to 1.0, got {train_ratio + val_ratio + test_ratio}")
         
         # Default columns to exclude
         if exclude_columns is None:
@@ -55,8 +66,10 @@ class EnergyDataProcessor:
         self.raw_data = None
         self.train_data = None
         self.val_data = None
+        self.test_data = None
         self.scaler = None
         self.feature_columns = None
+        
         
         # Load and process data
         self._load_data()
@@ -65,31 +78,20 @@ class EnergyDataProcessor:
         self._fit_scaler()
         
     def _load_data(self):
-        """Load raw data from parquet files in directory."""
-        logger.info(f"Loading data from directory: {self.data_dir}")
+        """Load raw data from a parquet file or all parquet files in a directory."""
+        target = self.data_dir
+        logger.info(f"Loading data from: {target}")
         
-        if not os.path.exists(self.data_dir):
-            raise FileNotFoundError(f"Data directory not found: {self.data_dir}")
+        if not os.path.exists(target):
+            raise FileNotFoundError(f"Path not found: {target}")
         
-        # Find all parquet files in the directory
-        parquet_files = sorted(glob.glob(os.path.join(self.data_dir, "*.parquet")))
-        if not parquet_files:
-            raise ValueError(f"No parquet files found in {self.data_dir}")
+        # If a single parquet file path is provided, load it directl
+        self.raw_data = pd.read_parquet(target)
+        logger.info(f"Loaded single parquet file: {target}")
         
-        # Load and concatenate data from all files
-        all_data = []
-        for parquet_file in parquet_files:
-            logger.info(f"Loading file: {parquet_file}")
-            df = pd.read_parquet(parquet_file)
-            all_data.append(df)
-        
-        # Concatenate all data
-        self.raw_data = pd.concat(all_data, ignore_index=True)
-        
-        # Ensure TimeStamp is datetime
+        # Ensure TimeStamp is datetime and sort to preserve temporal continuity
         if 'TimeStamp' in self.raw_data.columns:
             self.raw_data['TimeStamp'] = pd.to_datetime(self.raw_data['TimeStamp'])
-            # Sort by timestamp
             self.raw_data = self.raw_data.sort_values('TimeStamp').reset_index(drop=True)
         
         # Get feature columns
@@ -99,49 +101,64 @@ class EnergyDataProcessor:
         logger.info(f"Feature columns ({len(self.feature_columns)}): {self.feature_columns[:5]}{'...' if len(self.feature_columns) > 5 else ''}")
         
     def _split_data(self):
-        """Split data into train and validation sets based on timestamp."""
-        logger.info(f"Splitting data at timestamp: {self.split_timestamp}")
+        """Split data into train, validation, and test sets sequentially to preserve time order."""
+        logger.info(f"Splitting data sequentially - Train: {self.train_ratio}, Val: {self.val_ratio}, Test: {self.test_ratio}")
         
-        # Split data
-        self.train_data = self.raw_data[self.raw_data['TimeStamp'] < self.split_timestamp].reset_index(drop=True)
-        self.val_data = self.raw_data[self.raw_data['TimeStamp'] >= self.split_timestamp].reset_index(drop=True)
+        total_samples = len(self.raw_data)
+        
+        # Calculate split indices (sequential)
+        train_end = int(total_samples * self.train_ratio)
+        val_end = int(total_samples * (self.train_ratio + self.val_ratio))
+        
+        # Create splits by order to keep temporal continuity
+        self.train_data = self.raw_data.iloc[:train_end].reset_index(drop=True)
+        self.val_data = self.raw_data.iloc[train_end:val_end].reset_index(drop=True)
+        self.test_data = self.raw_data.iloc[val_end:].reset_index(drop=True)
         
         logger.info(f"Train data: {len(self.train_data)} rows")
         logger.info(f"Validation data: {len(self.val_data)} rows")
+        logger.info(f"Test data: {len(self.test_data)} rows")
         
     def _log_data_statistics(self):
         """Log statistics about the data split."""
         total_samples = len(self.raw_data)
         train_samples = len(self.train_data)
         val_samples = len(self.val_data)
+        test_samples = len(self.test_data)
         
         # Data quantity ratio
         train_ratio = train_samples / total_samples
         val_ratio = val_samples / total_samples
+        test_ratio = test_samples / total_samples
         
         logger.info("=== Data Split Statistics ===")
         logger.info(f"Total samples: {total_samples}")
         logger.info(f"Train samples: {train_samples} ({train_ratio:.3f})")
         logger.info(f"Validation samples: {val_samples} ({val_ratio:.3f})")
+        logger.info(f"Test samples: {test_samples} ({test_ratio:.3f})")
         
         # Anomaly ratio in each set
         train_anomalies = self.train_data['anomaly_label'].sum()
         val_anomalies = self.val_data['anomaly_label'].sum()
+        test_anomalies = self.test_data['anomaly_label'].sum()
         total_anomalies = self.raw_data['anomaly_label'].sum()
         
         train_anomaly_ratio = train_anomalies / train_samples if train_samples > 0 else 0
         val_anomaly_ratio = val_anomalies / val_samples if val_samples > 0 else 0
+        test_anomaly_ratio = test_anomalies / test_samples if test_samples > 0 else 0
         total_anomaly_ratio = total_anomalies / total_samples
         
         logger.info("=== Anomaly Statistics ===")
         logger.info(f"Total anomalies: {total_anomalies} ({total_anomaly_ratio:.4f})")
         logger.info(f"Train anomalies: {train_anomalies} ({train_anomaly_ratio:.4f})")
         logger.info(f"Validation anomalies: {val_anomalies} ({val_anomaly_ratio:.4f})")
+        logger.info(f"Test anomalies: {test_anomalies} ({test_anomaly_ratio:.4f})")
         
         # Time range information
         logger.info("=== Time Range Information ===")
         logger.info(f"Train data range: {self.train_data['TimeStamp'].min()} to {self.train_data['TimeStamp'].max()}")
         logger.info(f"Validation data range: {self.val_data['TimeStamp'].min()} to {self.val_data['TimeStamp'].max()}")
+        logger.info(f"Test data range: {self.test_data['TimeStamp'].min()} to {self.test_data['TimeStamp'].max()}")
         
     def _fit_scaler(self):
         """Fit StandardScaler on training data features."""
@@ -182,12 +199,10 @@ class EnergyDataProcessor:
         """Get validation data with normalized features."""
         return self.val_data, self._normalize_data(self.val_data)
         
-    def save_scaler(self, output_path: str):
-        """Save the fitted scaler to disk."""
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        with open(output_path, 'wb') as f:
-            pickle.dump(self.scaler, f)
-        logger.info(f"Scaler saved to: {output_path}")
+    def get_test_data(self) -> Tuple[pd.DataFrame, np.ndarray]:
+        """Get test data with normalized features."""
+        return self.test_data, self._normalize_data(self.test_data)
+        
 
 
 class SlidingWindowDataset(Dataset):
@@ -308,17 +323,18 @@ class SlidingWindowDataset(Dataset):
 
 def create_data_loaders(
     data_dir: str,
-    component: str = "contact",
     batch_size: int = 64,
     num_workers: int = 4,
     window_size: int = 60,
     step_size: int = 1,
-    split_timestamp: str = "2025-01-01 00:00:00+00:00",
+    train_ratio: float = 0.7,
+    val_ratio: float = 0.15,
+    test_ratio: float = 0.15,
     exclude_columns: List[str] = None,
     scaler_save_path: str = None
 ) -> Dict[str, DataLoader]:
     """
-    Create data loaders for training and validation with normalization.
+    Create data loaders for training, validation, and test with normalization.
     
     Args:
         data_dir: Directory containing parquet data files
@@ -326,19 +342,23 @@ def create_data_loaders(
         num_workers: Number of worker processes for data loading
         window_size: Size of sliding window (number of timesteps)
         step_size: Step size for sliding window (stride)
-        split_timestamp: Timestamp to split train/validation
+        train_ratio: Ratio of data for training (default: 0.7)
+        val_ratio: Ratio of data for validation (default: 0.15)
+        test_ratio: Ratio of data for testing (default: 0.15)
         exclude_columns: List of column names to exclude from features
         scaler_save_path: Path to save the fitted scaler
         
     Returns:
-        Dictionary of data loaders for 'train' and 'val'
+        Dictionary of data loaders for 'train', 'val', and 'test'
     """
     logger.info("=== Creating Data Loaders ===")
     
     # Initialize data processor
     processor = EnergyDataProcessor(
         data_dir=data_dir,
-        split_timestamp=split_timestamp,
+        train_ratio=train_ratio,
+        val_ratio=val_ratio,
+        test_ratio=test_ratio,
         window_size=window_size,
         step_size=step_size,
         exclude_columns=exclude_columns
@@ -351,6 +371,7 @@ def create_data_loaders(
     # Get normalized data
     train_data, train_features = processor.get_train_data()
     val_data, val_features = processor.get_val_data()
+    test_data, test_features = processor.get_test_data()
     
     # Create datasets
     train_dataset = SlidingWindowDataset(
@@ -366,7 +387,12 @@ def create_data_loaders(
         window_size=window_size,
         step_size=step_size
     )
-    
+    test_dataset = SlidingWindowDataset(
+        data=test_data,
+        normalized_features=test_features,
+        window_size=window_size,
+        step_size=step_size
+    )
     # Create data loaders
     data_loaders = {}
     
@@ -385,9 +411,20 @@ def create_data_loaders(
         num_workers=num_workers,
         pin_memory=False
     )
+
+    data_loaders['test'] = DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=False
+    )
     
+    logger.info(f"Created test data loader with {len(test_dataset)} samples")
     logger.info(f"Created train data loader with {len(train_dataset)} samples")
     logger.info(f"Created validation data loader with {len(val_dataset)} samples")
     
+    # Create test data loader
+   
     return data_loaders
 

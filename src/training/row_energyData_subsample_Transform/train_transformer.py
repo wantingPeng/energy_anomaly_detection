@@ -402,15 +402,6 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
 
     avg_loss = total_loss / len(data_loader)
 
-    if print_samples and sample_outputs:
-        logger.info("\n===== Sample Outputs =====")
-        for i, sample in enumerate(sample_outputs):
-            logger.info(f"Sample {i+1}:")
-            logger.info(f"  Predictions: {sample['preds']}")
-            logger.info(f"  Actual: {sample['actual']}")
-            logger.info(f"  Anomaly Probs: {sample['probs']}")
-            #logger.info(f"  Attention Weights: {sample['attention'].mean(axis=0)[:5]}...")
-            logger.info("------------------------")
 
     all_logits = torch.cat(all_logits, dim=0)  # [total_samples, seq_len, num_classes]
     all_preds = torch.cat(all_preds, dim=0).numpy()  # [total_samples, seq_len]
@@ -505,7 +496,6 @@ def main(args):
         data_dir=config['paths']['data_dir'],
         batch_size=config['training']['batch_size'],
         num_workers=config['training']['num_workers'],
-        component=config['data']['component'],
         window_size=config['data']['window_size'],
         step_size=config['data']['step_size'],
         exclude_columns=config['data']['exclude_columns']
