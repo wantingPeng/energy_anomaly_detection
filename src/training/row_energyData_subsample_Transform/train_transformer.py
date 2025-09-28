@@ -25,7 +25,8 @@ import matplotlib.pyplot as plt
 
 from src.utils.logger import logger
 from src.training.row_energyData_subsample_Transform.transformer_model import TransformerModel
-from src.training.row_energyData_subsample_Transform.dataSet_update import create_data_loaders
+#from src.training.row_energyData_subsample_Transform.dataSet_update import create_data_loaders
+from src.preprocessing.downsampleData_scratch_1minut.dataloader import create_data_loaders
 
 def point_adjustment(gt, pred):
     """
@@ -151,7 +152,7 @@ def load_config(config_path=None):
         Configuration dictionary
     """
     if config_path is None:
-        config_path = Path("configs/train_transformer_rowData_minute.yaml")
+        config_path = Path("configs/downsampleData_scratch_1minut.yaml")
     
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)

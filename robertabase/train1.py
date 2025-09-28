@@ -436,36 +436,7 @@ if __name__ == '__main__':
                     eval_results = trainer.evaluate()
                     current_prauc = eval_results.get('eval_prauc', -1)
                     
-                    # 记录结果 - 包含多种阈值策略的指标
-                    results_log.append({
-                        'config': config,
-                        'path': model_path,
-                        'prauc': current_prauc,
-                        # 主要指标 (分位数策略)
-                        'f1': eval_results.get('eval_f1', -1),
-                        'accuracy': eval_results.get('eval_accuracy', -1),
-                        'precision': eval_results.get('eval_precision', -1),
-                        'recall': eval_results.get('eval_recall', -1),
-                        'threshold': eval_results.get('eval_threshold', -1),
-                        # 固定阈值0.5的指标
-                        'f1_05': eval_results.get('eval_f1_05', -1),
-                        'accuracy_05': eval_results.get('eval_accuracy_05', -1),
-                        'precision_05': eval_results.get('eval_precision_05', -1),
-                        'recall_05': eval_results.get('eval_recall_05', -1),
-                        # Youden Index策略
-                        'f1_youden': eval_results.get('eval_f1_youden', -1),
-                        'accuracy_youden': eval_results.get('eval_accuracy_youden', -1),
-                        'precision_youden': eval_results.get('eval_precision_youden', -1),
-                        'recall_youden': eval_results.get('eval_recall_youden', -1),
-                        # 平衡策略
-                        'f1_balanced': eval_results.get('eval_f1_balanced', -1),
-                        'precision_balanced': eval_results.get('eval_precision_balanced', -1),
-                        'recall_balanced': eval_results.get('eval_recall_balanced', -1),
-                        # 数据分布信息
-                        'pos_ratio': eval_results.get('eval_pos_ratio', -1),
-                        'pred_ratio': eval_results.get('eval_pred_ratio', -1),
-                        'status': 'completed'
-                    })
+          
                     
                     # 更新最佳模型
                     if current_prauc > best_prauc:

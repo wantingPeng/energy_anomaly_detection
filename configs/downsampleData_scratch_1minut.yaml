@@ -1,0 +1,69 @@
+# Transformer Model Configuration for Energy Anomaly Detection - Downsampled 1-minute Data
+
+# Paths
+paths:
+  data_dir: "Data/downsampleData_scratch_1minut"
+  output_dir: "experiments/downsampleData_scratch_1minut"
+  scaler_save_path: "experiments/models/scaler_downsample_1min.pkl"
+
+# Data configuration
+data:
+  component: "contact"  # Options: contact, pcb, ring
+  # Data split configuration
+  split_timestamp: "2025-01-01 00:00:00+00:00"  # Before: train, After: validation
+  
+  # Sliding window parameters
+  window_size: 200   # Size of sliding window (number of timesteps) - 1 hour of 1-minute data
+  step_size: 200     # Step size for sliding window (stride) - 50% overlap
+  
+  # Feature columns to exclude (non-feature columns)
+  exclude_columns: ["TimeStamp", "anomaly_label"]
+
+# Model configuration
+model:
+  d_model: 128      # Dimension of the model
+  nhead: 8          # Number of heads in multi-head attention
+  num_layers: 2     # Number of transformer layers
+  dim_feedforward: 512  # Dimension of the feedforward network
+  dropout: 0.2      # Dropout probability
+  num_classes: 2    # Number of output classes (binary classification)
+  activation: "gelu"  # Activation function for transformer layers
+
+# Training configuration
+training:
+  batch_size: 64
+  num_workers: 4
+  num_epochs: 100
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  optimizer: "adam"  # Options: adam
+  
+  # Learning rate scheduling
+  lr_scheduler: "reduce_on_plateau"  # Options: reduce_on_plateau, cosine_annealing, none
+  lr_reduce_factor: 0.7  # Factor by which the learning rate will be reduced (ReduceLROnPlateau)
+  lr_reduce_patience: 8  # Number of epochs with no improvement after which learning rate will be reduced
+  min_lr: 1.0e-6        # Minimum learning rate
+  
+  # Early stopping
+  early_stopping_patience: 20  # Number of epochs with no improvement after which training will be stopped
+  early_stopping_min_delta: 0.0001  # Minimum change to qualify as an improvement
+  early_stopping_metric: "optimal_f1"  # Metric to monitor for early stopping
+  
+  # Class weighting and loss function
+  use_focal_loss: true   # Whether to use focal loss instead of cross entropy loss
+  focal_loss_alpha: 0.3  # Alpha parameter for focal loss (weight for the rare class)
+  focal_loss_gamma: 2.0  # Gamma parameter for focal loss (focusing parameter)
+
+# Hardware configuration
+hardware:
+  precision: "float32"  # Options: float32, float16 (mixed precision)
+
+# Sequence labeling configuration
+sequence_labeling:
+  use_threshold_optimization: true  # Whether to optimize threshold for binary classification
+  evaluation_metric: "optimal_f1"  # Primary metric for model evaluation (f1, optimal_f1, auprc)
+
+# Preprocessing configuration
+preprocessing:
+  normalization: "standard"  # Normalization method applied to features
+  fit_on_train: true         # Whether to fit normalization parameters only on training data
