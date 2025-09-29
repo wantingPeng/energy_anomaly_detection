@@ -5,11 +5,11 @@ data:
   exclude_columns:
     - TimeStamp
     - anomaly_label
-  step_size: 20
+  step_size: 100
   test_ratio: 0.15
   train_ratio: 0.7
   val_ratio: 0.15
-  window_size: 60
+  window_size: 100
   target_anomaly_ratio: 0.25
 hardware:
   precision: float32
@@ -38,7 +38,7 @@ model:
   auxiliary_loss_weight: 0.3
 
 paths:
-  data_dir: Data/downsampleData_scratch_1minut/pcb/pcb_cleaned_1minut_20250928_161509.parquet
+  data_dir: Data/downsampleData_scratch_1minut/contact/contact_cleaned_1minut_20250928_172122.parquet
   output_dir: experiments/downsampleData_scratch_1minut
 
 preprocessing:
@@ -55,7 +55,7 @@ training:
   early_stopping_metric: optimal_f1
   early_stopping_min_delta: 0.0001
   early_stopping_patience: 25  # Increased patience for complex model
-  focal_loss_alpha: 0.3
+  focal_loss_alpha: 0.75
   focal_loss_gamma: 2.0
   learning_rate: 0.0005  # Slightly reduced LR for stability
   lr_reduce_factor: 0.8

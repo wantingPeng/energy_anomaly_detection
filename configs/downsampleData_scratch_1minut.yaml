@@ -2,7 +2,7 @@
 
 # Paths
 paths:
-  data_dir: "Data/downsampleData_scratch_1minut/pcb/pcb_cleaned_1minut_20250928_161509.parquet"
+  data_dir: "Data/downsampleData_scratch_1minut/ring/Ring_cleaned_1minut_20250928_170147.parquet"
   output_dir: "experiments/downsampleData_scratch_1minut"
 
 # Data configuration
@@ -12,8 +12,8 @@ data:
   val_ratio: 0.15
   test_ratio: 0.15
   # Sliding window parameters
-  window_size: 100   # Size of sliding window (number of timesteps) - 1 hour of 1-minute data
-  step_size: 100     # Step size for sliding window (stride) - 50% overlap
+  window_size: 50  # Size of sliding window (number of timesteps) - 1 hour of 1-minute data
+  step_size: 50      # Step size for sliding window (stride) - 50% overlap
   target_anomaly_ratio: 0.25
   # Feature columns to exclude (non-feature columns)
   exclude_columns: ["TimeStamp", "anomaly_label"]

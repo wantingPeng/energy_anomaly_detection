@@ -555,20 +555,6 @@ def main(args):
             num_classes=config['model']['num_classes'],
             activation=config['model']['activation']
         )
-    else:
-        # Use original transformer model
-        logger.info("Creating TransformerModel...")
-        model = TransformerModel(
-            input_dim=input_dim,
-            d_model=config['model']['d_model'],
-            nhead=config['model']['nhead'],
-            num_layers=config['model']['num_layers'],
-            dim_feedforward=config['model']['dim_feedforward'],
-            dropout=config['model']['dropout'],
-            num_classes=config['model']['num_classes'],
-            activation=config['model']['activation']
-        )
-    
     # Log model architecture and parameter count
     logger.info(f"Model architecture:\n{model}")
     

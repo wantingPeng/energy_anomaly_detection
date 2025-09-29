@@ -1,0 +1,46 @@
+data:
+  exclude_columns:
+  - TimeStamp
+  - anomaly_label
+  step_size: 10
+  target_anomaly_ratio: 0.25
+  test_ratio: 0.15
+  train_ratio: 0.7
+  val_ratio: 0.15
+  window_size: 60
+hardware:
+  precision: float32
+model:
+  activation: gelu
+  d_model: 128
+  dim_feedforward: 512
+  dropout: 0.2
+  nhead: 8
+  num_classes: 2
+  num_layers: 2
+paths:
+  data_dir: Data/downsampleData_scratch_1minut/contact/contact_cleaned_1minut_20250928_172122.parquet
+  output_dir: experiments/downsampleData_scratch_1minut
+preprocessing:
+  fit_on_train: true
+  normalization: standard
+sequence_labeling:
+  evaluation_metric: optimal_f1
+  use_threshold_optimization: true
+training:
+  batch_size: 64
+  early_stopping_metric: optimal_f1
+  early_stopping_min_delta: 0.0001
+  early_stopping_patience: 20
+  focal_loss_alpha: 0.8
+  focal_loss_gamma: 2.0
+  learning_rate: 0.001
+  lr_reduce_factor: 0.3
+  lr_reduce_patience: 8
+  lr_scheduler: reduce_on_plateau
+  min_lr: 1.0e-06
+  num_epochs: 100
+  num_workers: 4
+  optimizer: adam
+  use_focal_loss: true
+  weight_decay: 0.0001

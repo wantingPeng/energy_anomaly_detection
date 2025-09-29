@@ -6,6 +6,7 @@ for energy anomaly detection with per-timestep predictions.
 """
 
 import os
+import sys
 import gc
 import yaml
 import torch
@@ -22,6 +23,11 @@ from tqdm import tqdm
 import argparse
 import time
 import matplotlib.pyplot as plt
+
+# Add project root to Python path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 from src.utils.logger import logger
 from src.training.row_energyData_subsample_Transform.transformer_model import TransformerModel
@@ -464,7 +470,7 @@ def evaluate(model, data_loader, criterion, device, config, print_samples=True):
 
 def main(args):
     """
-    Main function to train the Transformer model.
+    Main function to train the Transformer model or test an existing model.
     
     Args:
         args: Command line arguments
@@ -476,20 +482,23 @@ def main(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logger.info(f"Using device: {device}")
     
-    # Create experiment directory
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    experiment_name = f"transformer_{timestamp}"
-    if args.experiment_name:
-        experiment_name = args.experiment_name
+    # Create experiment directory (only for training mode)
+    if not args.test:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        experiment_name = f"transformer_{timestamp}"
+        if args.experiment_name:
+            experiment_name = args.experiment_name
+        
+        experiment_dir = os.path.join(config['paths']['output_dir'],'model_save', experiment_name)
+        os.makedirs(experiment_dir, exist_ok=True)
     
-    experiment_dir = os.path.join(config['paths']['output_dir'],'model_save', experiment_name)
-    os.makedirs(experiment_dir, exist_ok=True)
-    
-    # Set up TensorBoard writer
-    tensorboard_dir = os.path.join("experiments/row_energyData_subsample_Transform/tensorboard", experiment_name)
-    os.makedirs(tensorboard_dir, exist_ok=True)
-    writer = SummaryWriter(log_dir=tensorboard_dir)
-    logger.info(f"TensorBoard logs will be saved to {tensorboard_dir}")
+    # Set up TensorBoard writer (only for training mode)
+    writer = None
+    if not args.test:
+        tensorboard_dir = os.path.join("experiments/row_energyData_subsample_Transform/tensorboard", experiment_name)
+        os.makedirs(tensorboard_dir, exist_ok=True)
+        writer = SummaryWriter(log_dir=tensorboard_dir)
+        logger.info(f"TensorBoard logs will be saved to {tensorboard_dir}")
     
     # Create data loaders
     data_loaders = create_data_loaders(
@@ -541,207 +550,269 @@ def main(args):
         criterion = nn.CrossEntropyLoss()
         logger.info("Using standard Cross Entropy Loss")
     
-    # Define optimizer
-    if config['training']['optimizer'] == 'adam':
-        optimizer = optim.Adam(
-            model.parameters(),
-            lr=config['training']['learning_rate'],
-            weight_decay=config['training']['weight_decay']
-        )
-
-    # Define learning rate scheduler
-    if config['training']['lr_scheduler'] == 'reduce_on_plateau':
-        scheduler = ReduceLROnPlateau(
-            optimizer,
-            mode='min',
-            factor=config['training']['lr_reduce_factor'],
-            patience=config['training']['lr_reduce_patience'],
-        )
-
-    
-    # Resume training from checkpoint if provided
-    start_epoch = 0
-    if args.load_model:
-        model, optimizer, start_epoch, _ = load_model(
-            model, optimizer, args.load_model, device
-        )
-    
-    # Set up early stopping
-    early_stopping = EarlyStopping(
-        patience=config['training']['early_stopping_patience'],
-        min_delta=config['training']['early_stopping_min_delta'],
-        mode='max' if config['training']['early_stopping_metric'] in ['optimal_f1', 'auprc'] else 'min'
-    )
-    
-    # Initialize best metrics
-    best_val_loss = float('inf')
-    best_val_f1 = 0.0
-    best_val_auprc = 0.0
-    best_val_adj_f1 = 0.0
-    
-    # Create directories for different best model types
-    best_loss_dir = os.path.join(experiment_dir, "best_loss")
-    best_f1_dir = os.path.join(experiment_dir, "best_f1") 
-    best_auprc_dir = os.path.join(experiment_dir, "best_auprc")
-    best_adj_f1_dir = os.path.join(experiment_dir, "best_adj_f1")
-    
-    # Training loop
-    for epoch in range(start_epoch, config['training']['num_epochs']):
-        logger.info(f"Epoch {epoch+1}/{config['training']['num_epochs']}")
+    # Test mode: Load model and evaluate on test set
+    if args.test:
+        if not args.load_model:
+            logger.error("Test mode requires --load_model argument to specify the model path")
+            return
         
-        # Record epoch start time
-        epoch_start_time = time.time()
+        logger.info("=" * 50)
+        logger.info("TEST MODE: Loading model and evaluating on test set")
+        logger.info("=" * 50)
         
-        # Train for one epoch
-        train_loss, train_metrics = train_epoch(
-            model, data_loaders['train'], optimizer, criterion, device,
-            scheduler=scheduler
+        # Construct model path based on model type
+        model_path = args.load_model
+        
+        # Check if the provided path is a directory (experiment directory)
+        if os.path.isdir(args.load_model):
+            # Construct the full path using model_type
+            model_path = os.path.join(args.load_model, args.model_type, "best_model.pt")
+            logger.info(f"Constructed model path: {model_path}")
+        elif not os.path.exists(model_path):
+            # Try to construct path based on model type if file doesn't exist
+            if args.model_type in ["best_loss", "best_f1", "best_auprc", "best_adj_f1"]:
+                # Extract experiment directory from the provided path
+                experiment_dir = os.path.dirname(args.load_model) if os.path.dirname(args.load_model) else args.load_model
+                model_path = os.path.join(experiment_dir, args.model_type, "best_model.pt")
+                logger.info(f"Constructed model path: {model_path}")
+        
+        if not os.path.exists(model_path):
+            logger.error(f"Model file not found: {model_path}")
+            return
+        
+        # Load the specified model
+        model, _, _, _ = load_model(model, None, model_path, device)
+        
+        # Evaluate on test set
+        logger.info("Evaluating model on test set...")
+        test_loss, test_metrics = evaluate(
+            model, data_loaders['test'], criterion, device, config, print_samples=True
         )
         
-        # Evaluate on validation set
-        val_loss, val_metrics = evaluate(
-            model, data_loaders['val'], criterion, device, config,
-            print_samples=(epoch == 0)  # Print samples only for first epoch
-        )
-        
-        # Update learning rate scheduler if using ReduceLROnPlateau
-        if isinstance(scheduler, ReduceLROnPlateau):
-            if config['training']['early_stopping_metric'] == 'f1':
-                scheduler.step(val_metrics['f1'])
-            elif config['training']['early_stopping_metric'] == 'auprc':
-                scheduler.step(val_metrics['auprc'])
-            else:
-                scheduler.step(val_loss)
-        elif scheduler is not None and not isinstance(scheduler, optim.lr_scheduler.CosineAnnealingLR):
-            scheduler.step()
-        
-        # Calculate epoch duration
-        epoch_duration = time.time() - epoch_start_time
-        # Get current learning rate
-        current_lr = optimizer.param_groups[0]['lr']
-
-        # Log learning rate
-        logger.info(f"Current learning rate: {current_lr:.6f}")
-        writer.add_scalar('lr', current_lr, epoch)
-
-        # Log metrics
-        logger.info(f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
-        logger.info(f"Train F1: {train_metrics['f1']:.4f}")
-        logger.info(f"Epoch completed :in {epoch_duration:.2f} seconds")
-        
-        writer.add_scalar('train/loss', train_loss, epoch)
-        writer.add_scalar('val/loss', val_loss, epoch)
-        writer.add_scalar('train/f1', train_metrics['f1'], epoch)
-        writer.add_scalar('val/auprc', val_metrics['auprc'], epoch)
-        writer.add_scalar('val/optimal_precision', val_metrics['optimal_precision'], epoch)
-        writer.add_scalar('val/optimal_recall', val_metrics['optimal_recall'], epoch)
-        writer.add_scalar('val/optimal_f1', val_metrics['optimal_f1'], epoch)
-        writer.add_scalar('val/optimal_threshold', val_metrics['optimal_threshold'], epoch)
-        # Add point adjustment metrics
-        writer.add_scalar('val/adj_f1', val_metrics['adj_f1'], epoch)
-        writer.add_scalar('val/adj_precision', val_metrics['adj_precision'], epoch)
-        writer.add_scalar('val/adj_recall', val_metrics['adj_recall'], epoch)
-        writer.add_scalar('val/adj_accuracy', val_metrics['adj_accuracy'], epoch)
-        
-        # Save best model based on validation loss
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
-            save_model(
-                model, optimizer, epoch, train_loss, val_loss, val_metrics,
-                config, best_loss_dir
-            )
-            logger.info(f"New best validation loss: {best_val_loss:.4f}")
-        
-        # Save best model based on optimal F1 score
-        if val_metrics['optimal_f1'] > best_val_f1:
-            best_val_f1 = val_metrics['optimal_f1']
-            save_model(
-                model, optimizer, epoch, train_loss, val_loss, val_metrics,
-                config, best_f1_dir
-            )
-            logger.info(f"New best validation optimal F1: {best_val_f1:.4f}")
-        
-        # Save best model based on AUPRC
-        if val_metrics['auprc'] > best_val_auprc:
-            best_val_auprc = val_metrics['auprc']
-            save_model(
-                model, optimizer, epoch, train_loss, val_loss, val_metrics,
-                config, best_auprc_dir
-            )
-            logger.info(f"New best validation AUPRC: {best_val_auprc:.4f}")
-        
-        # Save best model based on adjusted F1 score
-        if val_metrics['adj_f1'] > best_val_adj_f1:
-            best_val_adj_f1 = val_metrics['adj_f1']
-            save_model(
-                model, optimizer, epoch, train_loss, val_loss, val_metrics,
-                config, best_adj_f1_dir
-            )
-            logger.info(f"New best validation adjusted F1: {best_val_adj_f1:.4f}")
-    
-        # Check for early stopping
-        if config['training']['early_stopping_metric'] == 'optimal_f1':
-            if early_stopping(val_metrics['optimal_f1']):
-                logger.info(f"Early stopping triggered after {epoch+1} epochs")
-                break
-        elif config['training']['early_stopping_metric'] == 'auprc':
-            if early_stopping(val_metrics['auprc']):
-                logger.info(f"Early stopping triggered after {epoch+1} epochs")
-                break
-        elif config['training']['early_stopping_metric'] == 'adj_f1':
-            if early_stopping(val_metrics['adj_f1']):
-                logger.info(f"Early stopping triggered after {epoch+1} epochs")
-                break
-        else:
-            if early_stopping(val_loss):
-                logger.info(f"Early stopping triggered after {epoch+1} epochs")
-                break
-    
-    # Evaluate on test set using best model (based on F1)
-    logger.info("Evaluating best model (based on F1) on test set")
-    best_model_path = os.path.join(best_f1_dir, "best_model.pt")
-    if os.path.exists(best_model_path):
-        model, _, _, _ = load_model(model, None, best_model_path, device)
-        test_loss, test_metrics = evaluate(model, data_loaders['test'], criterion, device, config)
-        
+        # Print detailed test results
+        logger.info("=" * 50)
+        logger.info("TEST RESULTS")
+        logger.info("=" * 50)
         logger.info(f"Test Loss: {test_loss:.4f}")
         logger.info(f"Test AUPRC: {test_metrics['auprc']:.4f}")
         logger.info(f"Test Optimal F1: {test_metrics['optimal_f1']:.4f}")
+        logger.info(f"Test Optimal Precision: {test_metrics['optimal_precision']:.4f}")
+        logger.info(f"Test Optimal Recall: {test_metrics['optimal_recall']:.4f}")
+        logger.info(f"Test Optimal Accuracy: {test_metrics['optimal_accuracy']:.4f}")
         logger.info(f"Test Optimal Threshold: {test_metrics['optimal_threshold']:.6f}")
         logger.info(f"Test Adjusted F1: {test_metrics['adj_f1']:.4f}")
+        logger.info(f"Test Adjusted Precision: {test_metrics['adj_precision']:.4f}")
+        logger.info(f"Test Adjusted Recall: {test_metrics['adj_recall']:.4f}")
+        logger.info(f"Test Adjusted Accuracy: {test_metrics['adj_accuracy']:.4f}")
+        logger.info(f"Adjusted Predictions Count: {test_metrics['adjusted_preds_count']}")
+        logger.info("=" * 50)
         
-        # Log test metrics to TensorBoard
-        writer.add_scalar('test/loss', test_loss, 0)
-        writer.add_scalar('test/auprc', test_metrics['auprc'], 0)
-        writer.add_scalar('test/optimal_f1', test_metrics['optimal_f1'], 0)
-        writer.add_scalar('test/optimal_precision', test_metrics['optimal_precision'], 0)
-        writer.add_scalar('test/optimal_recall', test_metrics['optimal_recall'], 0)
+        logger.info("Test evaluation completed successfully")
+        return
     
-    # Evaluate on test set using best model (based on AUPRC)
-    logger.info("Evaluating best model (based on AUPRC) on test set")
-    best_auprc_model_path = os.path.join(best_auprc_dir, "best_model.pt")
-    if os.path.exists(best_auprc_model_path):
-        model, _, _, _ = load_model(model, None, best_auprc_model_path, device)
-        test_loss, test_metrics = evaluate(model, data_loaders['test'], criterion, device, config)
+    # Training mode: Set up optimizer and training loop
+    if not args.test:
+        # Define optimizer
+        if config['training']['optimizer'] == 'adam':
+            optimizer = optim.Adam(
+                model.parameters(),
+                lr=config['training']['learning_rate'],
+                weight_decay=config['training']['weight_decay']
+            )
+
+        # Define learning rate scheduler
+        if config['training']['lr_scheduler'] == 'reduce_on_plateau':
+            scheduler = ReduceLROnPlateau(
+                optimizer,
+                mode='min',
+                factor=config['training']['lr_reduce_factor'],
+                patience=config['training']['lr_reduce_patience'],
+            )
+
         
-        logger.info(f"Test Loss (AUPRC model): {test_loss:.4f}")
-        logger.info(f"Test AUPRC (AUPRC model): {test_metrics['auprc']:.4f}")
-        logger.info(f"Test Optimal F1 (AUPRC model): {test_metrics['optimal_f1']:.4f}")
-        logger.info(f"Test Optimal Threshold (AUPRC model): {test_metrics['optimal_threshold']:.6f}")
-        logger.info(f"Test Adjusted F1 (AUPRC model): {test_metrics['adj_f1']:.4f}")
+        # Resume training from checkpoint if provided
+        start_epoch = 0
+        if args.load_model:
+            model, optimizer, start_epoch, _ = load_model(
+                model, optimizer, args.load_model, device
+            )
+    
+        # Set up early stopping
+        early_stopping = EarlyStopping(
+            patience=config['training']['early_stopping_patience'],
+            min_delta=config['training']['early_stopping_min_delta'],
+            mode='max' if config['training']['early_stopping_metric'] in ['optimal_f1', 'auprc'] else 'min'
+        )
         
-        # Log test metrics to TensorBoard for AUPRC model
-        writer.add_scalar('test_auprc_model/loss', test_loss, 0)
-        writer.add_scalar('test_auprc_model/auprc', test_metrics['auprc'], 0)
-        writer.add_scalar('test_auprc_model/optimal_f1', test_metrics['optimal_f1'], 0)
-        writer.add_scalar('test_auprc_model/optimal_precision', test_metrics['optimal_precision'], 0)
-        writer.add_scalar('test_auprc_model/optimal_recall', test_metrics['optimal_recall'], 0)
-        writer.add_scalar('test_auprc_model/optimal_accuracy', test_metrics['optimal_accuracy'], 0)
-    
-    # Close TensorBoard writer
-    writer.close()
-    
-    logger.info("Training completed successfully")
+        # Initialize best metrics
+        best_val_loss = float('inf')
+        best_val_f1 = 0.0
+        best_val_auprc = 0.0
+        best_val_adj_f1 = 0.0
+        
+        # Create directories for different best model types
+        best_loss_dir = os.path.join(experiment_dir, "best_loss")
+        best_f1_dir = os.path.join(experiment_dir, "best_f1") 
+        best_auprc_dir = os.path.join(experiment_dir, "best_auprc")
+        best_adj_f1_dir = os.path.join(experiment_dir, "best_adj_f1")
+        
+        # Training loop
+        for epoch in range(start_epoch, config['training']['num_epochs']):
+            logger.info(f"Epoch {epoch+1}/{config['training']['num_epochs']}")
+            
+            # Record epoch start time
+            epoch_start_time = time.time()
+            
+            # Train for one epoch
+            train_loss, train_metrics = train_epoch(
+                model, data_loaders['train'], optimizer, criterion, device,
+                scheduler=scheduler
+            )
+            
+            # Evaluate on validation set
+            val_loss, val_metrics = evaluate(
+                model, data_loaders['val'], criterion, device, config,
+                print_samples=(epoch == 0)  # Print samples only for first epoch
+            )
+            
+            # Update learning rate scheduler if using ReduceLROnPlateau
+            if isinstance(scheduler, ReduceLROnPlateau):
+                if config['training']['early_stopping_metric'] == 'f1':
+                    scheduler.step(val_metrics['f1'])
+                elif config['training']['early_stopping_metric'] == 'auprc':
+                    scheduler.step(val_metrics['auprc'])
+                else:
+                    scheduler.step(val_loss)
+            elif scheduler is not None and not isinstance(scheduler, optim.lr_scheduler.CosineAnnealingLR):
+                scheduler.step()
+            
+            # Calculate epoch duration
+            epoch_duration = time.time() - epoch_start_time
+            # Get current learning rate
+            current_lr = optimizer.param_groups[0]['lr']
+
+            # Log learning rate
+            logger.info(f"Current learning rate: {current_lr:.6f}")
+            writer.add_scalar('lr', current_lr, epoch)
+
+            # Log metrics
+            logger.info(f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+            logger.info(f"Train F1: {train_metrics['f1']:.4f}")
+            logger.info(f"Epoch completed :in {epoch_duration:.2f} seconds")
+            
+            writer.add_scalar('train/loss', train_loss, epoch)
+            writer.add_scalar('val/loss', val_loss, epoch)
+            writer.add_scalar('train/f1', train_metrics['f1'], epoch)
+            writer.add_scalar('val/auprc', val_metrics['auprc'], epoch)
+            writer.add_scalar('val/optimal_precision', val_metrics['optimal_precision'], epoch)
+            writer.add_scalar('val/optimal_recall', val_metrics['optimal_recall'], epoch)
+            writer.add_scalar('val/optimal_f1', val_metrics['optimal_f1'], epoch)
+            writer.add_scalar('val/optimal_threshold', val_metrics['optimal_threshold'], epoch)
+            # Add point adjustment metrics
+            writer.add_scalar('val/adj_f1', val_metrics['adj_f1'], epoch)
+            writer.add_scalar('val/adj_precision', val_metrics['adj_precision'], epoch)
+            writer.add_scalar('val/adj_recall', val_metrics['adj_recall'], epoch)
+            writer.add_scalar('val/adj_accuracy', val_metrics['adj_accuracy'], epoch)
+            
+            # Save best model based on validation loss
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                save_model(
+                    model, optimizer, epoch, train_loss, val_loss, val_metrics,
+                    config, best_loss_dir
+                )
+                logger.info(f"New best validation loss: {best_val_loss:.4f}")
+            
+            # Save best model based on optimal F1 score
+            if val_metrics['optimal_f1'] > best_val_f1:
+                best_val_f1 = val_metrics['optimal_f1']
+                save_model(
+                    model, optimizer, epoch, train_loss, val_loss, val_metrics,
+                    config, best_f1_dir
+                )
+                logger.info(f"New best validation optimal F1: {best_val_f1:.4f}")
+            
+            # Save best model based on AUPRC
+            if val_metrics['auprc'] > best_val_auprc:
+                best_val_auprc = val_metrics['auprc']
+                save_model(
+                    model, optimizer, epoch, train_loss, val_loss, val_metrics,
+                    config, best_auprc_dir
+                )
+                logger.info(f"New best validation AUPRC: {best_val_auprc:.4f}")
+            
+            # Save best model based on adjusted F1 score
+            if val_metrics['adj_f1'] > best_val_adj_f1:
+                best_val_adj_f1 = val_metrics['adj_f1']
+                save_model(
+                    model, optimizer, epoch, train_loss, val_loss, val_metrics,
+                    config, best_adj_f1_dir
+                )
+                logger.info(f"New best validation adjusted F1: {best_val_adj_f1:.4f}")
+        
+            # Check for early stopping
+            if config['training']['early_stopping_metric'] == 'optimal_f1':
+                if early_stopping(val_metrics['optimal_f1']):
+                    logger.info(f"Early stopping triggered after {epoch+1} epochs")
+                    break
+            elif config['training']['early_stopping_metric'] == 'auprc':
+                if early_stopping(val_metrics['auprc']):
+                    logger.info(f"Early stopping triggered after {epoch+1} epochs")
+                    break
+            elif config['training']['early_stopping_metric'] == 'adj_f1':
+                if early_stopping(val_metrics['adj_f1']):
+                    logger.info(f"Early stopping triggered after {epoch+1} epochs")
+                    break
+            else:
+                if early_stopping(val_loss):
+                    logger.info(f"Early stopping triggered after {epoch+1} epochs")
+                    break
+        
+        # Evaluate on test set using best model (based on F1)
+        logger.info("Evaluating best model (based on F1) on test set")
+        best_model_path = os.path.join(best_f1_dir, "best_model.pt")
+        if os.path.exists(best_model_path):
+            model, _, _, _ = load_model(model, None, best_model_path, device)
+            test_loss, test_metrics = evaluate(model, data_loaders['test'], criterion, device, config)
+            
+            logger.info(f"Test Loss: {test_loss:.4f}")
+            logger.info(f"Test AUPRC: {test_metrics['auprc']:.4f}")
+            logger.info(f"Test Optimal F1: {test_metrics['optimal_f1']:.4f}")
+            logger.info(f"Test Optimal Threshold: {test_metrics['optimal_threshold']:.6f}")
+            logger.info(f"Test Adjusted F1: {test_metrics['adj_f1']:.4f}")
+            
+            # Log test metrics to TensorBoard
+            writer.add_scalar('test/loss', test_loss, 0)
+            writer.add_scalar('test/auprc', test_metrics['auprc'], 0)
+            writer.add_scalar('test/optimal_f1', test_metrics['optimal_f1'], 0)
+            writer.add_scalar('test/optimal_precision', test_metrics['optimal_precision'], 0)
+            writer.add_scalar('test/optimal_recall', test_metrics['optimal_recall'], 0)
+        
+        # Evaluate on test set using best model (based on AUPRC)
+        logger.info("Evaluating best model (based on AUPRC) on test set")
+        best_auprc_model_path = os.path.join(best_auprc_dir, "best_model.pt")
+        if os.path.exists(best_auprc_model_path):
+            model, _, _, _ = load_model(model, None, best_auprc_model_path, device)
+            test_loss, test_metrics = evaluate(model, data_loaders['test'], criterion, device, config)
+            
+            logger.info(f"Test Loss (AUPRC model): {test_loss:.4f}")
+            logger.info(f"Test AUPRC (AUPRC model): {test_metrics['auprc']:.4f}")
+            logger.info(f"Test Optimal F1 (AUPRC model): {test_metrics['optimal_f1']:.4f}")
+            logger.info(f"Test Optimal Threshold (AUPRC model): {test_metrics['optimal_threshold']:.6f}")
+            logger.info(f"Test Adjusted F1 (AUPRC model): {test_metrics['adj_f1']:.4f}")
+            
+            # Log test metrics to TensorBoard for AUPRC model
+            writer.add_scalar('test_auprc_model/loss', test_loss, 0)
+            writer.add_scalar('test_auprc_model/auprc', test_metrics['auprc'], 0)
+            writer.add_scalar('test_auprc_model/optimal_f1', test_metrics['optimal_f1'], 0)
+            writer.add_scalar('test_auprc_model/optimal_precision', test_metrics['optimal_precision'], 0)
+            writer.add_scalar('test_auprc_model/optimal_recall', test_metrics['optimal_recall'], 0)
+            writer.add_scalar('test_auprc_model/optimal_accuracy', test_metrics['optimal_accuracy'], 0)
+        
+        # Close TensorBoard writer
+        writer.close()
+        
+        logger.info("Training completed successfully")
 
 if __name__ == "__main__":
     # Parse command line arguments
@@ -750,6 +821,7 @@ if __name__ == "__main__":
     parser.add_argument("--experiment_name", type=str, default=None, help="Name of the experiment")
     parser.add_argument("--test", action="store_true", help="Test the model")
     parser.add_argument("--load_model", type=str, default=None, help="Path to checkpoint to load model from")
+    parser.add_argument("--model_type", type=str, default="best_f1", choices=["best_loss", "best_f1", "best_auprc", "best_adj_f1"], help="Type of best model to use for testing")
     args = parser.parse_args()
     
     # Run main function
