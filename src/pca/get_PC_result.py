@@ -10,6 +10,7 @@ import os
 import pandas as pd
 import numpy as np
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 from datetime import datetime
 from src.utils.logger import logger
 
@@ -20,7 +21,7 @@ def create_output_dir():
 
 def load_data():
     """Load the energy data from parquet file."""
-    data_path = "Data/row_energyData_subsample_Transform/labeled/train/contact/part.0.parquet"
+    data_path = "Data/downsampleData_scratch_1minut/pcb/pcb_cleaned_1minut_20250928_161509.parquet"
     
     logger.info(f"Loading data from: {data_path}")
     df = pd.read_parquet(data_path)
@@ -31,7 +32,7 @@ def load_data():
 def process_data(df):
     """Process data and extract feature columns."""
     # Get feature columns (exclude metadata columns)
-    feature_columns = [col for col in df.columns if col not in ['TimeStamp', 'segment_id', 'anomaly_label']]
+    feature_columns = [col for col in df.columns if col not in ['TimeStamp', 'anomaly_label']]
     logger.info(f"Number of feature columns: {len(feature_columns)}")
     
     # Prepare feature matrix X and metadata
@@ -48,9 +49,21 @@ def process_data(df):
 
 def perform_pca(X, n_components=20):
     """Perform PCA and extract the first n_components."""
+    # Standardize the features before PCA
+    logger.info("Standardizing features before PCA...")
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    
+    # Log scaling information
+    logger.info(f"Feature scaling completed:")
+    logger.info(f"  Original feature means range: [{X.mean(axis=0).min():.3f}, {X.mean(axis=0).max():.3f}]")
+    logger.info(f"  Original feature stds range: [{X.std(axis=0).min():.3f}, {X.std(axis=0).max():.3f}]")
+    logger.info(f"  Scaled feature means range: [{X_scaled.mean(axis=0).min():.3f}, {X_scaled.mean(axis=0).max():.3f}]")
+    logger.info(f"  Scaled feature stds range: [{X_scaled.std(axis=0).min():.3f}, {X_scaled.std(axis=0).max():.3f}]")
+    
     logger.info(f"Performing PCA to extract {n_components} components...")
     pca = PCA(n_components=n_components)
-    X_pca = pca.fit_transform(X)
+    X_pca = pca.fit_transform(X_scaled)
     
     # Log explained variance
     explained_variance = pca.explained_variance_ratio_
@@ -61,7 +74,7 @@ def perform_pca(X, n_components=20):
         logger.info(f"PC{i+1}: {ratio:.4f} ({ratio*100:.2f}%)")
     logger.info(f"Cumulative explained variance: {cumulative_explained_variance:.4f} ({cumulative_explained_variance*100:.2f}%)")
     
-    return X_pca, pca
+    return X_pca, pca, scaler
 
 def create_pc_dataframe(X_pca, timestamps, labels):
     """Create a DataFrame with PCs, timestamps, and labels."""
@@ -80,7 +93,7 @@ def create_pc_dataframe(X_pca, timestamps, labels):
 
 def save_results(pc_df):
     """Save the PC results to parquet file."""
-    output_path = f"Data/pc/pc_features_train_20.parquet"
+    output_path = f"Data/pc/pcb/pc_features_4_pcb.parquet"
     
     pc_df.to_parquet(output_path, index=False)
     logger.info(f"PC features saved to: {output_path}")
@@ -101,7 +114,7 @@ def main():
     X, feature_columns, timestamps, labels = process_data(df)
     
     # Perform PCA
-    X_pca, pca_model = perform_pca(X, n_components=20)
+    X_pca, pca_model, scaler = perform_pca(X, n_components=4)
     
     # Create DataFrame with PCs and metadata
     pc_df = create_pc_dataframe(X_pca, timestamps, labels)

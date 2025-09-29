@@ -2,7 +2,7 @@
 
 # Paths
 paths:
-  data_dir: "Data/downsampleData_scratch_1minut/ring/Ring_cleaned_1minut_20250928_170147.parquet"
+  data_dir: "Data/pc/pcb/pc_features_4_pcb.parquet"
   output_dir: "experiments/downsampleData_scratch_1minut"
 
 # Data configuration
@@ -12,8 +12,8 @@ data:
   val_ratio: 0.15
   test_ratio: 0.15
   # Sliding window parameters
-  window_size: 50  # Size of sliding window (number of timesteps) - 1 hour of 1-minute data
-  step_size: 50      # Step size for sliding window (stride) - 50% overlap
+  window_size: 100  # Size of sliding window (number of timesteps) - 1 hour of 1-minute data
+  step_size: 10      # Step size for sliding window (stride) - 50% overlap
   target_anomaly_ratio: 0.25
   # Feature columns to exclude (non-feature columns)
   exclude_columns: ["TimeStamp", "anomaly_label"]
@@ -50,7 +50,7 @@ training:
   
   # Class weighting and loss function
   use_focal_loss: true   # Whether to use focal loss instead of cross entropy loss
-  focal_loss_alpha: 0.75  # Alpha parameter for focal loss (weight for the rare class)
+  focal_loss_alpha: 0.8  # Alpha parameter for focal loss (weight for the rare class)
   focal_loss_gamma: 2.0  # Gamma parameter for focal loss (focusing parameter)
 
 # Hardware configuration
