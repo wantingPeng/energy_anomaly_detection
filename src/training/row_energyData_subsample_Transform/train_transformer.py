@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 from src.utils.logger import logger
 from src.training.row_energyData_subsample_Transform.transformer_model import TransformerModel
 #from src.training.row_energyData_subsample_Transform.dataSet_update import create_data_loaders
-from src.preprocessing.downsampleData_scratch_1minut.dataloader import create_data_loaders
+from src.preprocessing.row_energyData_subsample_Transform.dataloader import create_data_loaders
 
 def point_adjustment(gt, pred):
     """
@@ -498,7 +498,9 @@ def main(args):
         num_workers=config['training']['num_workers'],
         window_size=config['data']['window_size'],
         step_size=config['data']['step_size'],
-        exclude_columns=config['data']['exclude_columns']
+        exclude_columns=config['data']['exclude_columns'],
+        target_anomaly_ratio=config['data']['target_anomaly_ratio']
+
     )
     
     # Get a sample batch to determine input dimension

@@ -32,7 +32,8 @@ class EnergyDataProcessor:
         test_ratio: float = 0.15,
         window_size: int = 60,
         step_size: int = 1,
-        exclude_columns: List[str] = None
+        exclude_columns: List[str] = None,
+        target_anomaly_ratio: float = None
     ):
         """
         Initialize the data processor.
@@ -45,6 +46,8 @@ class EnergyDataProcessor:
             window_size: Size of sliding window (number of timesteps)
             step_size: Step size for sliding window (stride)
             exclude_columns: List of column names to exclude from features
+            target_anomaly_ratio: Target ratio of anomalies in training data (e.g., 0.25 for 25%). 
+                                If None, no balancing is performed.
         """
         self.data_dir = data_dir
         self.train_ratio = train_ratio
@@ -52,6 +55,7 @@ class EnergyDataProcessor:
         self.test_ratio = test_ratio
         self.window_size = window_size
         self.step_size = step_size
+        self.target_anomaly_ratio = target_anomaly_ratio
         
         # Validate ratios
         if abs(train_ratio + val_ratio + test_ratio - 1.0) > 1e-6:
@@ -74,6 +78,8 @@ class EnergyDataProcessor:
         # Load and process data
         self._load_data()
         self._split_data()
+        if self.target_anomaly_ratio is not None:
+            self._balance_training_data()
         self._log_data_statistics()
         self._fit_scaler()
         
@@ -118,6 +124,69 @@ class EnergyDataProcessor:
         logger.info(f"Train data: {len(self.train_data)} rows")
         logger.info(f"Validation data: {len(self.val_data)} rows")
         logger.info(f"Test data: {len(self.test_data)} rows")
+        
+    def _balance_training_data(self):
+        """
+        Balance training data by randomly filtering normal samples to achieve target anomaly ratio.
+        Only modifies training data, keeping validation and test data unchanged.
+        """
+        if self.target_anomaly_ratio is None or self.target_anomaly_ratio <= 0 or self.target_anomaly_ratio >= 1:
+            logger.warning(f"Invalid target_anomaly_ratio: {self.target_anomaly_ratio}. Skipping balancing.")
+            return
+            
+        # Get current statistics
+        train_anomalies = self.train_data['anomaly_label'].sum()
+        train_normals = len(self.train_data) - train_anomalies
+        current_ratio = train_anomalies / len(self.train_data) if len(self.train_data) > 0 else 0
+        
+        logger.info(f"=== Training Data Balancing ===")
+        logger.info(f"Before balancing - Total: {len(self.train_data)}, Anomalies: {train_anomalies}, Normal: {train_normals}")
+        logger.info(f"Current anomaly ratio: {current_ratio:.4f}")
+        logger.info(f"Target anomaly ratio: {self.target_anomaly_ratio:.4f}")
+        
+        # If current ratio is already higher than target, no need to balance
+        if current_ratio >= self.target_anomaly_ratio:
+            logger.info(f"Current ratio ({current_ratio:.4f}) >= target ratio ({self.target_anomaly_ratio:.4f}). No balancing needed.")
+            return
+        
+        # Calculate how many normal samples to keep
+        # target_ratio = anomalies / (anomalies + normals_to_keep)
+        # normals_to_keep = anomalies * (1 - target_ratio) / target_ratio
+        normals_to_keep = int(train_anomalies * (1 - self.target_anomaly_ratio) / self.target_anomaly_ratio)
+        
+        if normals_to_keep >= train_normals:
+            logger.info(f"Target requires {normals_to_keep} normal samples, but only {train_normals} available. No balancing needed.")
+            return
+            
+        logger.info(f"Will keep {normals_to_keep} normal samples out of {train_normals}")
+        
+        # Separate anomalies and normal samples
+        anomaly_mask = self.train_data['anomaly_label'] == 1
+        normal_mask = self.train_data['anomaly_label'] == 0
+        
+        anomaly_data = self.train_data[anomaly_mask].reset_index(drop=True)
+        normal_data = self.train_data[normal_mask].reset_index(drop=True)
+        
+        # Randomly sample normal data to keep
+        np.random.seed(42)  # For reproducibility
+        normal_indices = np.random.choice(len(normal_data), size=normals_to_keep, replace=False)
+        sampled_normal_data = normal_data.iloc[normal_indices].reset_index(drop=True)
+        
+        # Combine anomalies with sampled normal data
+        self.train_data = pd.concat([anomaly_data, sampled_normal_data], ignore_index=True)
+        
+        # Sort by timestamp to maintain temporal order (important for time series)
+        if 'TimeStamp' in self.train_data.columns:
+            self.train_data = self.train_data.sort_values('TimeStamp').reset_index(drop=True)
+        
+        # Log final statistics
+        final_anomalies = self.train_data['anomaly_label'].sum()
+        final_normals = len(self.train_data) - final_anomalies
+        final_ratio = final_anomalies / len(self.train_data) if len(self.train_data) > 0 else 0
+        
+        logger.info(f"After balancing - Total: {len(self.train_data)}, Anomalies: {final_anomalies}, Normal: {final_normals}")
+        logger.info(f"Final anomaly ratio: {final_ratio:.4f}")
+        logger.info(f"Removed {train_normals - normals_to_keep} normal samples ({(train_normals - normals_to_keep) / train_normals * 100:.1f}%)")
         
     def _log_data_statistics(self):
         """Log statistics about the data split."""
@@ -177,6 +246,21 @@ class EnergyDataProcessor:
         logger.info(f"Scaler fitted on {len(train_features)} training samples with {len(self.feature_columns)} features")
         logger.info(f"Feature means range: [{self.scaler.mean_.min():.3f}, {self.scaler.mean_.max():.3f}]")
         logger.info(f"Feature stds range: [{self.scaler.scale_.min():.3f}, {self.scaler.scale_.max():.3f}]")
+        
+    def save_scaler(self, filepath: str):
+        """
+        Save the fitted scaler to a file.
+        
+        Args:
+            filepath: Path where to save the scaler
+        """
+        if self.scaler is None:
+            raise ValueError("Scaler has not been fitted yet")
+        
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        with open(filepath, 'wb') as f:
+            pickle.dump(self.scaler, f)
+        logger.info(f"Scaler saved to: {filepath}")
         
     def _normalize_data(self, data: pd.DataFrame) -> np.ndarray:
         """
@@ -331,7 +415,8 @@ def create_data_loaders(
     val_ratio: float = 0.15,
     test_ratio: float = 0.15,
     exclude_columns: List[str] = None,
-    scaler_save_path: str = None
+    scaler_save_path: str = None,
+    target_anomaly_ratio: float = None
 ) -> Dict[str, DataLoader]:
     """
     Create data loaders for training, validation, and test with normalization.
@@ -347,6 +432,8 @@ def create_data_loaders(
         test_ratio: Ratio of data for testing (default: 0.15)
         exclude_columns: List of column names to exclude from features
         scaler_save_path: Path to save the fitted scaler
+        target_anomaly_ratio: Target ratio of anomalies in training data (e.g., 0.25 for 25%). 
+                            If None, no balancing is performed.
         
     Returns:
         Dictionary of data loaders for 'train', 'val', and 'test'
@@ -361,7 +448,8 @@ def create_data_loaders(
         test_ratio=test_ratio,
         window_size=window_size,
         step_size=step_size,
-        exclude_columns=exclude_columns
+        exclude_columns=exclude_columns,
+        target_anomaly_ratio=target_anomaly_ratio
     )
     
     # Save scaler if path provided

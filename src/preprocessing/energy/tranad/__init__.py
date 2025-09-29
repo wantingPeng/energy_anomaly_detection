@@ -1,2 +1,0 @@
-# TranAD package initialization
-
