@@ -1,0 +1,10 @@
+airTotal: 0.1026
+rTotalApparentEnergy: 0.0978
+airTempeatur: 0.0578
+aVoltage_L1_N: 0.0466
+aVoltage_L3_N: 0.0430
+aVoltage_L2_N: 0.0404
+aCosPhi_L1: 0.0400
+airDurchfluss: 0.0356
+aPowerFactorPF_L2: 0.0355
+aCosPhi_L3: 0.0348

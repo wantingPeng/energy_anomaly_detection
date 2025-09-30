@@ -1,0 +1,10 @@
+aVoltage_L2_N: 0.4077
+aVoltage_L3_N: 0.4056
+aVoltage_L1_N: 0.3898
+airTotal: 0.3763
+rTotalApparentEnergy: 0.3721
+aPowerFactorPF_L2: 0.3658
+aCosPhi_L1: 0.3442
+aCosPhi_L3: 0.3309
+aCosPhi_L2: 0.3305
+airTempeatur: 0.3178
