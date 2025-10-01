@@ -2,7 +2,7 @@
 
 # Paths
 paths:
-  data_dir: "experiments/statistic_30_window_features_pcb/filtered_window_features.parquet"
+  data_dir: "experiments/statistic_40_window_features_contact/filtered_window_features_40.parquet"
   output_dir: "experiments/downsampleData_scratch_1minut"
 
 # Data configuration
@@ -12,8 +12,8 @@ data:
   val_ratio: 0.15
   test_ratio: 0.15
   # Sliding window parameters
-  window_size: 10  # Size of sliding window (number of timesteps) - 1 hour of 1-minute data
-  step_size: 10     # Step size for sliding window (stride) - 50% overlap
+  window_size: 10 # Size of sliding window (number of timesteps) - 1 hour of 1-minute data
+  step_size: 1     # Step size for sliding window (stride) - 50% overlap
   target_anomaly_ratio: 0.25
   # Feature columns to exclude (non-feature columns)
   exclude_columns: ["TimeStamp", "anomaly_label"]

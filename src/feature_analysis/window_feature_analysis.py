@@ -46,10 +46,10 @@ def parse_args():
     """解析命令行参数"""
     parser = argparse.ArgumentParser(description='计算窗口统计特征并筛选重要特征')
     parser.add_argument('--input_file', type=str,
-                        default='Data/filtered_feature/top_features_Ring_cleaned_1minut_20250928_170147.parquet',
+                        default='Data/filtered_feature/top_features_contact_cleaned_1minut_20250928_172122.parquet',
                         help='输入数据文件路径')
     parser.add_argument('--output_dir', type=str,
-                        default='experiments/statistic_30_window_features_pcb',
+                        default='experiments/statistic_40_window_features_contact',
                         help='输出目录')
     parser.add_argument('--window_size', type=int,
                         default=30,
@@ -58,7 +58,7 @@ def parse_args():
                         default=5,
                         help='窗口步长（分钟）')
     parser.add_argument('--top_n', type=int,
-                        default=60,
+                        default=40,
                         help='要选择的顶级特征数量')
     parser.add_argument('--load_features_from', type=str,
                         default=None,
@@ -148,8 +148,9 @@ def calculate_window_features_for_dataframe(df, window_size_minutes, step_size_m
             
             # 从原始窗口数据中获取异常标签
             if 'anomaly_label' in window_data.columns:
-                # 如果窗口内有一个异常点，则整个窗口标记为异常
-                window_stats['anomaly_label'] = int(window_data['anomaly_label'].max())
+                # 当窗口内至少30%的点为异常时，才将整个窗口标记为异常
+                anomaly_percentage = window_data['anomaly_label'].sum() / len(window_data)
+                window_stats['anomaly_label'] = int(anomaly_percentage >= 0.3)
             
             window_features.append(window_stats)
                 

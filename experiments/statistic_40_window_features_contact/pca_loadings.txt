@@ -1,0 +1,10 @@
+aCosPhi_L2_std: 0.3452
+aCosPhi_L2_spectral_peak: 0.3353
+aCosPhi_L2_change_point_score: 0.3328
+aCosPhi_L3_std: 0.3225
+aCosPhi_L3_change_point_score: 0.3158
+aCosPhi_L3_spectral_peak: 0.3132
+aCosPhi_L3_mean: 0.3120
+rTotalReactiveEnergy_change_point_score: 0.3091
+aCosPhi_L1_mean: 0.3044
+aCosPhi_L3_ks_test_statistic: 0.3041

@@ -1,0 +1,10 @@
+airTotal_mean: 0.0336
+rTotalApparentEnergy_mean: 0.0282
+rTotalReactiveEnergy_mean: 0.0168
+aCosPhi_L1_mean: 0.0090
+aPowerFactorPF_L2_change_point_score: 0.0088
+aCosPhi_L1_ks_test_statistic: 0.0087
+aPowerFactorPF_L2_std: 0.0069
+aPowerFactorPF_L2_mean: 0.0055
+aCosPhi_L2_mean: 0.0049
+aCosPhi_L1_std: 0.0047

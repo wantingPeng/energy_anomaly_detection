@@ -1,0 +1,119 @@
+# XGBoost Configuration for Time Series Energy Anomaly Detection
+
+# Data configuration
+data:
+  # Pre-computed window features (30-minute windows with statistical features)
+  data_path: "experiments/statistic_30_window_features_contact/filtered_window_features.parquet"
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  target_column: "anomaly_label"
+  exclude_columns: []  # Will auto-exclude target_column
+  
+  # Note: Features are already computed, no need for additional feature engineering
+  # The parquet file contains pre-computed statistical features from 30-minute windows
+
+# XGBoost model parameters
+model:
+  # Core parameters
+  objective: "binary:logistic"
+  eval_metric: ["logloss", "auc", "aucpr"]
+  tree_method: "hist"
+  device: "cpu"
+  
+  # Tree parameters
+  max_depth: 6
+  min_child_weight: 1
+  gamma: 0.1
+  
+  # Regularization
+  alpha: 0.0  # L1 regularization
+  lambda: 1.0  # L2 regularization
+  
+  # Learning parameters
+  learning_rate: 0.1
+  n_estimators: 300
+  
+  # Sampling parameters
+  subsample: 0.8
+  colsample_bytree: 0.8
+  colsample_bylevel: 0.8
+  colsample_bynode: 0.8
+  
+  # Class imbalance
+  scale_pos_weight: 10  # Automatically calculated if set to "auto"
+  
+  # Other parameters
+  random_state: 42
+  n_jobs: -1
+  verbosity: 1
+
+# Training configuration
+training:
+  early_stopping_rounds: 30
+  verbose_eval: 10
+  use_best_iteration: true
+  
+  # Cross-validation
+  use_cv: false
+  cv_folds: 5
+  
+  # Optimization
+  optimize_threshold: true
+  threshold_metric: "f1"  # Metric to optimize threshold for
+
+# Evaluation configuration
+evaluation:
+  # Metrics to compute
+  metrics: ["accuracy", "precision", "recall", "f1", "auprc", "auroc"]
+  
+  # Point adjustment for time series
+  use_point_adjustment: true
+  
+  # Save predictions
+  save_predictions: true
+  save_probabilities: true
+
+# Feature importance
+feature_importance:
+  save_importance: true
+  importance_type: "gain"  # Options: "weight", "gain", "cover"
+  plot_top_n: 30
+
+# Paths
+paths:
+  output_dir: "experiments/xgboost_timeseries"
+  model_dir: "experiments/xgboost_timeseries/models"
+  log_dir: "experiments/logs"
+  results_dir: "experiments/xgboost_timeseries/results"
+
+# Model variants (optional presets)
+variants:
+  fast:
+    # Fast training for quick experiments
+    model:
+      max_depth: 4
+      n_estimators: 100
+      learning_rate: 0.15
+    training:
+      early_stopping_rounds: 20
+  
+  standard:
+    # Balanced performance (recommended)
+    model:
+      max_depth: 6
+      n_estimators: 300
+      learning_rate: 0.1
+    training:
+      early_stopping_rounds: 30
+  
+  deep:
+    # Best performance, slower training
+    model:
+      max_depth: 9
+      n_estimators: 500
+      learning_rate: 0.05
+    training:
+      early_stopping_rounds: 50
+
+

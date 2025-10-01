@@ -1,0 +1,10 @@
+rTotalApparentEnergy_mean: 0.3119
+airTotal_mean: 0.3069
+aCosPhi_L3_change_point_score: 0.1872
+aCosPhi_L1_change_point_score: 0.1849
+aPowerFactorPF_L2_change_point_score: 0.1817
+aCosPhi_L2_change_point_score: 0.1814
+aVoltage_L1_N_change_point_score: 0.1799
+aVoltage_L3_N_change_point_score: 0.1764
+aCosPhi_L1_ks_test_statistic: 0.1756
+aVoltage_L2_N_change_point_score: 0.1751

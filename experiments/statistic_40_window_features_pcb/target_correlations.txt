@@ -1,0 +1,10 @@
+aReactivePower_L1_std: 0.1097
+airTotal_mean: -0.1082
+rTotalApparentEnergy_mean: -0.1058
+aCurrentL1_std: 0.1032
+aApparentPower_L1_std: 0.1025
+aReactivePower_L1_ks_test_statistic: -0.1008
+aReactivePower_L1_change_point_score: 0.0978
+aApparentPower_L1_change_point_score: 0.0970
+aCurrentL1_change_point_score: 0.0970
+aReactivePower_L1_spectral_peak: 0.0948
