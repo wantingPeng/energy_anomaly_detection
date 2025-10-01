@@ -1,0 +1,10 @@
+airTotal: 0.0311
+rTotalApparentEnergy: 0.0311
+rTotalReactiveEnergy: 0.0277
+airTempeatur: 0.0196
+celHum: 0.0177
+airDurchfluss: 0.0127
+aCurrentL1: 0.0110
+aVoltage_L1_N: 0.0110
+aVoltage_L3_N: 0.0093
+aReactivePower_L1: 0.0088

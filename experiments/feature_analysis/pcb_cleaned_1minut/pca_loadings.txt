@@ -1,0 +1,10 @@
+aVoltage_L2_N: 0.4079
+aVoltage_L3_N: 0.3991
+aVoltage_L1_N: 0.3921
+airDurchfluss: 0.3882
+aPowerFactorPF_L1: 0.3784
+aReactivePower_L2: 0.3768
+aActivePower_L2: 0.3679
+aApparentPower_L2: 0.3598
+aCurrentL2: 0.3575
+airTotal: 0.3509

@@ -1,0 +1,10 @@
+airTotal: -0.0854
+rTotalApparentEnergy: -0.0836
+aVoltage_L1_N: -0.0544
+airTempeatur: 0.0515
+aReactivePower_L3: 0.0514
+aReactivePower_L2: -0.0483
+aCosPhi_L2: -0.0474
+rTotalReactiveEnergy: -0.0445
+aActivePower_L3: 0.0444
+celHum: -0.0433

@@ -1,0 +1,10 @@
+aApparentPower_L1: 0.4137
+aCurrentL1: 0.4105
+rTotalReactiveEnergy: 0.4085
+aVoltage_L3_N: 0.4021
+aVoltage_L2_N: 0.3991
+airTotal: 0.3942
+rTotalApparentEnergy: 0.3921
+aVoltage_L1_N: 0.3915
+aPowerFactorPF_L1: 0.3788
+aActivePower_L3: 0.3783

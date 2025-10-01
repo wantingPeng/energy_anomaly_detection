@@ -1,0 +1,10 @@
+rTotalApparentEnergy: 0.1613
+airTotal: 0.1567
+rTotalReactiveEnergy: 0.0589
+airTempeatur: 0.0083
+rTotalActivePower: 0.0073
+airDurchfluss: 0.0071
+aCosPhi_L1: 0.0065
+aReactivePower_L1: 0.0062
+aReactivePower_L2: 0.0061
+rTotalReactivePower: 0.0060

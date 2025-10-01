@@ -68,8 +68,8 @@ def filter_dataset(input_file, output_file, feature_names):
 
 def main():
     # Define paths
-    features_file = "experiments/feature_analysis/contact_cleaned_1minut/top_features.txt"
-    input_file = "Data/downsampleData_scratch_1minut/contact/contact_cleaned_1minut_20250928_172122.parquet"
+    features_file = "experiments/feature_analysis/ring_cleaned_1minut/top_features.txt"
+    input_file = "Data/downsampleData_scratch_1minut/ring/Ring_cleaned_1minut_20250928_170147.parquet"
     
     # Extract filename for the output
     input_filename = Path(input_file).name

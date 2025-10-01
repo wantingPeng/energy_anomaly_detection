@@ -1,0 +1,10 @@
+aVoltage_L1_N: -0.0803
+aVoltage_L3_N: -0.0757
+aVoltage_L2_N: -0.0752
+aPowerFactorPF_L2: 0.0570
+aActivePower_L2: 0.0508
+aReactivePower_L1: 0.0494
+aCosPhi_L2: 0.0481
+rTotalReactivePower: 0.0465
+aCurrentL2: 0.0465
+aActivePower_L1: 0.0449

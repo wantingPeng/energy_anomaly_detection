@@ -1,0 +1,10 @@
+rTotalApparentEnergy: 0.1400
+airTotal: 0.1384
+celTemp: 0.1308
+rTotalReactiveEnergy: 0.0378
+airDurchfluss: 0.0051
+aApparentPower_L1: 0.0051
+aReactivePower_L1: 0.0045
+aCurrentL1: 0.0044
+aCosPhi_L2: 0.0041
+celHum: 0.0040

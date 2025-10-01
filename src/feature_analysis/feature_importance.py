@@ -430,9 +430,9 @@ def main():
     # Parse command line arguments
     import argparse
     parser = argparse.ArgumentParser(description='Analyze feature importance in a dataset')
-    parser.add_argument('--input_file', type=str, required=True, 
+    parser.add_argument('--input_file', type=str, default='Data/downsampleData_scratch_1minut/ring/Ring_cleaned_1minut_20250928_170147.parquet', 
                         help='Path to the parquet file containing the dataset')
-    parser.add_argument('--output_dir', type=str, default='experiments/feature_analysis',
+    parser.add_argument('--output_dir', type=str, default='experiments/feature_analysis/ring_cleaned_1minut',
                         help='Directory to save analysis results')
     parser.add_argument('--target_column', type=str, default='anomaly_label',
                         help='Name of the target column (if any)')
