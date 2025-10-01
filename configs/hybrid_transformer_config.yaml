@@ -5,11 +5,11 @@ data:
   exclude_columns:
     - TimeStamp
     - anomaly_label
-  step_size: 100
+  step_size: 10
   test_ratio: 0.15
   train_ratio: 0.7
   val_ratio: 0.15
-  window_size: 100
+  window_size: 20
   target_anomaly_ratio: 0.25
 hardware:
   precision: float32
@@ -38,7 +38,7 @@ model:
   auxiliary_loss_weight: 0.3
 
 paths:
-  data_dir: Data/downsampleData_scratch_1minut/contact/contact_cleaned_1minut_20250928_172122.parquet
+  data_dir: experiments/statistic_30_window_features_pcb/filtered_window_features.parquet
   output_dir: experiments/downsampleData_scratch_1minut
 
 preprocessing:
