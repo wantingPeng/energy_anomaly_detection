@@ -1,0 +1,10 @@
+rTotalApparentEnergy_mean: 0.2594
+airTotal_mean: 0.2572
+aReactivePower_L1_change_point_score: 0.1673
+aCurrentL1_change_point_score: 0.1634
+aApparentPower_L1_change_point_score: 0.1625
+aVoltage_L1_N_change_point_score: 0.1578
+aVoltage_L3_N_change_point_score: 0.1568
+aCurrentL1_ks_test_statistic: 0.1561
+aVoltage_L2_N_change_point_score: 0.1555
+airDurchfluss_change_point_score: 0.1474

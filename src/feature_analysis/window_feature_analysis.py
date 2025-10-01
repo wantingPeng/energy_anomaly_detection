@@ -49,7 +49,7 @@ def parse_args():
                         default='Data/filtered_feature/top_features_Ring_cleaned_1minut_20250928_170147.parquet',
                         help='输入数据文件路径')
     parser.add_argument('--output_dir', type=str,
-                        default='experiments/statistic_40_window_features_ring',
+                        default='experiments/statistic_30_window_features_pcb',
                         help='输出目录')
     parser.add_argument('--window_size', type=int,
                         default=30,
@@ -58,7 +58,7 @@ def parse_args():
                         default=5,
                         help='窗口步长（分钟）')
     parser.add_argument('--top_n', type=int,
-                        default=40,
+                        default=60,
                         help='要选择的顶级特征数量')
     parser.add_argument('--load_features_from', type=str,
                         default=None,
@@ -160,13 +160,14 @@ def calculate_window_features_for_dataframe(df, window_size_minutes, step_size_m
     return features_df
 
 
-def run_feature_importance_analysis(features_df, output_dir):
+def run_feature_importance_analysis(features_df, output_dir, top_n=30):
     """
     运行特征重要性分析，找出顶级特征
     
     Args:
         features_df: 包含特征的DataFrame
         output_dir: 输出目录
+        top_n: 要选择的顶级特征数量
         
     Returns:
         list: 顶级特征名称列表
@@ -202,13 +203,13 @@ def run_feature_importance_analysis(features_df, output_dir):
     # 保存顶级特征
     top_features_path = os.path.join(output_dir, 'top_features.txt')
     with open(top_features_path, 'w') as f:
-        for feature, row in summary.head(30).iterrows():
+        for feature, row in summary.head(top_n).iterrows():
             line = f"{feature}: Mean Rank {row['mean_rank']:.2f}"
             f.write(line + '\n')
     
     # 获取顶级特征名称
-    top_features = summary.head(30).index.tolist()
-    logger.info(f"已确定前 30 个重要特征: {top_features}")
+    top_features = summary.head(top_n).index.tolist()
+    logger.info(f"已确定前 {top_n} 个重要特征: {top_features}")
     
     return top_features
 
@@ -238,7 +239,7 @@ def filter_features(features_df, top_features, output_dir):
     logger.info(f"过滤后的数据形状: {filtered_df.shape}")
     
     # 保存过滤后的数据
-    filtered_path = os.path.join(output_dir, 'filtered_window_features.parquet')
+    filtered_path = os.path.join(output_dir, f'filtered_window_features_{len(top_features)}.parquet')
     filtered_df.to_parquet(filtered_path)
     logger.info(f"过滤后的特征已保存至 {filtered_path}")
     
@@ -247,7 +248,7 @@ def filter_features(features_df, top_features, output_dir):
 
 def load_features_and_continue(features_path, output_dir, top_n):
     """
-    从已计算的特征文件加载数据，然后继续特征重要性分析和筛选
+    从已计算的特征文件加载数据，然后直接从特征重要性汇总文件中获取顶级特征并筛选
     
     Args:
         features_path: 特征文件路径
@@ -258,9 +259,16 @@ def load_features_and_continue(features_path, output_dir, top_n):
     features_df = pd.read_parquet(features_path)
     logger.info(f"加载的特征形状: {features_df.shape}")
     
-    # 运行特征重要性分析
-    top_features = run_feature_importance_analysis(features_df, output_dir)
+    # 直接从特征重要性汇总文件中获取顶级特征
+    summary_path = os.path.join(output_dir, 'feature_importance_summary.csv')
+    logger.info(f"从 {summary_path} 加载特征重要性汇总")
     
+
+    summary = pd.read_csv(summary_path, index_col=0)
+    # 获取顶级特征名称
+    top_features = summary.head(top_n).index.tolist()
+    logger.info(f"已从汇总文件获取前 {top_n} 个重要特征: {top_features}")
+
     # 过滤数据，只保留重要特征
     filtered_df = filter_features(features_df, top_features[:top_n], output_dir)
     
@@ -309,7 +317,7 @@ def main():
             logger.info(f"窗口特征计算完成，耗时 {(time.time() - start_time):.2f} 秒")
             
             # 运行特征重要性分析
-            top_features = run_feature_importance_analysis(features_df, args.output_dir)
+            top_features = run_feature_importance_analysis(features_df, args.output_dir, args.top_n)
             
             # 过滤数据，只保留重要特征
             filtered_df = filter_features(features_df, top_features[:args.top_n], args.output_dir)
