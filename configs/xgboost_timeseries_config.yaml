@@ -22,13 +22,13 @@ model:
   device: "cpu"
   
   # Tree parameters
-  max_depth: 4
+  max_depth: 2
   min_child_weight: 1
   gamma: 0.1
   
   # Regularization
-  alpha: 0.1  # L1 regularization
-  lambda: 2.0  # L2 regularization
+  alpha: 0.2  # L1 regularization
+  lambda: 4.0  # L2 regularization
   
   # Learning parameters
   learning_rate: 0.05

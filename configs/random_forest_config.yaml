@@ -1,0 +1,125 @@
+# Configuration file for Random Forest time series anomaly detection
+
+# Paths
+paths:
+  output_dir: "experiments/random_forest"
+
+# Data configuration
+data:
+  # Path to processed window features
+  data_path: "experiments/statistic_40_window_features_contact/filtered_window_features_40.parquet"
+  
+  # Train/validation/test split ratios
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  
+  # Target column
+  target_column: "anomaly_label"
+  
+  # Columns to exclude from features
+  exclude_columns:
+    - "TimeStamp"
+    - "window_id"
+    - "anomaly_label"
+  
+  # Method to balance classes (None, 'undersample', 'oversample', 'class_weight')
+  # If 'class_weight', it will use scikit-learn's class_weight='balanced' option
+  balance_method: "class_weight"
+
+# Model configuration
+model:
+  # Number of trees in the forest
+  n_estimators: 150
+  
+  # Maximum depth of the tree
+  # None means unlimited
+  max_depth: 2
+  
+  # Minimum number of samples required to split an internal node
+  min_samples_split: 2
+  
+  # Minimum number of samples required to be at a leaf node
+  min_samples_leaf: 1
+  
+  # Number of features to consider for best split
+  # 'sqrt': sqrt(n_features)
+  # 'log2': log2(n_features)
+  # float: fraction of features
+  # int: absolute number of features
+  max_features: "sqrt"
+  
+  # Whether to use bootstrap samples
+  bootstrap: true
+  
+  # Whether to use out-of-bag samples to estimate generalization score
+  oob_score: true
+  
+  # Class weights (auto computed if data.balance_method = 'class_weight')
+  class_weight: null
+  
+  # Number of parallel jobs
+  # -1 means use all processors
+  n_jobs: -1
+  
+  # Random state for reproducibility
+  random_state: 42
+  
+  # Verbosity level
+  verbose: 1
+
+# Training configuration
+training:
+  # Whether to optimize decision threshold
+  optimize_threshold: true
+  
+  # Metric to optimize threshold for
+  # Options: f1, precision, recall
+  threshold_metric: "f1"
+
+# Evaluation configuration
+evaluation:
+  # Whether to use point adjustment
+  use_point_adjustment: true
+  
+  # Whether to save predictions
+  save_predictions: true
+  
+  # Whether to plot precision-recall and ROC curves
+  plot_curves: true
+
+# Feature importance
+feature_importance:
+  # Whether to save feature importance
+  save_importance: true
+  
+  # Type of feature importance to compute
+  # Options: impurity (default), permutation (needs validation data)
+  importance_type: "impurity"
+  
+  # Number of top features to plot
+  plot_top_n: 30
+
+# Model variants for different use cases
+variants:
+  # Fast training with fewer trees
+  fast:
+    model:
+      n_estimators: 50
+      min_samples_split: 5
+      min_samples_leaf: 2
+      oob_score: false
+  
+  # Standard configuration (default)
+  standard:
+    model:
+      n_estimators: 100
+      oob_score: true
+  
+  # Deep model with more trees and unlimited depth
+  deep:
+    model:
+      n_estimators: 500
+      max_features: 0.5
+      min_samples_leaf: 1
+
