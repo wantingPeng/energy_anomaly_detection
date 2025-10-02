@@ -3,12 +3,12 @@
 # Data configuration
 data:
   # Pre-computed window features (30-minute windows with statistical features)
-  data_path: "experiments/statistic_30_window_features_contact/filtered_window_features.parquet"
+  data_path: "experiments/statistic_40_window_features_contact/filtered_window_features_40.parquet"
   train_ratio: 0.7
   val_ratio: 0.15
   test_ratio: 0.15
   target_column: "anomaly_label"
-  exclude_columns: []  # Will auto-exclude target_column
+  exclude_columns: [TimeStamp]  # Will auto-exclude target_column
   
   # Note: Features are already computed, no need for additional feature engineering
   # The parquet file contains pre-computed statistical features from 30-minute windows
@@ -22,16 +22,16 @@ model:
   device: "cpu"
   
   # Tree parameters
-  max_depth: 6
+  max_depth: 4
   min_child_weight: 1
   gamma: 0.1
   
   # Regularization
-  alpha: 0.0  # L1 regularization
-  lambda: 1.0  # L2 regularization
+  alpha: 0.1  # L1 regularization
+  lambda: 2.0  # L2 regularization
   
   # Learning parameters
-  learning_rate: 0.1
+  learning_rate: 0.05
   n_estimators: 300
   
   # Sampling parameters
@@ -87,33 +87,5 @@ paths:
   log_dir: "experiments/logs"
   results_dir: "experiments/xgboost_timeseries/results"
 
-# Model variants (optional presets)
-variants:
-  fast:
-    # Fast training for quick experiments
-    model:
-      max_depth: 4
-      n_estimators: 100
-      learning_rate: 0.15
-    training:
-      early_stopping_rounds: 20
-  
-  standard:
-    # Balanced performance (recommended)
-    model:
-      max_depth: 6
-      n_estimators: 300
-      learning_rate: 0.1
-    training:
-      early_stopping_rounds: 30
-  
-  deep:
-    # Best performance, slower training
-    model:
-      max_depth: 9
-      n_estimators: 500
-      learning_rate: 0.05
-    training:
-      early_stopping_rounds: 50
 
 

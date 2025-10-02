@@ -19,5 +19,4 @@ venv/
 events.out.tfevents.*
 *.pyc
 experiments/**/model_save/**/config/config.yaml
-trained_models/
-trained_models_1/
+experiments/xgboost_timeseries/experiments

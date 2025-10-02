@@ -227,15 +227,21 @@ def save_results(results, save_dir):
     import json
     metrics_path = os.path.join(save_dir, 'metrics.json')
     
-    # Convert numpy types to Python types for JSON serialization
-    metrics_serializable = {}
-    for key, value in results.items():
-        if isinstance(value, (np.integer, np.floating)):
-            metrics_serializable[key] = float(value)
-        elif isinstance(value, np.ndarray):
-            metrics_serializable[key] = value.tolist()
+    def convert_numpy_types(obj):
+        """递归转换numpy类型为Python原生类型"""
+        if isinstance(obj, (np.integer, np.floating)):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, dict):
+            return {k: convert_numpy_types(v) for k, v in obj.items()}
+        elif isinstance(obj, (list, tuple)):
+            return [convert_numpy_types(i) for i in obj]
         else:
-            metrics_serializable[key] = value
+            return obj
+    
+    # 递归转换numpy类型为Python原生类型
+    metrics_serializable = convert_numpy_types(results)
     
     with open(metrics_path, 'w') as f:
         json.dump(metrics_serializable, f, indent=2)

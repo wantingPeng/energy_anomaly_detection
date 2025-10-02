@@ -98,7 +98,7 @@ class XGBoostDataLoader:
         
         logger.info(f"Feature columns: {len(self.feature_columns)}")
         logger.info(f"Target column: {self.target_column}")
-        logger.info(f"First few features: {self.feature_columns[:5]}")
+        logger.info(f"First few features: {self.feature_columns}")
         
         # Log overall anomaly statistics
         total_anomalies = self.raw_data[self.target_column].sum()
@@ -227,6 +227,33 @@ class XGBoostDataLoader:
         logger.info(f"  Positive samples: {n_positive}")
         
         return scale_pos_weight
+    
+    def save_scaler(self, path: str) -> None:
+        """
+        Save scaler to file. For XGBoost, there is no scaler used since tree-based
+        models don't require feature normalization, but this method is implemented
+        for compatibility with other model workflows.
+        
+        Args:
+            path: Path to save scaler
+        """
+        import pickle
+        import os
+        
+        # Create empty dictionary to maintain compatibility with other models
+        scaler_info = {
+            'scaler_type': 'none',
+            'description': 'XGBoost models do not use feature scaling'
+        }
+        
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        
+        # Save empty scaler info
+        with open(path, 'wb') as f:
+            pickle.dump(scaler_info, f)
+        
+        logger.info(f"Saved scaler info to: {path}")
     
     def get_data_info(self) -> Dict:
         """
