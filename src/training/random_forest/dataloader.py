@@ -49,7 +49,7 @@ class RandomForestDataLoader:
             test_ratio: Ratio of data for testing
             target_column: Name of the target column
             exclude_columns: Additional columns to exclude from features
-            balance_method: Method to balance classes (None, 'undersample', 'oversample', 'class_weight')
+            balance_method: Method to balance classes (None or 'class_weight')
         """
         self.data_path = data_path
         self.train_ratio = train_ratio
@@ -135,8 +135,7 @@ class RandomForestDataLoader:
     
     def _balance_data(self):
         """
-        Balance training data using the specified method.
-        Options: 'undersample', 'oversample', 'class_weight'
+        Balance training data using class weights.
         """
         from sklearn.utils import class_weight
         import numpy as np
@@ -152,33 +151,9 @@ class RandomForestDataLoader:
             self.class_weights = dict(enumerate(self.class_weights))
             
             logger.info(f"Computed class weights: {self.class_weights}")
-            return
-        
-        if self.balance_method == 'undersample':
-            from imblearn.under_sampling import RandomUnderSampler
-            sampler = RandomUnderSampler(random_state=42)
-            logger.info("Applying random undersampling to training data")
-        elif self.balance_method == 'oversample':
-            from imblearn.over_sampling import RandomOverSampler
-            sampler = RandomOverSampler(random_state=42)
-            logger.info("Applying random oversampling to training data")
         else:
             logger.warning(f"Unknown balance method: {self.balance_method}")
             return
-        
-        # Apply sampling
-        X = self.train_data[self.feature_columns]
-        y = self.train_data[self.target_column]
-        
-        X_resampled, y_resampled = sampler.fit_resample(X, y)
-        
-        # Create new balanced DataFrame
-        self.train_data = pd.DataFrame(X_resampled, columns=self.feature_columns)
-        self.train_data[self.target_column] = y_resampled
-        
-        # Log results
-        logger.info(f"Original class distribution: {pd.Series(y).value_counts().to_dict()}")
-        logger.info(f"Balanced class distribution: {pd.Series(y_resampled).value_counts().to_dict()}")
     
     def _log_statistics(self):
         """Log detailed statistics about the data splits."""
@@ -268,32 +243,6 @@ class RandomForestDataLoader:
         """
         return self.class_weights
     
-    def save_scaler(self, path: str) -> None:
-        """
-        Save scaler to file. For Random Forest, there is no scaler used since tree-based
-        models don't require feature normalization, but this method is implemented
-        for compatibility with other model workflows.
-        
-        Args:
-            path: Path to save scaler
-        """
-        import pickle
-        import os
-        
-        # Create empty dictionary to maintain compatibility with other models
-        scaler_info = {
-            'scaler_type': 'none',
-            'description': 'Random Forest models do not use feature scaling'
-        }
-        
-        # Ensure directory exists
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        
-        # Save empty scaler info
-        with open(path, 'wb') as f:
-            pickle.dump(scaler_info, f)
-        
-        logger.info(f"Saved scaler info to: {path}")
     
     def get_data_info(self) -> Dict:
         """

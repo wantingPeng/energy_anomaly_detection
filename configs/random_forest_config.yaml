@@ -23,8 +23,8 @@ data:
     - "window_id"
     - "anomaly_label"
   
-  # Method to balance classes (None, 'undersample', 'oversample', 'class_weight')
-  # If 'class_weight', it will use scikit-learn's class_weight='balanced' option
+  # Method to balance classes (None or 'class_weight')
+  # 'class_weight' uses scikit-learn's class_weight='balanced' option
   balance_method: "class_weight"
 
 # Model configuration
