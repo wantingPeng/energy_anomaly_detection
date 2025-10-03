@@ -160,7 +160,7 @@ def analyze_timestamp_continuity(file_path, time_column='TimeStamp', min_gap_to_
     return stats
 
 if __name__ == "__main__":
-    file_path = "Data/downsampleData_scratch_1minut/Contacting_cleaned_1minut_20250802_170647.parquet"
+    file_path = "Data/downsampleData_scratch_1minut/pcb/pcb_cleaned_1minut_20250928_161509.parquet"
     
     logger.info(f"Starting timestamp continuity analysis for {file_path}")
     

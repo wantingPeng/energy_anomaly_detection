@@ -3,7 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
-import dask.dataframe as dd
 from scipy import signal
 from scipy.fft import fft, fftfreq
 from statsmodels.tsa.seasonal import seasonal_decompose
@@ -13,58 +12,41 @@ warnings.filterwarnings('ignore')
 
 from src.utils.logger import logger
 
-def load_and_merge_datasets(base_path: str) -> pd.DataFrame:
+def load_data_from_parquet(file_path: str) -> pd.DataFrame:
     """
-    加载并合并train、val、test数据集
+    从指定的parquet文件加载数据
     """
-    logger.info("开始加载数据集...")
+    logger.info(f"开始加载数据文件: {file_path}")
     
-    base_dir = Path(base_path)
-    all_dfs = []
+    parquet_file = Path(file_path)
     
-    # 遍历train、val、test目录
-    for split in ['train', 'val', 'test']:
-        split_dir = base_dir / split / 'contact'
+    if not parquet_file.exists():
+        raise FileNotFoundError(f"数据文件不存在: {file_path}")
+    
+    # 使用pandas直接加载parquet文件
+    try:
+        logger.info("正在读取parquet文件...")
+        df = pd.read_parquet(parquet_file)
+        logger.info(f"成功加载 {len(df)} 条记录")
         
-        if not split_dir.exists():
-            logger.warning(f"目录不存在: {split_dir}")
-            continue
-            
-        logger.info(f"正在加载 {split} 数据...")
+        # 确保TimeStamp列是datetime类型
+        if 'TimeStamp' in df.columns:
+            df['TimeStamp'] = pd.to_datetime(df['TimeStamp'])
+        else:
+            raise ValueError("数据中未找到 'TimeStamp' 列")
         
-        # 遍历每个batch目录
-        for batch_dir in split_dir.iterdir():
-            if batch_dir.is_dir():
-                logger.info(f"  处理 {batch_dir.name}...")
-                
-                # 使用dask加载该batch下的所有parquet文件
-                parquet_pattern = str(batch_dir / "*.parquet")
-                try:
-                    df_batch = dd.read_parquet(parquet_pattern).compute()
-                    df_batch['dataset_split'] = split
-                    df_batch['batch_id'] = batch_dir.name
-                    all_dfs.append(df_batch)
-                    logger.info(f"    加载了 {len(df_batch)} 条记录")
-                except Exception as e:
-                    logger.error(f"    加载 {batch_dir} 时出错: {e}")
-    
-    if not all_dfs:
-        raise ValueError("没有找到任何数据文件")
-    
-    # 合并所有数据
-    logger.info("正在合并所有数据...")
-    combined_df = pd.concat(all_dfs, ignore_index=True)
-    
-    # 确保TimeStamp列是datetime类型
-    combined_df['TimeStamp'] = pd.to_datetime(combined_df['TimeStamp'])
-    
-    # 按时间排序
-    combined_df = combined_df.sort_values('TimeStamp').reset_index(drop=True)
-    
-    logger.info(f"合并完成！总共 {len(combined_df)} 条记录")
-    logger.info(f"时间范围: {combined_df['TimeStamp'].min()} 到 {combined_df['TimeStamp'].max()}")
-    
-    return combined_df
+        # 按时间排序
+        df = df.sort_values('TimeStamp').reset_index(drop=True)
+        
+        logger.info(f"数据加载完成！")
+        logger.info(f"时间范围: {df['TimeStamp'].min()} 到 {df['TimeStamp'].max()}")
+        logger.info(f"数据列: {list(df.columns)}")
+        
+        return df
+        
+    except Exception as e:
+        logger.error(f"加载数据文件时出错: {e}")
+        raise
 
 def extract_time_features(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -565,26 +547,20 @@ def main():
     logger.info("开始能源数据周期性分析...")
     
     # 数据路径
-    base_path = "Data/row_energyData_subsample_Transform/downsampled_1min"
-    target_column = "rTotalActivePower"
+    data_file = "Data/downsampleData_scratch_1minut/pcb/pcb_cleaned_1minut_20250928_161509.parquet"
+    target_column = "rTotalApparentEnergy"
     
     try:
-        # 1. 加载和合并数据
-        df = load_and_merge_datasets(base_path)
+        # 1. 加载数据
+        df = load_data_from_parquet(data_file)
         
         # 2. 提取时间特征
         df = extract_time_features(df)
         
         # 3. 创建输出目录
-        Path("experiments/data").mkdir(parents=True, exist_ok=True)
         Path("experiments/data_periode").mkdir(parents=True, exist_ok=True)
         
-        # 4. 保存合并后的数据
-        output_path = "experiments/data/combined_energy_data.parquet"
-        df.to_parquet(output_path)
-        logger.info(f"合并数据已保存至: {output_path}")
-        
-        # 5. 进行各种周期性分析
+        # 4. 进行各种周期性分析
         logger.info("开始多维度周期性分析...")
         
         # 日周期分析
