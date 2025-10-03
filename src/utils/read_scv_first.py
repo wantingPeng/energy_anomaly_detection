@@ -40,7 +40,7 @@ def read_first_n_rows(
 
 if __name__ == "__main__":
     # Example usage (modify paths as needed)
-    input_csv = "Data/row/Energy_Data/Contacting/August_2024.csv"
+    input_csv = "dataset/ALLcontact_noSegment/test_processed.csv"
     #output_csv = "Data/data_preview/row_anomaly_data.csv"  # Optional
     
     try:
