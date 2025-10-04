@@ -159,7 +159,7 @@ def save_downsampled_data(df: pd.DataFrame, output_dir: str) -> str:
     
     # Generate output filename with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_filename = f"Ring_cleaned_1minut_{timestamp}.parquet"
+    output_filename = f"cleaned_1minut_{timestamp}.parquet"
     output_path = os.path.join(output_dir, output_filename)
     
     # Save to parquet format
@@ -297,9 +297,8 @@ def main():
     """ 
     # Define file paths
     input_file = "Data/machine/cleaning_utc/Contacting_cleaned_1.parquet"
-    output_dir = "Data/downsampleData_scratch_1minut_contact"
-    anomaly_file = "Data/machine/Anomaly_Data/anomaly_dict_merged.pkl"
-    
+    output_dir = "Data/redoData/downsampleData_scratch_1minut_contact"
+    anomaly_file = "Data/redo_anomaly/anomaly_dict.pkl"
     try:
         logger.info("Starting energy data downsampling and anomaly labeling pipeline")
         logger.info("=" * 60)

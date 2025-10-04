@@ -39,18 +39,34 @@ def read_first_n_rows(
 
 
 if __name__ == "__main__":
-    # Example usage (modify paths as needed)
-    input_csv = "dataset/ALLcontact_noSegment/test_processed.csv"
-    #output_csv = "Data/data_preview/row_anomaly_data.csv"  # Optional
+    # Load data from CSV and sort by TimeStamp
+    input_csv = "Data/row/Energy_Data/Contacting/Januar_2024.csv"
     
     try:
-        df = read_first_n_rows(
-            csv_path=input_csv,
-            nrows=1000,
-            #output_path=output_csv,  # Set to None if you don't want to save
-        )
-        logger.info(f"Data preview (first 5 rows):\n{df.head()}")
-        logger.info(f"Data shape: {df.shape}")
+        logger.info(f"Loading data from: {input_csv}")
+        
+        # Read the entire CSV file
+        df = pd.read_csv(input_csv)
+        logger.info(f"Original data shape: {df.shape}")
+        
+        # Check if TimeStamp column exists
+        if 'TimeStamp' not in df.columns:
+            logger.error(f"TimeStamp column not found. Available columns: {df.columns.tolist()}")
+            raise ValueError("TimeStamp column not found in the CSV file")
+        
+        # Sort by TimeStamp
+        df_sorted = df.sort_values(by='TimeStamp', ascending=True)
+        logger.info(f"Data sorted by TimeStamp")
+        
+        # Print first 10 rows
+        print("\n" + "="*80)
+        print("前10行数据 (按 TimeStamp 排序):")
+        print("="*80)
+        print(df_sorted.head(10).to_string())
+        print("="*80 + "\n")
+        
+        logger.info(f"Successfully displayed first 10 rows sorted by TimeStamp")
+        
     except Exception as e:
         logger.error(f"Error: {str(e)}")
         raise

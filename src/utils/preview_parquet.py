@@ -38,7 +38,7 @@ def preview_parquet(parquet_path, sample_size=1000, output_csv_path=None):
 
 if __name__ == "__main__":
     # ====== Customize below ======
-    parquet_file = "experiments/statistic_30_window_features_contact/filtered_window_features.parquet"
+    parquet_file = "Data/machine/Anomaly_Data/Duration_of_Anomalies_cleaned.parquet"
     #sample_output_csv = "Data/data_preview/add_timeFeature/contact_batch_0.csv"
     # ====== ================== ======
 
