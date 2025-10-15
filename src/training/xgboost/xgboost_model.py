@@ -86,10 +86,11 @@ class XGBoostAnomalyDetector:
             'verbosity': self.model_config.get('verbosity', 1)
         }
         
-        # Handle scale_pos_weight
-        scale_pos_weight = self.model_config.get('scale_pos_weight', 'auto')
-        if scale_pos_weight != 'auto':
+        # Handle scale_pos_weight from config
+        scale_pos_weight = self.model_config.get('scale_pos_weight', None)
+        if scale_pos_weight is not None:
             params['scale_pos_weight'] = scale_pos_weight
+            logger.info(f"Using scale_pos_weight from config: {scale_pos_weight}")
         
         return params
     
@@ -99,8 +100,7 @@ class XGBoostAnomalyDetector:
         y_train: np.ndarray,
         X_val: np.ndarray,
         y_val: np.ndarray,
-        feature_names: List[str] = None,
-        scale_pos_weight: float = None
+        feature_names: List[str] = None
     ):
         """
         Train XGBoost model.
@@ -111,16 +111,10 @@ class XGBoostAnomalyDetector:
             X_val: Validation features
             y_val: Validation labels
             feature_names: List of feature names
-            scale_pos_weight: Weight for positive class (if auto in config)
         """
         logger.info("=== Training XGBoost Model ===")
         
         self.feature_names = feature_names
-        
-        # Update scale_pos_weight if auto
-        if self.params.get('scale_pos_weight') is None and scale_pos_weight is not None:
-            self.params['scale_pos_weight'] = scale_pos_weight
-            logger.info(f"Using scale_pos_weight: {scale_pos_weight:.2f}")
         
         # Log parameters
         logger.info("XGBoost Parameters:")

@@ -3,15 +3,22 @@
 # Data configuration
 data:
   # Pre-computed window features (30-minute windows with statistical features)
-  data_path: "experiments/statistic_feature_s/statistic_80_window_features_contact/filtered_window_features_80.parquet"
+  data_path: "experiments/statistic_40_window_features_contact/window_features.parquet"
   train_ratio: 0.7
   val_ratio: 0.15
   test_ratio: 0.15
   target_column: "anomaly_label"
   exclude_columns: [TimeStamp]  # Will auto-exclude target_column
   
+  # Feature selection based on importance (optional)
+  # Set top_n to select only the most important features
+  # If top_n is null or not specified, all features will be used
+  top_n: null  # Use top 40 most important features (set to null to use all features)
+  feature_importance_path: "experiments/statistic_feature_s/statistic_80_window_features_contact/feature_importance_summary.csv"
+  
   # Note: Features are already computed, no need for additional feature engineering
   # The parquet file contains pre-computed statistical features from 30-minute windows
+  # When top_n is specified, only the top N features from feature_importance_path will be loaded
 
 # XGBoost model parameters
 model:
@@ -40,8 +47,9 @@ model:
   colsample_bylevel: 0.8
   colsample_bynode: 0.8
   
-  # Class imbalance
-  scale_pos_weight: 10  # Automatically calculated if set to "auto"
+  # Class imbalance handling
+ 
+  scale_pos_weight: 10
   
   # Other parameters
   random_state: 42

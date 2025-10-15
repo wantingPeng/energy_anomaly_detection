@@ -341,8 +341,7 @@ def main(args):
         y_train=data_dict['y_train'],
         X_val=data_dict['X_val'],
         y_val=data_dict['y_val'],
-        feature_names=data_dict['feature_names'],
-        scale_pos_weight=data_dict['scale_pos_weight']
+        feature_names=data_dict['feature_names']
     )
     
     # Optimize threshold if enabled

@@ -33,5 +33,5 @@ def calculate_anomaly_ratio(parquet_path):
     return anomaly_count, normal_count, anomaly_ratio
 
 if __name__ == "__main__":
-    parquet_file = "experiments/statistic_40_window_features_ring/window_features.parquet"
+    parquet_file = "experiments/statistic_40_window_features_ring/filtered_window_features_40.parquet"
     calculate_anomaly_ratio(parquet_file)
