@@ -1,0 +1,10 @@
+aVoltage_L2_N_spectral_flatness: 0.3326
+aVoltage_L3_N_spectral_flatness: 0.3322
+aCosPhi_L2_std: 0.3275
+aVoltage_L3_N_freq_energy_ratio_low_high: 0.3202
+airTotal_std: 0.3169
+aVoltage_L2_N_freq_energy_ratio_low_high: 0.3165
+aCosPhi_L2_spectral_peak: 0.3145
+airTotal_spectral_peak: 0.3137
+airTotal_trend_slope: 0.3131
+aVoltage_L1_N_spectral_flatness: 0.3115

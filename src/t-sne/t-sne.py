@@ -26,6 +26,8 @@ def pick_features(df: pd.DataFrame, label_col: str, ts_col: str) -> pd.DataFrame
 
 def plot_tsne(emb: np.ndarray, labels: np.ndarray, save_path: Path, title: str):
     plt.figure(figsize=(7, 6))
+    # 指定颜色: normal=蓝色, anomaly=橘色
+    color_map = {0: "#1f77b4", 1: "#ff7f0e"}  # Matplotlib默认橙色HEX
     for val, name in [(0, "normal"), (1, "anomaly")]:
         m = (labels == val)
         if m.any():
@@ -120,9 +122,9 @@ def run_tsne_and_save(X: pd.DataFrame,
 
 def main():
     ap = argparse.ArgumentParser(description="t-SNE clustering analysis with optional balanced visualization")
-    ap.add_argument("--data", default="Data/redoData/downsampleData_scratch_1minut_contact/cleaned_1minut_20251003_154524.parquet", type=str)
-    ap.add_argument("--out", default="experiments/tsne_analysis", type=str)
-    ap.add_argument("--n_samples", default=10000, type=int)
+    ap.add_argument("--data", default="Data/downsampleData_scratch_1minut/pcb/pcb_cleaned_1minut_20250928_161509.parquet", type=str)
+    ap.add_argument("--out", default="experiments/tsne_analysis/pcb", type=str)
+    ap.add_argument("--n_samples", default=50000, type=int)
     ap.add_argument("--label_col", default="anomaly_label", type=str)
     ap.add_argument("--timestamp_col", default="TimeStamp", type=str)
     # t-SNE params
@@ -147,7 +149,7 @@ def main():
 
     y_full = df[args.label_col].astype(int).values
     X_full = pick_features(df, label_col=args.label_col, ts_col=args.timestamp_col)
-
+    print(X_full.shape)
     # run on full data
     sil_full = run_tsne_and_save(
         X=X_full,

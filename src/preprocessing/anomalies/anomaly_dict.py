@@ -54,8 +54,8 @@ def generate_anomaly_dict(merge_overlaps: bool = True) -> Dict[str, List[Tuple[d
         lists of (start_time, end_time) tuples sorted by start_time.
     """
     # Define input and output paths
-    input_path = "Data/interim/Anomaly_Data/Duration_of_Anomalies_cleaned.parquet"
-    output_path = "Data/interim/Anomaly_Data/anomaly_dict_merged.pkl"
+    input_path = "Data/machine/Anomaly_Data/Duration_of_Anomalies_cleaned.parquet"
+    output_path = "Data/machine/Anomaly_Data/anomaly_dict_no_merged.pkl"
     
     try:
         # Check if input file exists
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     # Test the function
     print("Generating anomaly dictionary with merged overlapping periods")
     # Generate anomaly dictionary with merged overlaps
-    anomaly_dict = generate_anomaly_dict(merge_overlaps=True)
+    anomaly_dict = generate_anomaly_dict(merge_overlaps=False)
     logger.info("Successfully generated anomaly dictionary with merged overlapping periods")
 
   

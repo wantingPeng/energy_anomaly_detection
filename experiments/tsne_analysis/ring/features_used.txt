@@ -1,6 +1,7 @@
 rTotalActivePower
 rTotalReactivePower
 rTotalApparentPower
+rTotalReactiveEnergy
 rTotalApparentEnergy
 aCurrentL1
 aCurrentL2
@@ -20,6 +21,7 @@ aApparentPower_L3
 aCosPhi_L1
 aCosPhi_L2
 aCosPhi_L3
+aPowerFactorPF_L1
 aPowerFactorPF_L2
 airTotal
 airDurchfluss

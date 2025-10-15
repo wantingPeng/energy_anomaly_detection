@@ -4,17 +4,17 @@
 窗口统计特征计算、重要性分析和特征筛选
 
 此脚本执行以下步骤：
-1. 从parquet文件加载数据
-2. 计算窗口统计特征（窗口大小30分钟，步长5分钟）
+1. 从parquet文件加载秒级原始数据
+2. 计算窗口统计特征（窗口大小240秒，步长120秒）
 3. 分析特征重要性，找出前30个重要特征
 4. 过滤数据，只保留重要特征和必要的元数据列
 
 示例用法:
 python -m src.feature_analysis.window_feature_analysis \
-    --input_file Data/filtered_feature/top_features_contact_cleaned_1minut_20250928_172122.parquet \
+    --input_file Data/filtered_feature_s/top_features_Contacting_cleaned_1.parquet \
     --output_dir experiments/window_features \
-    --window_size 30 \
-    --step_size 5 \
+    --window_size 240 \
+    --step_size 120 \
     --top_n 30
 
 直接进行特征重要性分析示例:
@@ -46,19 +46,19 @@ def parse_args():
     """解析命令行参数"""
     parser = argparse.ArgumentParser(description='计算窗口统计特征并筛选重要特征')
     parser.add_argument('--input_file', type=str,
-                        default='Data/filtered_feature/top_features_contact_cleaned_1minut_20250928_172122.parquet',
+                        default='Data/filtered_feature_s/top_features_Contacting_cleaned_1_labeled.parquet',
                         help='输入数据文件路径')
     parser.add_argument('--output_dir', type=str,
-                        default='experiments/statistic_40_window_features_contact',
+                        default='experiments/statistic_feature_s/statistic_80_window_features_contact',
                         help='输出目录')
     parser.add_argument('--window_size', type=int,
-                        default=30,
-                        help='窗口大小（分钟）')
+                        default=1024,
+                        help='窗口大小（秒）')
     parser.add_argument('--step_size', type=int,
-                        default=5,
-                        help='窗口步长（分钟）')
+                        default=256,
+                        help='窗口步长（秒）')
     parser.add_argument('--top_n', type=int,
-                        default=40,
+                        default=80,
                         help='要选择的顶级特征数量')
     parser.add_argument('--load_features_from', type=str,
                         default=None,
@@ -98,27 +98,27 @@ def load_data(file_path, max_rows=None):
         raise
 
 
-def calculate_window_features_for_dataframe(df, window_size_minutes, step_size_minutes):
+def calculate_window_features_for_dataframe(df, window_size_seconds, step_size_seconds):
     """
     根据指定的窗口大小和步长计算窗口统计特征
     
     Args:
-        df: 包含时间序列数据的DataFrame，必须有TimeStamp列
-        window_size_minutes: 窗口大小（分钟）
-        step_size_minutes: 窗口步长（分钟）
+        df: 包含时间序列数据的DataFrame，必须有TimeStamp列（秒级采样）
+        window_size_seconds: 窗口大小（秒）
+        step_size_seconds: 窗口步长（秒）
         
     Returns:
         pd.DataFrame: 包含窗口统计特征的DataFrame
     """
-    logger.info(f"计算窗口统计特征：窗口大小 = {window_size_minutes}分钟，步长 = {step_size_minutes}分钟")
+    logger.info(f"计算窗口统计特征：窗口大小 = {window_size_seconds}秒，步长 = {step_size_seconds}秒")
     
     # 获取时间范围
     start_time = df['TimeStamp'].min()
     end_time = df['TimeStamp'].max()
     
     # 计算窗口边界
-    window_size = timedelta(minutes=window_size_minutes)
-    step_size = timedelta(minutes=step_size_minutes)
+    window_size = timedelta(seconds=window_size_seconds)
+    step_size = timedelta(seconds=step_size_seconds)
     
     # 创建窗口起始时间列表
     window_starts = []
@@ -139,10 +139,13 @@ def calculate_window_features_for_dataframe(df, window_size_minutes, step_size_m
         # 获取当前窗口的数据
         window_data = df[(df['TimeStamp'] >= window_start) & (df['TimeStamp'] < window_end)].copy()
         
-        # 确保窗口内有数据
-        if len(window_data) == 30:
-            # 添加窗口ID
-            
+        # 确保窗口内有足够数据
+        # 对于秒级数据，窗口应该包含接近window_size_seconds个数据点
+        # 允许一定容差（例如至少80%的预期数据点）
+        expected_data_points = window_size_seconds
+        min_required_points = int(expected_data_points * 0.8)  # 至少80%的数据点
+        
+        if len(window_data) >= min_required_points:
             # 计算窗口统计特征
             window_stats = calculate_window_features(window_data)
             
@@ -303,8 +306,8 @@ def main():
             # 记录参数
             logger.info(f"输入文件: {args.input_file}")
             logger.info(f"输出目录: {args.output_dir}")
-            logger.info(f"窗口大小: {args.window_size}分钟")
-            logger.info(f"窗口步长: {args.step_size}分钟")
+            logger.info(f"窗口大小: {args.window_size}秒 ({args.window_size/60:.2f}分钟)")
+            logger.info(f"窗口步长: {args.step_size}秒 ({args.step_size/60:.2f}分钟)")
             logger.info(f"顶级特征数量: {args.top_n}")
             if args.max_rows:
                 logger.info(f"数据行数限制: {args.max_rows}行")

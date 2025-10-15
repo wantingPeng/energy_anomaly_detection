@@ -3,7 +3,7 @@
 # Data configuration
 data:
   # Pre-computed window features (30-minute windows with statistical features)
-  data_path: "experiments/statistic_40_window_features_contact/filtered_window_features_40.parquet"
+  data_path: "experiments/statistic_feature_s/statistic_80_window_features_contact/filtered_window_features_80.parquet"
   train_ratio: 0.7
   val_ratio: 0.15
   test_ratio: 0.15

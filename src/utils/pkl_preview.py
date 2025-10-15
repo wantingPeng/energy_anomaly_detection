@@ -19,7 +19,7 @@ def preview_anomaly_dict(anomaly_dict, max_stations=3, max_entries=10):
             print(f"  [{i}] {start}  {end}")
 
 if __name__ == "__main__":
-    pkl_file_path = "Data/redo_anomaly/anomaly_dict_redo.pkl"
+    pkl_file_path = "Data/machine/Anomaly_Data/anomaly_dict_no_merged.pkl"
     
     print(f"Loading anomaly dict from: {pkl_file_path}")
     anomaly_dict = load_anomaly_dict(pkl_file_path)

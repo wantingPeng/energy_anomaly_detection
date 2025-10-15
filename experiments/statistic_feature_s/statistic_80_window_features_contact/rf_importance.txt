@@ -1,0 +1,10 @@
+airTotal_mean: 0.0251
+rTotalApparentEnergy_mean: 0.0249
+aPowerFactorPF_L2_change_point_score: 0.0210
+aVoltage_L3_N_mean: 0.0182
+aVoltage_L1_N_mean: 0.0179
+aCosPhi_L1_mean: 0.0175
+aVoltage_L2_N_mean: 0.0147
+aPowerFactorPF_L2_welch_total_power: 0.0145
+rTotalReactiveEnergy_mean: 0.0143
+aCosPhi_L1_freq_energy_ratio_low_high: 0.0134

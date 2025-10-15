@@ -298,7 +298,7 @@ def main():
     # Define file paths
     input_file = "Data/machine/cleaning_utc/Contacting_cleaned_1.parquet"
     output_dir = "Data/redoData/downsampleData_scratch_1minut_contact"
-    anomaly_file = "Data/redo_anomaly/anomaly_dict.pkl"
+    anomaly_file = "Data/machine/Anomaly_Data/anomaly_dict_merged.pkl"
     try:
         logger.info("Starting energy data downsampling and anomaly labeling pipeline")
         logger.info("=" * 60)
