@@ -49,7 +49,7 @@ def parse_args():
                         default='Data/filtered_feature_s/top_features_Contacting_cleaned_1_labeled.parquet',
                         help='输入数据文件路径')
     parser.add_argument('--output_dir', type=str,
-                        default='experiments/statistic_feature_s/statistic_80_window_features_contact',
+                        default='experiments/statistic_feature_256s/statistic_window_features_contact',
                         help='输出目录')
     parser.add_argument('--window_size', type=int,
                         default=1024,
@@ -324,7 +324,7 @@ def main():
             top_features = run_feature_importance_analysis(features_df, args.output_dir, args.top_n)
             
             # 过滤数据，只保留重要特征
-            filtered_df = filter_features(features_df, top_features[:args.top_n], args.output_dir)
+           #filtered_df = filter_features(features_df, top_features[:args.top_n], args.output_dir)
         
         logger.info("处理完成！")
         

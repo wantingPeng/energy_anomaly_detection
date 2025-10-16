@@ -14,7 +14,7 @@ data:
   # Set top_n to select only the most important features
   # If top_n is null or not specified, all features will be used
   top_n: null  # Use top 40 most important features (set to null to use all features)
-  feature_importance_path: "experiments/statistic_feature_s/statistic_80_window_features_contact/feature_importance_summary.csv"
+  #feature_importance_path: "experiments/statistic_feature_s/statistic_80_window_features_contact/feature_importance_summary.csv"
   
   # Note: Features are already computed, no need for additional feature engineering
   # The parquet file contains pre-computed statistical features from 30-minute windows

@@ -228,7 +228,10 @@ def calculate_window_features(window: pd.DataFrame) -> pd.Series:
                 features[f"{col}_{welch_key}"] = welch_val
     
     # 添加时间相关的元数据
-    features['TimeStamp'] = window['TimeStamp'].min()  # 使用窗口起始时间作为TimeStamp
+    # 使用窗口中间时间作为TimeStamp，更准确地代表窗口的时间位置
+    window_start = window['TimeStamp'].min()
+    window_end = window['TimeStamp'].max()
+    features['TimeStamp'] = window_start + (window_end - window_start) / 2
 
     return pd.Series(features)
 
