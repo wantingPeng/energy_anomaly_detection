@@ -1,6 +1,0 @@
-Rows used: 10000
-Features used: 26
-Removed constant cols: ['rTotalReactiveEnergy']
-Explained variance ratio (PC1+PC2): 0.847570
-Silhouette score by labels: -0.147516
-Outputs: pca_embedding.csv, pca_scatter.png, features_used.txt

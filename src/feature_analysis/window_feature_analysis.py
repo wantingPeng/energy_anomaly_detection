@@ -46,10 +46,10 @@ def parse_args():
     """解析命令行参数"""
     parser = argparse.ArgumentParser(description='计算窗口统计特征并筛选重要特征')
     parser.add_argument('--input_file', type=str,
-                        default='Data/filtered_feature_s/top_features_Contacting_cleaned_1_labeled.parquet',
+                        default='Data/filtered_feature_s/top_features_Energy_Data_ring_cleaned_1_labeled.parquet',
                         help='输入数据文件路径')
     parser.add_argument('--output_dir', type=str,
-                        default='experiments/statistic_feature_256s/statistic_window_features_contact',
+                        default='experiments/statistic_feature_1024s_256/statistic_window_features_ring',
                         help='输出目录')
     parser.add_argument('--window_size', type=int,
                         default=1024,
