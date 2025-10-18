@@ -1,0 +1,10 @@
+aReactivePower_L2_std: 0.3768
+rTotalReactiveEnergy_std: 0.3731
+rTotalReactiveEnergy_spectral_peak: 0.3727
+rTotalReactiveEnergy_trend_slope: 0.3683
+aReactivePower_L2_mean: 0.3554
+aReactivePower_L2_change_point_score: 0.3527
+aReactivePower_L1_std: 0.3499
+aVoltage_L3_N_dominant_frequency: 0.3451
+aVoltage_L1_N_std: 0.3432
+aVoltage_L3_N_std: 0.3431

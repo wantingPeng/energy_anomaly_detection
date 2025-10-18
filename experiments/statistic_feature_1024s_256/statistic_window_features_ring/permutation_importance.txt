@@ -1,0 +1,10 @@
+airTotal_mean: 0.0181
+rTotalApparentEnergy_mean: 0.0144
+rTotalReactiveEnergy_mean: 0.0134
+airDurchfluss_mean: 0.0112
+aReactivePower_L2_change_point_score: 0.0103
+aReactivePower_L2_mean: 0.0076
+aReactivePower_L2_std: 0.0075
+airTempeatur_mean: 0.0073
+aReactivePower_L2_welch_total_power: 0.0057
+aReactivePower_L2_freq_energy_ratio_low_high: 0.0054

@@ -1,0 +1,10 @@
+airDurchfluss_change_point_score: 0.1541
+airDurchfluss_freq_energy_ratio_low_high: 0.1433
+airDurchfluss_welch_total_power: 0.1106
+aReactivePower_L1_ks_test_statistic: -0.1090
+airDurchfluss_std: 0.0999
+airTotal_mean: -0.0989
+rTotalApparentEnergy_mean: -0.0968
+aReactivePower_L1_spectral_peak: 0.0879
+airDurchfluss_spectral_flatness: -0.0822
+aReactivePower_L1_std: 0.0809

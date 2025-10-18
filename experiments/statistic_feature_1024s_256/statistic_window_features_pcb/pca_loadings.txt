@@ -1,0 +1,10 @@
+aApparentPower_L1_welch_total_power: 0.3313
+aCurrentL1_welch_total_power: 0.3298
+aApparentPower_L1_mean: 0.3187
+aApparentPower_L1_std: 0.3178
+aCurrentL1_std: 0.3168
+aCurrentL1_mean: 0.3165
+airDurchfluss_mean: 0.3093
+aReactivePower_L1_welch_total_power: 0.3088
+aReactivePower_L1_std: 0.3087
+rTotalApparentEnergy_spectral_peak: 0.3050

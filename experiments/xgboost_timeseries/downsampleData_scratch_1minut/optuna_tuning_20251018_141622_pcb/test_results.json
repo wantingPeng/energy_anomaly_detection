@@ -1,0 +1,45 @@
+{
+  "test_metrics": {
+    "accuracy": 0.9592923590317936,
+    "precision": 0.046267087276550996,
+    "recall": 0.04793028322440087,
+    "f1": 0.047084002140181914,
+    "auroc": 0.61413050720824,
+    "auprc": 0.031123077526959878,
+    "confusion_matrix": [
+      [
+        83852,
+        1814
+      ],
+      [
+        1748,
+        88
+      ]
+    ],
+    "true_negatives": 83852,
+    "false_positives": 1814,
+    "false_negatives": 1748,
+    "true_positives": 88,
+    "threshold": 0.375913143157959,
+    "adj_accuracy": 0.9625265708212384,
+    "adj_precision": 0.16979405034324943,
+    "adj_recall": 0.20206971677559912,
+    "adj_f1": 0.18453121114150708
+  },
+  "best_params": {
+    "max_depth": 2,
+    "min_child_weight": 3,
+    "gamma": 0.5143195696116898,
+    "learning_rate": 0.1343096566124184,
+    "n_estimators": 500,
+    "alpha": 1.4435356620187172,
+    "lambda": 3.6928610613347277,
+    "subsample": 0.8636495476503965,
+    "colsample_bytree": 0.510532409891821,
+    "colsample_bylevel": 0.7079451924060602,
+    "colsample_bynode": 0.786844733752796,
+    "scale_pos_weight": 15.068554510258279
+  },
+  "best_threshold": 0.375913143157959,
+  "best_trial_value": 0.03582032311987322
+}

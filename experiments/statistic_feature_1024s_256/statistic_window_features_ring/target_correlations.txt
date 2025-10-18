@@ -1,0 +1,10 @@
+airTempeatur_std: 0.1787
+aReactivePower_L2_std: 0.1734
+aReactivePower_L2_change_point_score: 0.1646
+airDurchfluss_change_point_score: 0.1619
+airTempeatur_welch_peak_power: 0.1584
+airTempeatur_spectral_peak: 0.1583
+airTempeatur_welch_total_power: 0.1565
+aReactivePower_L1_ks_test_statistic: -0.1515
+aReactivePower_L2_spectral_peak: 0.1513
+aReactivePower_L2_freq_energy_ratio_low_high: 0.1505

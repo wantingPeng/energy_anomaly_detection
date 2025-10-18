@@ -1,0 +1,10 @@
+rTotalApparentEnergy_mean: 0.1759
+airTotal_mean: 0.1745
+aReactivePower_L1_change_point_score: 0.0862
+aReactivePower_L2_change_point_score: 0.0861
+rTotalReactiveEnergy_mean: 0.0765
+rTotalReactiveEnergy_spectral_flatness: 0.0427
+rTotalReactiveEnergy_freq_energy_ratio_low_high: 0.0409
+airTempeatur_ks_test_statistic: 0.0392
+rTotalApparentEnergy_change_point_score: 0.0379
+aVoltage_L1_N_ks_test_statistic: 0.0306

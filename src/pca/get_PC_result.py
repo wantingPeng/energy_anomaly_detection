@@ -17,7 +17,7 @@ from src.utils.logger import logger
 
 def load_data():
     """Load the energy data from parquet file."""
-    data_path = "Data/downsampleData_scratch_1minut/contact/contact_cleaned_1minut_20250928_172122.parquet"
+    data_path = "Data/downsampleData_scratch_1minut/pcb/pcb_cleaned_1minut_20250928_161509.parquet"
     
     logger.info(f"Loading data from: {data_path}")
     df = pd.read_parquet(data_path)
@@ -102,7 +102,7 @@ def save_results(pc_df, output_dir="Data/pca_analysis_and_result"):
     str
         Path to the saved parquet file
     """
-    output_path = os.path.join(output_dir, "pca_features_ring.parquet")
+    output_path = os.path.join(output_dir, "pca_features_pcb.parquet")
     
     pc_df.to_parquet(output_path, index=False)
     logger.info(f"PC features saved to: {output_path}")
@@ -307,7 +307,7 @@ def main(output_dir="Data/pca_analysis_and_result"):
         Output directory path for all results and plots
     """
     logger.info("Starting PCA feature extraction process")
-    output_dir = "Data/pca_analysis_and_result/ring"
+    output_dir = "Data/pca_analysis_and_result/pcb"
     os.makedirs(output_dir, exist_ok=True)
     logger.info(f"Output directory {output_dir} created/verified")
     # Create output directory and get the path
