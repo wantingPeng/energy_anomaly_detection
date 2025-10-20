@@ -4,7 +4,7 @@
 # Data configuration
 data:
   # Pre-computed window features
-  data_path: "experiments/statistic_feature_1024s_256/statistic_window_features_contact/window_features.parquet"
+  data_path: "Data/pca_analysis_and_result/contact/pca_features_contact.parquet"
   
   train_ratio: 0.7
   val_ratio: 0.15

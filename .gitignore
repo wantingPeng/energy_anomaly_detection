@@ -20,6 +20,7 @@ events.out.tfevents.*
 *.pyc
 experiments/**/model_save/**/config/config.yaml
 experiments/xgboost_timeseries/experiments
+experiments/xgboost_timeseries/hyperparameter_tuning
 experiments/random_forest/experiments
 experiments/isolation_forest/experiments
 *.parquet

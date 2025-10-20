@@ -75,6 +75,6 @@ def split_and_calculate_ratios(parquet_path, train_size=0.7, test_size=0.15, val
     print(f"Validation set: {len(val_df)} records ({len(val_df)/total_records:.2%})")
 
 if __name__ == "__main__":
-    parquet_file = "experiments/statistic_30_window_features_contact/filtered_window_features.parquet"
+    parquet_file = "experiments/statistic_feature_1024s_256/statistic_window_features_pcb/window_features.parquet"
     split_and_calculate_ratios(parquet_file, train_size=0.7, test_size=0.15, val_size=0.15)
 

@@ -571,18 +571,13 @@ def main(args):
             logger.info(f"Best Trial Number: {tuner.best_trial_number}")
             logger.info(f"Best Validation Score ({tuner.optimization_metric}): {best_value:.4f}")
         
-        logger.info(f"\nTest Performance (Original):")
-        logger.info(f"  F1 Score: {test_metrics['f1']:.4f}")
-        logger.info(f"  Precision: {test_metrics['precision']:.4f}")
-        logger.info(f"  Recall: {test_metrics['recall']:.4f}")
-        logger.info(f"  AUPRC: {test_metrics['auprc']:.4f}")
-        logger.info(f"  AUROC: {test_metrics['auroc']:.4f}")
+ 
         
         logger.info(f"\nTest Performance (With Point Adjustment):")
-        logger.info(f"  Adjusted F1 Score: {test_metrics['adj_f1']:.4f}")
-        logger.info(f"  Adjusted Precision: {test_metrics['adj_precision']:.4f}")
-        logger.info(f"  Adjusted Recall: {test_metrics['adj_recall']:.4f}")
-        logger.info(f"  Adjusted Accuracy: {test_metrics['adj_accuracy']:.4f}")
+        logger.info(f"  F1 Score: {test_metrics['adj_f1']:.4f}")
+        logger.info(f"  Precision: {test_metrics['adj_precision']:.4f}")
+        logger.info(f"  Recall: {test_metrics['adj_recall']:.4f}")
+        logger.info(f"  Accuracy: {test_metrics['adj_accuracy']:.4f}")
         
         logger.info(f"\nResults saved to: {tuning_dir}")
         logger.info("=" * 60)
