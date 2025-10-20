@@ -1,0 +1,172 @@
+# Configuration file for Random Forest hyperparameter tuning using Optuna
+
+# Paths
+paths:
+  output_dir: "experiments/random_forest"
+
+# Data configuration
+data:
+  # Path to processed window features
+  data_path: "experiments/statistic_feature_1024s_256/statistic_window_features_ring/window_features.parquet"
+  
+  # Train/validation/test split ratios
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  
+  # Target column
+  target_column: "anomaly_label"
+  
+  # Columns to exclude from features
+  exclude_columns:
+    - "TimeStamp"
+    - "window_id"
+    - "anomaly_label"
+  
+  # Method to balance classes (None or 'class_weight')
+  # 'class_weight' uses scikit-learn's class_weight='balanced' option
+  balance_method: "class_weight"
+
+# Model configuration (baseline values, will be tuned by Optuna)
+model:
+  # Number of trees in the forest
+  n_estimators: 100
+  
+  # Maximum depth of the tree
+  max_depth: null
+  
+  # Minimum number of samples required to split an internal node
+  min_samples_split: 2
+  
+  # Minimum number of samples required to be at a leaf node
+  min_samples_leaf: 1
+  
+  # Number of features to consider for best split
+  max_features: "sqrt"
+  
+  # Whether to use bootstrap samples
+  bootstrap: true
+  
+  # Whether to use out-of-bag samples to estimate generalization score
+  oob_score: true
+  
+  # Class weights (auto computed if data.balance_method = 'class_weight')
+  class_weight: balanced
+  
+  # Number of parallel jobs
+  # -1 means use all processors
+  n_jobs: -1
+  
+  # Random state for reproducibility
+  random_state: 42
+  
+  # Verbosity level
+  verbose: 0
+
+# Training configuration
+training:
+  # Whether to optimize decision threshold
+  optimize_threshold: true
+  
+  # Metric to optimize threshold for
+  # Options: f1, precision, recall
+  threshold_metric: "f1"
+
+# Optuna hyperparameter tuning configuration
+optuna:
+  # Number of trials to run
+  n_trials: 70
+  
+  # Timeout in seconds (null for no timeout)
+  timeout: null
+  
+  # Number of parallel jobs (1 for sequential, -1 for all cores)
+  # Note: Random Forest already uses parallel processing, 
+  # so n_jobs=1 is recommended unless you have many CPU cores
+  n_jobs: 1
+  
+  # Optimization metric (all metrics are point-adjusted by default)
+  # Options: f1, precision, recall, auprc, auroc, accuracy
+  # Note: f1/precision/recall are computed on point-adjusted predictions
+  optimization_metric: "f1"
+  
+  # Direction: maximize or minimize
+  direction: "maximize"
+  
+  # Sampler configuration
+  sampler:
+    seed: 42
+  
+  # Pruner configuration (MedianPruner)
+  # Note: Random Forest doesn't have early stopping, so pruning is less effective
+  pruner:
+    n_startup_trials: 5
+    n_warmup_steps: 0
+    interval_steps: 1
+  
+  # Hyperparameter search space
+  search_space:
+    # Number of trees in the forest
+    n_estimators:
+      type: "int"
+      low: 100
+      high: 400
+      step: 50
+    
+    # Maximum depth of the tree
+    max_depth:
+      type: "int"
+      low: 1
+      high: 10
+      step: 1
+    
+    # Minimum number of samples required to split an internal node
+    min_samples_split:
+      type: "int"
+      low: 10
+      high: 150
+      step: 25
+    
+    # Minimum number of samples required to be at a leaf node
+    min_samples_leaf:
+      type: "int"
+      low: 10
+      high: 30
+      step: 5
+    
+    # Number of features to consider for best split (as integer values)
+    # 0.3 = 30% of features, 0.5 = 50% of features, etc.
+    max_features:
+      type: "int"
+      low: 10
+      high: 70
+      step: 10
+    
+    # Whether to use bootstrap samples
+    bootstrap:
+      type: "categorical"
+      choices: [true]
+
+# Evaluation configuration
+evaluation:
+  # Whether to use point adjustment
+  use_point_adjustment: true
+  
+  # Whether to save predictions
+  save_predictions: true
+  
+  # Whether to plot precision-recall and ROC curves
+  plot_curves: true
+
+# Feature importance
+feature_importance:
+  # Whether to save feature importance
+  save_importance: true
+  
+  # Type of feature importance to compute
+  # Options: impurity (default), permutation (needs validation data)
+  importance_type: "impurity"
+  
+  # Number of top features to plot
+  plot_top_n: 30
+

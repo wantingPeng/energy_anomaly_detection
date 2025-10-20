@@ -8,6 +8,7 @@ import os
 import sys
 import numpy as np
 import pandas as pd
+import pickle
 from typing import Dict, List, Tuple, Optional
 from pathlib import Path
 
@@ -16,6 +17,22 @@ project_root = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(project_root))
 
 from src.utils.logger import logger
+
+
+# Identity scaler for Random Forest (which doesn't need feature scaling)
+class IdentityScaler:
+    """
+    A dummy scaler that returns the original data unchanged.
+    Used for model types that don't require feature scaling, like Random Forest.
+    """
+    def transform(self, X):
+        return X
+        
+    def inverse_transform(self, X):
+        return X
+        
+    def fit(self, X):
+        return self
 
 
 class RandomForestDataLoader:
@@ -263,6 +280,26 @@ class RandomForestDataLoader:
             'test_anomaly_ratio': self.test_data[self.target_column].mean(),
             'class_weights': self.class_weights
         }
+        
+    def save_scaler(self, path: str) -> None:
+        """
+        Save scaler object to disk.
+        
+        For Random Forest, we don't actually use a scaler since tree-based models
+        are invariant to monotonic transformations of features. This method exists
+        for API compatibility with other model data loaders.
+        
+        Args:
+            path: Path to save the scaler
+        """
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        
+        # Save the dummy scaler
+        with open(path, 'wb') as f:
+            pickle.dump(IdentityScaler(), f)
+            
+        logger.info(f"Saved identity scaler to: {path}")
 
 
 def create_random_forest_data(

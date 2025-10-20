@@ -1,0 +1,25 @@
+{
+  "test_metrics": {
+    "accuracy": 0.9374572127139364,
+    "precision": 0.44434470377019747,
+    "recall": 0.42857142857142855,
+    "f1": 0.4363155575143235,
+    "auprc": 0.16873786598626436,
+    "auroc": 0.7763884728901573,
+    "threshold": 0.56,
+    "tn": 18676.0,
+    "fp": 619.0,
+    "fn": 660.0,
+    "tp": 495.0
+  },
+  "best_params": {
+    "n_estimators": 250,
+    "max_depth": 3,
+    "min_samples_split": 85,
+    "min_samples_leaf": 10,
+    "max_features": 0.6,
+    "bootstrap": true
+  },
+  "best_threshold": 0.56,
+  "best_trial_value": 0.39660056657223797
+}

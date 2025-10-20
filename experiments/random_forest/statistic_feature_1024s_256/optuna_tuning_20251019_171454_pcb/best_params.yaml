@@ -1,0 +1,6 @@
+bootstrap: true
+max_depth: 2
+max_features: 0.1
+min_samples_leaf: 20
+min_samples_split: 85
+n_estimators: 350

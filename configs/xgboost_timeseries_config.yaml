@@ -3,7 +3,7 @@
 # Data configuration
 data:
   # Pre-computed window features (30-minute windows with statistical features)
-  data_path: "Data/downsampleData_scratch_1minut/ring/Ring_cleaned_1minut_20250928_170147.parquet"
+  data_path: "experiments/statistic_feature_1024s_256/statistic_window_features_contact/window_features.parquet"
   train_ratio: 0.7
   val_ratio: 0.15
   test_ratio: 0.15
@@ -29,17 +29,17 @@ model:
   device: "cpu"
   
   # Tree parameters
-  max_depth: 2
-  min_child_weight: 1
-  gamma: 0.1
+  max_depth: 3
+  min_child_weight: 2
+  gamma: 0.4389345461147306
   
   # Regularization
-  alpha: 0.2  # L1 regularization
-  lambda: 4.0  # L2 regularization
+  alpha: 1.4834553434877933  # L1 regularization
+  lambda: 1.0  # L2 regularization
   
   # Learning parameters
   learning_rate: 0.05
-  n_estimators: 300
+  n_estimators: 700
   
   # Sampling parameters
   subsample: 0.8
@@ -49,7 +49,7 @@ model:
   
   # Class imbalance handling
  
-  scale_pos_weight: 10
+  scale_pos_weight: 11
   
   # Other parameters
   random_state: 42
@@ -58,7 +58,7 @@ model:
 
 # Training configuration
 training:
-  early_stopping_rounds: 30
+  early_stopping_rounds: 50
   verbose_eval: 10
   use_best_iteration: true
   

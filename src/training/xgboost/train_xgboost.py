@@ -80,90 +80,36 @@ def evaluate_with_adjustment(preds, labels, model, X, threshold):
     Returns:
         Dictionary of adjusted metrics
     """
-    from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+    from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
     
     labels_adj, preds_adj = point_adjustment(labels, preds)
     
-    # Calculate adjusted metrics
+    # Calculate adjusted metrics (these will be treated as final metrics)
     adj_accuracy = accuracy_score(labels_adj, preds_adj)
     adj_precision, adj_recall, adj_f1, _ = precision_recall_fscore_support(
         labels_adj, preds_adj, average='binary', zero_division=0
     )
-    
-    logger.info(f"\n===== Point Adjustment Results =====")
+    adj_cm = confusion_matrix(labels_adj, preds_adj)
+
+    logger.info(f"\n===== Point Adjustment Results (used as final) =====")
     logger.info(f"Original predictions: {np.sum(preds)} anomalies")
     logger.info(f"Adjusted predictions: {np.sum(preds_adj)} anomalies")
-    logger.info(f"Adjusted Accuracy: {adj_accuracy:.4f}")
-    logger.info(f"Adjusted Precision: {adj_precision:.4f}")
-    logger.info(f"Adjusted Recall: {adj_recall:.4f}")
-    logger.info(f"Adjusted F1: {adj_f1:.4f}")
+    logger.info(f"Accuracy: {adj_accuracy:.4f}")
+    logger.info(f"Precision: {adj_precision:.4f}")
+    logger.info(f"Recall: {adj_recall:.4f}")
+    logger.info(f"F1: {adj_f1:.4f}")
     
     return {
-        'adj_accuracy': adj_accuracy,
-        'adj_precision': adj_precision,
-        'adj_recall': adj_recall,
-        'adj_f1': adj_f1,
+        'accuracy': adj_accuracy,
+        'precision': adj_precision,
+        'recall': adj_recall,
+        'f1': adj_f1,
+        'confusion_matrix': adj_cm,
         'original_anomaly_count': int(np.sum(preds)),
         'adjusted_anomaly_count': int(np.sum(preds_adj))
     }
 
 
-def plot_training_history(history, save_path):
-    """
-    Plot training history.
-    
-    Args:
-        history: Training history dictionary
-        save_path: Path to save plot
-    """
-    fig, axes = plt.subplots(2, 2, figsize=(15, 10))
-    fig.suptitle('XGBoost Training History', fontsize=16)
-    
-    # Loss
-    if 'logloss' in history['train']:
-        axes[0, 0].plot(history['train']['logloss'], label='Train')
-        axes[0, 0].plot(history['val']['logloss'], label='Validation')
-        axes[0, 0].set_title('Log Loss')
-        axes[0, 0].set_xlabel('Iteration')
-        axes[0, 0].set_ylabel('Loss')
-        axes[0, 0].legend()
-        axes[0, 0].grid(True)
-    
-    # AUC
-    if 'auc' in history['train']:
-        axes[0, 1].plot(history['train']['auc'], label='Train')
-        axes[0, 1].plot(history['val']['auc'], label='Validation')
-        axes[0, 1].set_title('AUC-ROC')
-        axes[0, 1].set_xlabel('Iteration')
-        axes[0, 1].set_ylabel('AUC')
-        axes[0, 1].legend()
-        axes[0, 1].grid(True)
-    
-    # AUCPR
-    if 'aucpr' in history['train']:
-        axes[1, 0].plot(history['train']['aucpr'], label='Train')
-        axes[1, 0].plot(history['val']['aucpr'], label='Validation')
-        axes[1, 0].set_title('AUC-PR')
-        axes[1, 0].set_xlabel('Iteration')
-        axes[1, 0].set_ylabel('AUC-PR')
-        axes[1, 0].legend()
-        axes[1, 0].grid(True)
-    
-    # Error
-    if 'error' in history['train']:
-        axes[1, 1].plot(history['train']['error'], label='Train')
-        axes[1, 1].plot(history['val']['error'], label='Validation')
-        axes[1, 1].set_title('Error Rate')
-        axes[1, 1].set_xlabel('Iteration')
-        axes[1, 1].set_ylabel('Error')
-        axes[1, 1].legend()
-        axes[1, 1].grid(True)
-    
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    plt.close()
-    
-    logger.info(f"Saved training history plot to: {save_path}")
 
 
 def plot_confusion_matrix(cm, save_path):
@@ -361,14 +307,17 @@ def main(args):
         split_name="Validation"
     )
     
-    # Point adjustment evaluation on validation
+    # Point adjustment evaluation on validation (overwrite base metrics)
     if config['evaluation'].get('use_point_adjustment', True):
         val_preds = model.predict(data_dict['X_val'])
         val_adj_metrics = evaluate_with_adjustment(
             val_preds, data_dict['y_val'], model, 
             data_dict['X_val'], model.optimal_threshold
         )
-        val_metrics.update(val_adj_metrics)
+        # Overwrite core metrics with adjusted versions
+        for k in ['accuracy', 'precision', 'recall', 'f1', 'confusion_matrix']:
+            if k in val_adj_metrics:
+                val_metrics[k] = val_adj_metrics[k]
     
     # Evaluate on test set
     logger.info("\n" + "=" * 60)
@@ -378,14 +327,17 @@ def main(args):
         split_name="Test"
     )
     
-    # Point adjustment evaluation on test
+    # Point adjustment evaluation on test (overwrite base metrics)
     if config['evaluation'].get('use_point_adjustment', True):
         test_preds = model.predict(data_dict['X_test'])
         test_adj_metrics = evaluate_with_adjustment(
             test_preds, data_dict['y_test'], model,
             data_dict['X_test'], model.optimal_threshold
         )
-        test_metrics.update(test_adj_metrics)
+        # Overwrite core metrics with adjusted versions
+        for k in ['accuracy', 'precision', 'recall', 'f1', 'confusion_matrix']:
+            if k in test_adj_metrics:
+                test_metrics[k] = test_adj_metrics[k]
     
     # Get feature importance
     if config.get('feature_importance', {}).get('save_importance', True):
@@ -405,7 +357,6 @@ def main(args):
     # Plot training history
     if hasattr(model, 'training_history') and model.training_history:
         history_plot_path = os.path.join(plots_dir, 'training_history.png')
-        plot_training_history(model.training_history, history_plot_path)
     
     # Plot confusion matrix
     cm_plot_path = os.path.join(plots_dir, 'confusion_matrix_test.png')
@@ -451,17 +402,11 @@ def main(args):
     logger.info(f"Experiment: {experiment_name}")
     logger.info(f"Best Iteration: {model.best_iteration}")
     logger.info(f"Optimal Threshold: {model.optimal_threshold:.4f}")
-    logger.info(f"\nTest Performance:")
-    logger.info(f"  F1 Score: {test_metrics['f1']:.4f}")
+    logger.info(f"\nTest Performance (point-adjusted):")
+    logger.info(f"  F1: {test_metrics['f1']:.4f}")
     logger.info(f"  Precision: {test_metrics['precision']:.4f}")
     logger.info(f"  Recall: {test_metrics['recall']:.4f}")
     logger.info(f"  AUPRC: {test_metrics['auprc']:.4f}")
-    
-    if 'adj_f1' in test_metrics:
-        logger.info(f"\nAdjusted Metrics:")
-        logger.info(f"  Adjusted F1: {test_metrics['adj_f1']:.4f}")
-        logger.info(f"  Adjusted Precision: {test_metrics['adj_precision']:.4f}")
-        logger.info(f"  Adjusted Recall: {test_metrics['adj_recall']:.4f}")
     
     logger.info(f"\nResults saved to: {experiment_dir}")
     logger.info("=" * 60)

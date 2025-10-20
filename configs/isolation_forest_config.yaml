@@ -7,7 +7,7 @@ paths:
 # Data configuration
 data:
   # Path to processed window features
-  data_path: "experiments/statistic_40_window_features_contact/filtered_window_features_40.parquet"
+  data_path: "Data/downsampleData_scratch_1minut/contact/contact_cleaned_1minut_20250928_172122.parquet"
   
   # Train/validation/test split ratios
   train_ratio: 0.7
@@ -48,10 +48,10 @@ model:
   
   # Number of features to consider for best split
   # 1.0 means use all features
-  max_features: 1
+  max_features: 0.3
   
   # Whether to use bootstrap samples
-  bootstrap: false
+  bootstrap: true
   
   # Number of parallel jobs
   # -1 means use all processors

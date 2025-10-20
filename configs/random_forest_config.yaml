@@ -7,7 +7,7 @@ paths:
 # Data configuration
 data:
   # Path to processed window features
-  data_path: "experiments/statistic_40_window_features_contact/filtered_window_features_40.parquet"
+  data_path: "Data/downsampleData_scratch_1minut/contact/contact_cleaned_1minut_20250928_172122.parquet"
   
   # Train/validation/test split ratios
   train_ratio: 0.7
@@ -30,25 +30,25 @@ data:
 # Model configuration
 model:
   # Number of trees in the forest
-  n_estimators: 150
+  n_estimators: 100
   
   # Maximum depth of the tree
   # None means unlimited
-  max_depth: 2
+  max_depth: 6
   
   # Minimum number of samples required to split an internal node
-  min_samples_split: 2
+  min_samples_split: 20
   
   # Minimum number of samples required to be at a leaf node
-  min_samples_leaf: 1
+  min_samples_leaf: 20
   
   # Number of features to consider for best split
   # 'sqrt': sqrt(n_features)
   # 'log2': log2(n_features)
   # float: fraction of features
   # int: absolute number of features
-  max_features: "sqrt"
-  
+  max_features: 0.3
+  #max_samples: 0.7 
   # Whether to use bootstrap samples
   bootstrap: true
   
@@ -56,7 +56,7 @@ model:
   oob_score: true
   
   # Class weights (auto computed if data.balance_method = 'class_weight')
-  class_weight: null
+  class_weight: balanced
   
   # Number of parallel jobs
   # -1 means use all processors
@@ -99,27 +99,3 @@ feature_importance:
   
   # Number of top features to plot
   plot_top_n: 30
-
-# Model variants for different use cases
-variants:
-  # Fast training with fewer trees
-  fast:
-    model:
-      n_estimators: 50
-      min_samples_split: 5
-      min_samples_leaf: 2
-      oob_score: false
-  
-  # Standard configuration (default)
-  standard:
-    model:
-      n_estimators: 100
-      oob_score: true
-  
-  # Deep model with more trees and unlimited depth
-  deep:
-    model:
-      n_estimators: 500
-      max_features: 0.5
-      min_samples_leaf: 1
-

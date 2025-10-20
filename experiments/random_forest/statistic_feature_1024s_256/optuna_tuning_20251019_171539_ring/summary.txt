@@ -1,0 +1,19 @@
+============================================================
+Optuna Hyperparameter Tuning Summary
+============================================================
+
+Study name: optuna_tuning_20251019_171539
+Number of trials: 70
+Best trial number: 67
+Best value (f1): 0.3966
+Data path: experiments/statistic_feature_1024s_256/statistic_window_features_ring/window_features.parquet
+
+Best hyperparameters:
+  n_estimators: 250
+  max_depth: 3
+  min_samples_split: 85
+  min_samples_leaf: 10
+  max_features: 0.6
+  bootstrap: True
+
+============================================================

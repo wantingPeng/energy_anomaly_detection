@@ -1,0 +1,8 @@
+{
+  "n_estimators": 250,
+  "max_depth": 3,
+  "min_samples_split": 85,
+  "min_samples_leaf": 10,
+  "max_features": 0.6,
+  "bootstrap": true
+}

@@ -19,7 +19,7 @@ def preview_anomaly_dict(anomaly_dict, max_stations=3, max_entries=10):
             print(f"  [{i}] {start}  {end}")
 
 if __name__ == "__main__":
-    pkl_file_path = "Data/machine/Anomaly_Data/anomaly_dict_no_merged.pkl"
+    pkl_file_path = "experiments/random_forest/statistic_feature_1024s_256/random_forest_20251019_122442_contact/model/model_params.pkl"
     
     print(f"Loading anomaly dict from: {pkl_file_path}")
     anomaly_dict = load_anomaly_dict(pkl_file_path)

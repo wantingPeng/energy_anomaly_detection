@@ -1,8 +1,8 @@
 """
-Hyperparameter tuning for XGBoost using Optuna.
+Hyperparameter tuning for Random Forest using Optuna.
 
-This script performs automatic hyperparameter optimization for XGBoost-based
-time series anomaly detection using Optuna with GPU acceleration support.
+This script performs automatic hyperparameter optimization for Random Forest-based
+time series anomaly detection using Optuna.
 """
 
 import os
@@ -24,8 +24,8 @@ project_root = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(project_root))
 
 from src.utils.logger import logger
-from src.training.xgboost.xgboost_model import XGBoostAnomalyDetector
-from src.training.xgboost.dataloader import create_xgboost_data
+from src.training.random_forest.random_forest_model import RandomForestAnomalyDetector
+from src.training.random_forest.dataloader import create_random_forest_data
 
 
 def point_adjustment(gt, pred):
@@ -72,12 +72,12 @@ def point_adjustment(gt, pred):
     return gt, pred
 
 
-class XGBoostOptunaTuner:
+class RandomForestOptunaTuner:
     """
-    Optuna-based hyperparameter tuning for XGBoost anomaly detection.
+    Optuna-based hyperparameter tuning for Random Forest anomaly detection.
     """
     
-    def __init__(self, config, data_dict, optimization_metric='f1'):
+    def __init__(self, config, data_dict, optimization_metric='adj_f1'):
         """
         Initialize the tuner.
         
@@ -99,7 +99,7 @@ class XGBoostOptunaTuner:
         
         # Log search space from config
         search_space = config.get('optuna', {}).get('search_space', {})
-        logger.info(f"Initialized XGBoostOptunaTuner (GPU mode)")
+        logger.info(f"Initialized RandomForestOptunaTuner")
         logger.info(f"Optimization metric: {optimization_metric}")
         logger.info(f"Search space loaded from config with {len(search_space)} parameters:")
         for param_name, param_config in search_space.items():
@@ -127,7 +127,14 @@ class XGBoostOptunaTuner:
                 low = param_config.get('low', 1)
                 high = param_config.get('high', 10)
                 step = param_config.get('step', 1)
-                params[param_name] = trial.suggest_int(param_name, low, high, step=step)
+                value = trial.suggest_int(param_name, low, high, step=step)
+                
+                # Special handling for max_features: convert percentage to decimal
+                if param_name == 'max_features':
+                    # Convert integer percentage (30, 40, 50, etc.) to decimal (0.3, 0.4, 0.5, etc.)
+                    params[param_name] = value / 100.0
+                else:
+                    params[param_name] = value
                 
             elif param_type == 'float':
                 low = param_config.get('low', 0.0)
@@ -143,75 +150,57 @@ class XGBoostOptunaTuner:
         tuning_config = copy.deepcopy(self.config)
         tuning_config['model'].update(params)
         
-        # Force GPU for hyperparameter tuning
-        tuning_config['model']['tree_method'] = 'gpu_hist'
-        tuning_config['model']['device'] = 'cuda'
-        
-        # Get early stopping rounds from config (use training config as base, allow override in optuna config)
-        early_stopping = self.config.get('optuna', {}).get('early_stopping_rounds', 
-                                         self.config.get('training', {}).get('early_stopping_rounds', 30))
-        tuning_config['training']['early_stopping_rounds'] = early_stopping
-        
         try:
             # Create and train model
-            model = XGBoostAnomalyDetector(tuning_config)
+            model = RandomForestAnomalyDetector(tuning_config)
             model.train(
                 X_train=self.data_dict['X_train'],
                 y_train=self.data_dict['y_train'],
                 X_val=self.data_dict['X_val'],
                 y_val=self.data_dict['y_val'],
-                feature_names=self.data_dict['feature_names']
+                feature_names=self.data_dict['feature_names'],
+                class_weights=self.data_dict['class_weights']
             )
             
-            # Optimize threshold
-            model.optimize_threshold(
-                X_val=self.data_dict['X_val'],
-                y_val=self.data_dict['y_val'],
-                metric='f1'
-            )
-            
-            # Evaluate on validation set
-            val_metrics = model.evaluate(
-                X=self.data_dict['X_val'],
-                y=self.data_dict['y_val'],
-                split_name="Validation"
-            )
-            
-            # Calculate point-adjusted metrics and overwrite originals for reporting/optimization
+            # Get predictions for point adjustment
             val_preds = model.predict(self.data_dict['X_val'])
             val_labels = self.data_dict['y_val']
             
             # Apply point adjustment
             labels_adj, preds_adj = point_adjustment(val_labels, val_preds)
             
-            # Calculate adjusted metrics and overwrite core metrics
-            from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
-            adj_accuracy = accuracy_score(labels_adj, preds_adj)
-            adj_precision, adj_recall, adj_f1, _ = precision_recall_fscore_support(
+            # Calculate adjusted metrics (use as primary metrics)
+            from sklearn.metrics import accuracy_score, precision_recall_fscore_support, roc_auc_score, average_precision_score
+            
+            # Get probability predictions for AUPRC/AUROC
+            val_proba = model.predict_proba(self.data_dict['X_val'])
+            
+            # Primary metrics are adjusted metrics
+            accuracy = accuracy_score(labels_adj, preds_adj)
+            precision, recall, f1, _ = precision_recall_fscore_support(
                 labels_adj, preds_adj, average='binary', zero_division=0
             )
-            val_metrics['accuracy'] = adj_accuracy
-            val_metrics['precision'] = adj_precision
-            val_metrics['recall'] = adj_recall
-            val_metrics['f1'] = adj_f1
-            val_metrics['confusion_matrix'] = confusion_matrix(labels_adj, preds_adj)
+            auprc = average_precision_score(val_labels, val_proba)
+            auroc = roc_auc_score(val_labels, val_proba)
+            
+            # Store metrics
+            val_metrics = {
+                'accuracy': accuracy,
+                'precision': precision,
+                'recall': recall,
+                'f1': f1,
+                'auprc': auprc,
+                'auroc': auroc,
+                'threshold': model.optimal_threshold
+            }
             
             # Choose optimization metric from val_metrics (consistent access pattern)
             optimization_value = val_metrics[self.optimization_metric]
-
-            logger.info(
-                f"Trial {trial.number}: AUPRC={val_metrics['auprc']:.4f}, "
-                f"F1={val_metrics['f1']:.4f}, Prec={val_metrics['precision']:.4f}, "
-                f"Rec={val_metrics['recall']:.4f} | Optimizing {self.optimization_metric}={optimization_value:.4f}"
-            )
             
-            # Report intermediate values for pruning
-            trial.report(optimization_value, model.best_iteration)
-            
-            # Handle pruning based on the intermediate value
-            if trial.should_prune():
-                logger.info(f"Trial {trial.number} pruned.")
-                raise optuna.TrialPruned()
+            logger.info(f"Trial {trial.number}: "
+                       f"AUPRC={val_metrics['auprc']:.4f}, F1={val_metrics['f1']:.4f}, "
+                       f"Precision={val_metrics['precision']:.4f}, Recall={val_metrics['recall']:.4f} | "
+                       f"Optimizing {self.optimization_metric}={optimization_value:.4f}")
             
             # Store model if this is the best trial so far (use our own best_value for consistency)
             if self.best_value is None or optimization_value > self.best_value:
@@ -247,20 +236,19 @@ class XGBoostOptunaTuner:
         logger.info(f"Number of trials: {n_trials}")
         logger.info(f"Timeout: {timeout}")
         logger.info(f"Parallel jobs: {n_jobs}")
-        logger.info(f"Device: GPU (CUDA)")
         logger.info(f"Optimization metric: {self.optimization_metric}")
-        logger.info(f"Note: Reported F1/Precision/Recall are point-adjusted values")
+        logger.info(f"Note: All metrics (AUPRC, F1, Adjusted F1) are calculated for every trial")
         logger.info("=" * 60)
         
         # Create study
         if study_name is None:
-            study_name = f"xgboost_tuning_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            study_name = f"random_forest_tuning_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
         # Get pruner configuration from config (MedianPruner)
         pruner_config = self.config.get('optuna', {}).get('pruner', {})
         pruner = optuna.pruners.MedianPruner(
             n_startup_trials=pruner_config.get('n_startup_trials', 5),
-            n_warmup_steps=pruner_config.get('n_warmup_steps', 10),
+            n_warmup_steps=pruner_config.get('n_warmup_steps', 0),
             interval_steps=pruner_config.get('interval_steps', 1)
         )
         
@@ -343,7 +331,8 @@ class XGBoostOptunaTuner:
             f.write(f"Study name: {study.study_name}\n")
             f.write(f"Number of trials: {len(study.trials)}\n")
             f.write(f"Best trial number: {self.best_trial_number}\n")
-            f.write(f"Best value ({self.optimization_metric}): {self.best_value:.4f}\n\n")
+            f.write(f"Best value ({self.optimization_metric}): {self.best_value:.4f}\n")
+            f.write(f"Data path: {self.config['data']['data_path']}\n\n")
             f.write("Best hyperparameters:\n")
             for key, value in self.best_params.items():
                 f.write(f"  {key}: {value}\n")
@@ -379,17 +368,42 @@ def main(args):
     """
     # Check if loading pre-trained model or running tuning
     if args.model_path:
-        # Load configuration from the model directory (not from args.config)
+        # Load pre-trained model (not running tuning)
         logger.info("\n" + "=" * 60)
         logger.info("LOADING PRE-TRAINED MODEL (SKIPPING TUNING)")
         logger.info("=" * 60)
         logger.info(f"Model path: {args.model_path}")
         
         # Load config from the model directory
-        model_config_path = os.path.join(args.model_path, 'config.json')
-        with open(model_config_path, 'r') as f:
-            config = json.load(f)
-        logger.info(f"Loaded model configuration from: {model_config_path}")
+        model_config_path = os.path.join(args.model_path, 'model_params.pkl')
+        import pickle
+        with open(model_config_path, 'rb') as f:
+            model_params = pickle.load(f)
+        
+        # Reconstruct config
+        config = {
+            'model': {
+                'n_estimators': model_params['n_estimators'],
+                'max_depth': model_params['max_depth'],
+                'min_samples_split': model_params['min_samples_split'],
+                'min_samples_leaf': model_params['min_samples_leaf'],
+                'max_features': model_params['max_features'],
+                'bootstrap': model_params['bootstrap'],
+                'oob_score': model_params['oob_score'],
+                'class_weight': model_params['class_weight']
+            },
+            'paths': {
+                'output_dir': 'experiments/random_forest'
+            },
+            'data': {}  # Will be loaded from args.config if provided
+        }
+        
+        # Load data config from args.config if provided
+        if args.config:
+            full_config = load_config(args.config)
+            config['data'] = full_config.get('data', {})
+        
+        logger.info(f"Loaded model configuration")
         
         # Create output directory for evaluation results
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -399,10 +413,13 @@ def main(args):
         os.makedirs(tuning_dir, exist_ok=True)
         logger.info(f"Evaluation results will be saved to: {tuning_dir}")
         
-        # Load data using model's config
-        data_path = config['data']['data_path']
+        # Load data using config
+        data_path = config['data'].get('data_path')
+        if not data_path:
+            raise ValueError("data_path must be specified in config when loading pre-trained model")
+        
         logger.info(f"Loading data from: {data_path}")
-        data_loader, data_dict = create_xgboost_data(data_path, config)
+        data_loader, data_dict = create_random_forest_data(data_path, config)
         
         logger.info(f"Data loaded:")
         logger.info(f"  Train samples: {len(data_dict['y_train'])}")
@@ -410,13 +427,11 @@ def main(args):
         logger.info(f"  Test samples: {len(data_dict['y_test'])}")
         logger.info(f"  Features: {len(data_dict['feature_names'])}")
         
-        # Create model instance and load weights
-        model = XGBoostAnomalyDetector(config)
-        model.load_model(args.model_path)
+        # Load model
+        model = RandomForestAnomalyDetector.load_model(args.model_path)
         
         logger.info(f"Model loaded successfully")
         logger.info(f"  Optimal threshold: {model.optimal_threshold}")
-        logger.info(f"  Best iteration: {model.best_iteration}")
         logger.info(f"  Features: {len(model.feature_names)}")
         
         # Use the loaded model as best model
@@ -445,7 +460,7 @@ def main(args):
         data_path = config['data']['data_path']
         logger.info(f"Loading data from: {data_path}")
         
-        data_loader, data_dict = create_xgboost_data(data_path, config)
+        data_loader, data_dict = create_random_forest_data(data_path, config)
         
         logger.info(f"Data loaded:")
         logger.info(f"  Train samples: {len(data_dict['y_train'])}")
@@ -464,11 +479,10 @@ def main(args):
         logger.info(f"  n_trials: {n_trials}")
         logger.info(f"  timeout: {timeout}")
         logger.info(f"  n_jobs: {n_jobs}")
-        logger.info(f"  device: GPU (CUDA)")
         logger.info(f"  optimization_metric: {optimization_metric}")
         
-        # Create tuner (always use GPU for tuning)
-        tuner = XGBoostOptunaTuner(
+        # Create tuner
+        tuner = RandomForestOptunaTuner(
             config=config,
             data_dict=data_dict,
             optimization_metric=optimization_metric
@@ -497,30 +511,64 @@ def main(args):
         logger.info("Evaluating Best Model on Test Set")
         logger.info("=" * 60)
         
-        test_metrics = best_model.evaluate(
-            X=data_dict['X_test'],
-            y=data_dict['y_test'],
-            split_name="Test"
-        )
-        
-        # Always apply point adjustment on test set for comprehensive evaluation
+        # Get predictions for point adjustment
         test_preds = best_model.predict(data_dict['X_test'])
         test_labels = data_dict['y_test']
         
         # Apply point adjustment
         labels_adj, preds_adj = point_adjustment(test_labels, test_preds)
         
-        # Calculate adjusted metrics
-        from sklearn.metrics import accuracy_score, precision_recall_fscore_support
-        adj_accuracy = accuracy_score(labels_adj, preds_adj)
-        adj_precision, adj_recall, adj_f1, _ = precision_recall_fscore_support(
-            labels_adj, preds_adj, average='binary', zero_division=0
+        # Calculate adjusted metrics (use as primary metrics)
+        from sklearn.metrics import (
+            accuracy_score, precision_recall_fscore_support, 
+            roc_auc_score, average_precision_score, confusion_matrix
         )
         
-        test_metrics['adj_accuracy'] = float(adj_accuracy)
-        test_metrics['adj_precision'] = float(adj_precision)
-        test_metrics['adj_recall'] = float(adj_recall)
-        test_metrics['adj_f1'] = float(adj_f1)
+        # Get probability predictions for AUPRC/AUROC
+        test_proba = best_model.predict_proba(data_dict['X_test'])
+        
+        # Primary metrics are adjusted metrics
+        accuracy = accuracy_score(labels_adj, preds_adj)
+        precision, recall, f1, _ = precision_recall_fscore_support(
+            labels_adj, preds_adj, average='binary', zero_division=0
+        )
+        auprc = average_precision_score(test_labels, test_proba)
+        auroc = roc_auc_score(test_labels, test_proba)
+        cm = confusion_matrix(labels_adj, preds_adj)
+        
+        # Get confusion matrix components
+        tn, fp, fn, tp = cm.ravel()
+        
+        # Store metrics
+        test_metrics = {
+            'accuracy': float(accuracy),
+            'precision': float(precision),
+            'recall': float(recall),
+            'f1': float(f1),
+            'auprc': float(auprc),
+            'auroc': float(auroc),
+            'threshold': float(best_threshold),
+            'tn': float(tn),
+            'fp': float(fp),
+            'fn': float(fn),
+            'tp': float(tp)
+        }
+        
+        # Log metrics
+        logger.info(f"\nTest Performance (Point-Adjusted Metrics):")
+        logger.info(f"  Threshold: {best_threshold:.4f}")
+        logger.info(f"  Accuracy: {accuracy:.4f}")
+        logger.info(f"  Precision: {precision:.4f}")
+        logger.info(f"  Recall: {recall:.4f}")
+        logger.info(f"  F1 Score: {f1:.4f}")
+        logger.info(f"  AUPRC: {auprc:.4f}")
+        logger.info(f"  AUROC: {auroc:.4f}")
+        logger.info(f"  Confusion Matrix:")
+        logger.info(f"  {cm}")
+        logger.info(f"  True Positives: {tp}")
+        logger.info(f"  False Positives: {fp}")
+        logger.info(f"  True Negatives: {tn}")
+        logger.info(f"  False Negatives: {fn}")
         
         # Save test results (with adjusted metrics)
         test_results = {
@@ -571,18 +619,13 @@ def main(args):
             logger.info(f"Best Trial Number: {tuner.best_trial_number}")
             logger.info(f"Best Validation Score ({tuner.optimization_metric}): {best_value:.4f}")
         
-        logger.info(f"\nTest Performance (Original):")
+        logger.info(f"\nTest Performance Summary (Point-Adjusted):")
         logger.info(f"  F1 Score: {test_metrics['f1']:.4f}")
         logger.info(f"  Precision: {test_metrics['precision']:.4f}")
         logger.info(f"  Recall: {test_metrics['recall']:.4f}")
         logger.info(f"  AUPRC: {test_metrics['auprc']:.4f}")
         logger.info(f"  AUROC: {test_metrics['auroc']:.4f}")
-        
-        logger.info(f"\nTest Performance (With Point Adjustment):")
-        logger.info(f"  Adjusted F1 Score: {test_metrics['adj_f1']:.4f}")
-        logger.info(f"  Adjusted Precision: {test_metrics['adj_precision']:.4f}")
-        logger.info(f"  Adjusted Recall: {test_metrics['adj_recall']:.4f}")
-        logger.info(f"  Adjusted Accuracy: {test_metrics['adj_accuracy']:.4f}")
+        logger.info(f"  Accuracy: {test_metrics['accuracy']:.4f}")
         
         logger.info(f"\nResults saved to: {tuning_dir}")
         logger.info("=" * 60)
@@ -592,12 +635,12 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Hyperparameter tuning for XGBoost using Optuna"
+        description="Hyperparameter tuning for Random Forest using Optuna"
     )
     parser.add_argument(
         "--config",
         type=str,
-        default="configs/xgboost_tuning_config.yaml",
+        default="configs/random_forest_tuning_config.yaml",
         help="Path to configuration file"
     )
     parser.add_argument(

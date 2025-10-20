@@ -92,97 +92,20 @@ def evaluate_with_adjustment(preds, labels, model, X, threshold):
     
     logger.info(f"\n===== Point Adjustment Results =====")
     logger.info(f"Original predictions: {np.sum(preds)} anomalies")
-    logger.info(f"Adjusted predictions: {np.sum(preds_adj)} anomalies")
-    logger.info(f"Adjusted Accuracy: {adj_accuracy:.4f}")
-    logger.info(f"Adjusted Precision: {adj_precision:.4f}")
-    logger.info(f"Adjusted Recall: {adj_recall:.4f}")
-    logger.info(f"Adjusted F1: {adj_f1:.4f}")
+    logger.info(f" predictions: {np.sum(preds_adj)} anomalies")
+    logger.info(f" Accuracy: {adj_accuracy:.4f}")
+    logger.info(f" Precision: {adj_precision:.4f}")
+    logger.info(f" Recall: {adj_recall:.4f}")
+    logger.info(f" F1: {adj_f1:.4f}")
     
     return {
-        'adj_accuracy': adj_accuracy,
-        'adj_precision': adj_precision,
-        'adj_recall': adj_recall,
-        'adj_f1': adj_f1,
-        'original_anomaly_count': int(np.sum(preds)),
-        'adjusted_anomaly_count': int(np.sum(preds_adj))
+        'accuracy': adj_accuracy,
+        'precision': adj_precision,
+        'recall': adj_recall,
+        'f1': adj_f1
     }
 
 
-def plot_confusion_matrix(cm, save_path):
-    """
-    Plot confusion matrix.
-    
-    Args:
-        cm: Confusion matrix
-        save_path: Path to save plot
-    """
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                xticklabels=['Normal', 'Anomaly'],
-                yticklabels=['Normal', 'Anomaly'])
-    plt.title('Confusion Matrix')
-    plt.ylabel('True Label')
-    plt.xlabel('Predicted Label')
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    plt.close()
-    
-    logger.info(f"Saved confusion matrix to: {save_path}")
-
-
-def plot_feature_importance(importance_df, save_path, top_n=30):
-    """
-    Plot feature importance.
-    
-    Args:
-        importance_df: DataFrame with feature importance
-        save_path: Path to save plot
-        top_n: Number of top features to plot
-    """
-    plt.figure(figsize=(10, max(8, top_n * 0.3)))
-    
-    top_features = importance_df.head(top_n)
-    
-    plt.barh(range(len(top_features)), top_features['importance'])
-    plt.yticks(range(len(top_features)), top_features['feature'])
-    plt.xlabel('Importance')
-    plt.title(f'Top {top_n} Feature Importance')
-    plt.gca().invert_yaxis()
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    plt.close()
-    
-    logger.info(f"Saved feature importance plot to: {save_path}")
-
-
-def plot_precision_recall_curve(y_true, y_score, save_path):
-    """
-    Plot precision-recall curve.
-    
-    Args:
-        y_true: True labels
-        y_score: Predicted probabilities
-        save_path: Path to save plot
-    """
-    from sklearn.metrics import precision_recall_curve, average_precision_score
-    
-    precision, recall, thresholds = precision_recall_curve(y_true, y_score)
-    avg_precision = average_precision_score(y_true, y_score)
-    
-    plt.figure(figsize=(10, 6))
-    plt.step(recall, precision, color='b', alpha=0.2, where='post')
-    plt.fill_between(recall, precision, step='post', alpha=0.2, color='b')
-    plt.xlabel('Recall')
-    plt.ylabel('Precision')
-    plt.ylim([0.0, 1.05])
-    plt.xlim([0.0, 1.0])
-    plt.title(f'Precision-Recall curve: AP={avg_precision:.4f}')
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    plt.close()
-    
-    logger.info(f"Saved precision-recall curve to: {save_path}")
 
 
 def save_results(results, save_dir):
@@ -220,21 +143,10 @@ def save_results(results, save_dir):
     
     logger.info(f"Saved metrics to: {metrics_path}")
     
-    # Save summary as text
+    # Save summary as text (directly saving the config)
     summary_path = os.path.join(save_dir, 'summary.txt')
     with open(summary_path, 'w') as f:
-        f.write("=" * 60 + "\n")
-        f.write("Random Forest Time Series Anomaly Detection Results\n")
-        f.write("=" * 60 + "\n\n")
-        
-        for key, value in results.items():
-            if isinstance(value, float):
-                f.write(f"{key}: {value:.4f}\n")
-            elif isinstance(value, (int, str)):
-                f.write(f"{key}: {value}\n")
-            elif isinstance(value, np.ndarray) and value.ndim == 2:
-                f.write(f"\n{key}:\n")
-                f.write(str(value) + "\n")
+        yaml.dump(results['config'], f, default_flow_style=False)
     
     logger.info(f"Saved summary to: {summary_path}")
 
@@ -284,12 +196,10 @@ def main(args):
     experiment_dir = os.path.join(output_dir, 'experiments', experiment_name)
     model_dir = os.path.join(experiment_dir, 'model')
     results_dir = os.path.join(experiment_dir, 'results')
-    plots_dir = os.path.join(experiment_dir, 'plots')
     
     os.makedirs(experiment_dir, exist_ok=True)
     os.makedirs(model_dir, exist_ok=True)
     os.makedirs(results_dir, exist_ok=True)
-    os.makedirs(plots_dir, exist_ok=True)
     
     logger.info(f"Experiment directory: {experiment_dir}")
     
@@ -374,21 +284,7 @@ def main(args):
         importance_df.to_csv(importance_path, index=False)
         logger.info(f"Saved feature importance to: {importance_path}")
         
-        # Plot feature importance
-        top_n = config['feature_importance'].get('plot_top_n', 30)
-        importance_plot_path = os.path.join(plots_dir, 'feature_importance.png')
-        plot_feature_importance(importance_df, importance_plot_path, top_n=top_n)
-    
-    # Plot precision-recall curve
-    if config['evaluation'].get('plot_curves', True):
-        test_proba = model.predict_proba(data_dict['X_test'])
-        pr_curve_path = os.path.join(plots_dir, 'precision_recall_curve.png')
-        plot_precision_recall_curve(data_dict['y_test'], test_proba, pr_curve_path)
-    
-    # Plot confusion matrix
-    cm_plot_path = os.path.join(plots_dir, 'confusion_matrix_test.png')
-    plot_confusion_matrix(test_metrics['confusion_matrix'], cm_plot_path)
-    
+       
     # Save results
     all_results = {
         'experiment_name': experiment_name,
@@ -396,7 +292,8 @@ def main(args):
         'validation_metrics': val_metrics,
         'test_metrics': test_metrics,
         'optimal_threshold': model.optimal_threshold,
-        'n_features': len(data_dict['feature_names'])
+        'n_features': len(data_dict['feature_names']),
+        'config': config
     }
     
     save_results(all_results, results_dir)
@@ -428,16 +325,13 @@ def main(args):
     logger.info(f"Experiment: {experiment_name}")
     logger.info(f"Optimal Threshold: {model.optimal_threshold:.4f}")
     logger.info(f"\nTest Performance:")
-    logger.info(f"  F1 Score: {test_metrics['f1']:.4f}")
-    logger.info(f"  Precision: {test_metrics['precision']:.4f}")
-    logger.info(f"  Recall: {test_metrics['recall']:.4f}")
-    logger.info(f"  AUPRC: {test_metrics['auprc']:.4f}")
+
     
-    if 'adj_f1' in test_metrics:
-        logger.info(f"\nAdjusted Metrics:")
-        logger.info(f"  Adjusted F1: {test_metrics['adj_f1']:.4f}")
-        logger.info(f"  Adjusted Precision: {test_metrics['adj_precision']:.4f}")
-        logger.info(f"  Adjusted Recall: {test_metrics['adj_recall']:.4f}")
+    if 'f1' in test_metrics:
+        logger.info(f"\n Metrics:")
+        logger.info(f"  F1: {test_metrics['f1']:.4f}")
+        logger.info(f"  Precision: {test_metrics['precision']:.4f}")
+        logger.info(f"  Recall: {test_metrics['recall']:.4f}")
     
     logger.info(f"\nResults saved to: {experiment_dir}")
     logger.info("=" * 60)
