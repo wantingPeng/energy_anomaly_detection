@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 
 """
-Get PCA Results - Extract first 4 principal components from energy data.
+Get PCA Results - Extract principal components from energy data.
+Automatically determines the number of components needed to reach 95% explained variance.
 Saves the results as a parquet file with timestamps and labels.
 """
 
@@ -13,11 +14,12 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from datetime import datetime
+from adjustText import adjust_text
 from src.utils.logger import logger
 
 def load_data():
     """Load the energy data from parquet file."""
-    data_path = "Data/downsampleData_scratch_1minut/pcb/pcb_cleaned_1minut_20250928_161509.parquet"
+    data_path = "Data/downsampleData_scratch_1minut/ring/Ring_cleaned_1minut_20250928_170147.parquet"
     
     logger.info(f"Loading data from: {data_path}")
     df = pd.read_parquet(data_path)
@@ -43,8 +45,27 @@ def process_data(df):
     
     return X, feature_columns, timestamps, labels
 
-def perform_pca(X, n_components=20):
-    """Perform PCA and extract the first n_components."""
+def perform_pca(X, variance_threshold=0.95, max_components=None):
+    """Perform PCA and automatically determine the number of components needed.
+    
+    Parameters:
+    -----------
+    X : np.ndarray
+        Feature matrix
+    variance_threshold : float
+        Cumulative variance threshold (default: 0.95 for 95%)
+    max_components : int or None
+        Maximum number of components to consider. If None, use min(n_samples, n_features)
+    
+    Returns:
+    --------
+    X_pca : np.ndarray
+        Transformed data with selected principal components
+    pca : PCA
+        Fitted PCA model
+    scaler : StandardScaler
+        Fitted scaler
+    """
     # Standardize the features before PCA
     logger.info("Standardizing features before PCA...")
     scaler = StandardScaler()
@@ -57,17 +78,38 @@ def perform_pca(X, n_components=20):
     logger.info(f"  Scaled feature means range: [{X_scaled.mean(axis=0).min():.3f}, {X_scaled.mean(axis=0).max():.3f}]")
     logger.info(f"  Scaled feature stds range: [{X_scaled.std(axis=0).min():.3f}, {X_scaled.std(axis=0).max():.3f}]")
     
-    logger.info(f"Performing PCA to extract {n_components} components...")
-    pca = PCA(n_components=n_components)
+    # First, fit PCA with all components to determine how many we need
+    if max_components is None:
+        max_components = min(X_scaled.shape[0], X_scaled.shape[1])
+    
+    logger.info(f"Fitting PCA with up to {max_components} components to determine optimal number...")
+    pca_full = PCA(n_components=max_components)
+    pca_full.fit(X_scaled)
+    
+    # Calculate cumulative variance
+    cumulative_variance = np.cumsum(pca_full.explained_variance_ratio_)
+    
+    # Find the number of components needed to reach variance threshold
+    n_components_needed = np.argmax(cumulative_variance >= variance_threshold) + 1
+    
+    # Ensure at least 4 components for visualization purposes
+    n_components_needed = max(n_components_needed, 4)
+    
+    logger.info(f"Number of components needed to reach {variance_threshold*100:.1f}% variance: {n_components_needed}")
+    logger.info(f"Cumulative variance with {n_components_needed} components: {cumulative_variance[n_components_needed-1]*100:.2f}%")
+    
+    # Now fit PCA with the determined number of components
+    logger.info(f"Performing PCA with {n_components_needed} components...")
+    pca = PCA(n_components=n_components_needed)
     X_pca = pca.fit_transform(X_scaled)
     
-    # Log explained variance
+    # Log explained variance for selected components
     explained_variance = pca.explained_variance_ratio_
     cumulative_explained_variance = np.sum(explained_variance)
     
-    logger.info(f"Explained variance ratios for first {n_components} principal components:")
+    logger.info(f"Explained variance ratios for {n_components_needed} principal components:")
     for i, ratio in enumerate(explained_variance):
-        logger.info(f"PC{i+1}: {ratio:.4f} ({ratio*100:.2f}%)")
+        logger.info(f"  PC{i+1}: {ratio:.4f} ({ratio*100:.2f}%)")
     logger.info(f"Cumulative explained variance: {cumulative_explained_variance:.4f} ({cumulative_explained_variance*100:.2f}%)")
     
     return X_pca, pca, scaler
@@ -102,7 +144,7 @@ def save_results(pc_df, output_dir="Data/pca_analysis_and_result"):
     str
         Path to the saved parquet file
     """
-    output_path = os.path.join(output_dir, "pca_features_pcb.parquet")
+    output_path = os.path.join(output_dir, "pca_features_ring.parquet")
     
     pc_df.to_parquet(output_path, index=False)
     logger.info(f"PC features saved to: {output_path}")
@@ -175,6 +217,7 @@ def plot_pc1_pc2_scatter(pc_df, output_dir="Data/pca_analysis_and_result", max_p
 def plot_loading_vectors(pca_model, feature_columns, output_dir="Data/pca_analysis_and_result"):
     """
     Plot loading vectors showing the contribution of each feature to PC1 and PC2.
+    Uses adjustText to automatically avoid label overlaps.
     
     Parameters:
     -----------
@@ -193,16 +236,35 @@ def plot_loading_vectors(pca_model, feature_columns, output_dir="Data/pca_analys
     pc2_loadings = loadings[:, 1]
     
     # Create figure
-    fig, ax = plt.subplots(figsize=(12, 10))
+    fig, ax = plt.subplots(figsize=(14, 12))
     
-    # Plot loading vectors as arrows
+    # Plot loading vectors as arrows and collect text objects for adjustment
+    texts = []
     for i, feature in enumerate(feature_columns):
         ax.arrow(0, 0, pc1_loadings[i], pc2_loadings[i], 
                 head_width=0.01, head_length=0.01, fc='blue', ec='blue', alpha=0.6)
         
-        # Add feature labels
-        ax.text(pc1_loadings[i] * 1.1, pc2_loadings[i] * 1.1, feature, 
-               fontsize=8, ha='center', va='center')
+        # Add feature labels and collect text objects
+        text = ax.text(pc1_loadings[i] * 1.1, pc2_loadings[i] * 1.1, feature, 
+                      fontsize=8, ha='center', va='center')
+        texts.append(text)
+    
+    # Use adjustText to avoid label overlaps with enhanced parameters
+    logger.info("Adjusting text labels to avoid overlaps...")
+    adjust_text(texts, 
+                arrowprops=dict(arrowstyle='->', color='gray', lw=0.5, alpha=0.5),
+                ax=ax,
+                expand_points=(2.0, 2.0),      # Increased expansion around points
+                expand_text=(1.5, 1.5),        # Increased expansion around text
+                force_points=(0.8, 0.8),       # Stronger repulsion from points
+                force_text=(0.8, 0.8),         # Stronger repulsion between text labels
+                force_objects=(0.5, 0.5),      # Added: repulsion from other objects
+                lim=500,                       # Increased iteration limit
+                precision=0.01,                # Finer precision for positioning
+                avoid_self=True,               # Avoid label overlapping with its own arrow
+                only_move={'points': 'y', 'text': 'xy'},  # Allow text to move in both directions
+                autoalign='xy'                 # Enable automatic alignment
+                )
     
     ax.set_xlabel('PC1 Loadings', fontsize=12)
     ax.set_ylabel('PC2 Loadings', fontsize=12)
@@ -247,23 +309,11 @@ def plot_scree_plot(pca_model, output_dir="Data/pca_analysis_and_result"):
     cumulative_variance_ratio = np.cumsum(explained_variance_ratio)
     
     # Create figure with two subplots
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+# Create figure with only one subplot
+    fig, ax2 = plt.subplots(figsize=(8, 6))
     
     # Plot 1: Bar plot of explained variance ratio
     pc_labels = [f'PC{i+1}' for i in range(n_components)]
-    ax1.bar(range(1, n_components + 1), explained_variance_ratio, 
-           color='steelblue', alpha=0.8, edgecolor='black')
-    ax1.set_xlabel('Principal Component', fontsize=12)
-    ax1.set_ylabel('Explained Variance Ratio', fontsize=12)
-    ax1.set_title('Scree Plot: Explained Variance by Component', 
-                 fontsize=14, fontweight='bold')
-    ax1.set_xticks(range(1, n_components + 1))
-    ax1.set_xticklabels(pc_labels, rotation=45 if n_components > 10 else 0)
-    ax1.grid(True, alpha=0.3, axis='y')
-    
-    # Add percentage labels on bars
-    for i, (x, y) in enumerate(zip(range(1, n_components + 1), explained_variance_ratio)):
-        ax1.text(x, y, f'{y*100:.1f}%', ha='center', va='bottom', fontsize=9)
     
     # Plot 2: Cumulative explained variance
     ax2.plot(range(1, n_components + 1), cumulative_variance_ratio, 
@@ -307,7 +357,7 @@ def main(output_dir="Data/pca_analysis_and_result"):
         Output directory path for all results and plots
     """
     logger.info("Starting PCA feature extraction process")
-    output_dir = "Data/pca_analysis_and_result/pcb"
+    output_dir = "Data/pca_analysis_and_result_1/ring"
     os.makedirs(output_dir, exist_ok=True)
     logger.info(f"Output directory {output_dir} created/verified")
     # Create output directory and get the path
@@ -320,8 +370,8 @@ def main(output_dir="Data/pca_analysis_and_result"):
     # Process data
     X, feature_columns, timestamps, labels = process_data(df)
     
-    # Perform PCA
-    X_pca, pca_model, scaler = perform_pca(X, n_components=4)
+    # Perform PCA with automatic component selection (95% variance threshold)
+    X_pca, pca_model, scaler = perform_pca(X, variance_threshold=0.95)
     
     # Create DataFrame with PCs and metadata
     pc_df = create_pc_dataframe(X_pca, timestamps, labels)
