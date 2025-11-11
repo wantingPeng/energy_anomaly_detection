@@ -543,23 +543,56 @@ def main(args):
         logger.info("TEST MODE: Loading model and evaluating on test set")
         logger.info("=" * 50)
         
-        # Construct model path
+        # Find model path
         model_path = args.load_model
+        model_dir = None
         
         # Check if the provided path is a directory (experiment directory)
         if os.path.isdir(args.load_model):
-            # Construct the full path to best_f1 model
-            model_path = os.path.join(args.load_model, "best_f1", "best_model.pt")
-            logger.info(f"Constructed model path: {model_path}")
-        elif not os.path.exists(model_path):
-            # Try to construct path if file doesn't exist
-            experiment_dir = os.path.dirname(args.load_model) if os.path.dirname(args.load_model) else args.load_model
-            model_path = os.path.join(experiment_dir, "best_f1", "best_model.pt")
-            logger.info(f"Constructed model path: {model_path}")
+            # Look for best_f1_epoch_* directories
+            import glob
+            best_f1_dirs = glob.glob(os.path.join(args.load_model, "best_f1_epoch_*"))
+            
+            if best_f1_dirs:
+                # Find the one with highest epoch number
+                epoch_nums = []
+                for d in best_f1_dirs:
+                    try:
+                        epoch_str = os.path.basename(d).replace("best_f1_epoch_", "")
+                        epoch_num = int(epoch_str)
+                        epoch_nums.append((epoch_num, d))
+                    except ValueError:
+                        continue
+                
+                if epoch_nums:
+                    best_epoch, model_dir = max(epoch_nums, key=lambda x: x[0])
+                    model_path = os.path.join(model_dir, "best_model.pt")
+                    logger.info(f"Found best model at epoch {best_epoch}: {model_dir}")
+            
+            # Fallback to old format
+            if model_dir is None:
+                old_format_dir = os.path.join(args.load_model, "best_f1")
+                if os.path.isdir(old_format_dir):
+                    model_dir = old_format_dir
+                    model_path = os.path.join(old_format_dir, "best_model.pt")
+                    logger.info(f"Using old format directory: {old_format_dir}")
+        
+        # If model_path is a directory, look for best_model.pt inside
+        if os.path.isdir(model_path):
+            model_dir = model_path
+            model_path = os.path.join(model_path, "best_model.pt")
+        else:
+            model_dir = os.path.dirname(model_path)
         
         if not os.path.exists(model_path):
             logger.error(f"Model file not found: {model_path}")
             return
+        
+        # Extract epoch from directory name for logging
+        dir_name = os.path.basename(model_dir)
+        if "epoch_" in dir_name:
+            epoch_str = dir_name.split("epoch_")[-1]
+            logger.info(f"Loading model from epoch {epoch_str}")
         
         # Load the specified model
         model, _, _, _ = load_model(model, None, model_path, device)
@@ -574,6 +607,17 @@ def main(args):
         logger.info("=" * 50)
         logger.info("TEST RESULTS")
         logger.info("=" * 50)
+        
+        # Extract epoch from directory name
+        dir_name = os.path.basename(model_dir)
+        epoch_num = None
+        if "epoch_" in dir_name:
+            try:
+                epoch_num = int(dir_name.split("epoch_")[-1])
+                logger.info(f"Model from epoch: {epoch_num}")
+            except ValueError:
+                pass
+        
         logger.info(f"Test AUPRC: {test_metrics['auprc']:.4f}")
         logger.info(f"Test precision: {test_metrics['precision']:.4f}")
         logger.info(f"Test recall: {test_metrics['recall']:.4f}")
@@ -582,7 +626,6 @@ def main(args):
         logger.info("=" * 50)
         
         # Save test results to the same directory as the model
-        model_dir = os.path.dirname(model_path)
         test_results = {
             'test_auprc': float(test_metrics['auprc']),
             'test_precision': float(test_metrics['precision']),
@@ -590,6 +633,9 @@ def main(args):
             'test_f1': float(test_metrics['f1']),
             'test_accuracy': float(test_metrics['accuracy']),
         }
+        
+        if epoch_num is not None:
+            test_results['epoch'] = int(epoch_num)
         
         # Save as YAML file
         test_results_path = os.path.join(model_dir, "test_results.yaml")
@@ -634,11 +680,9 @@ def main(args):
             mode='min'  # Loss - lower is better
         )
         
-        # Initialize best F1 metric
+        # Initialize best F1 metric and epoch tracking
         best_val_f1 = 0.0
-        
-        # Create directory for best model
-        best_f1_dir = os.path.join(experiment_dir, "best_f1")
+        best_epoch = -1
         
         # Training loop
         for epoch in range(start_epoch, config['training']['num_epochs']):
@@ -672,15 +716,20 @@ def main(args):
 
             # Log learning rate
             logger.info(f"Current learning rate: {current_lr:.6f}")
-
-            # Save best model based on optimal F1 score
+ 
+            # Save best model based on adjusted F1 score
             if val_metrics['f1'] > best_val_f1:
                 best_val_f1 = val_metrics['f1']
+                best_epoch = epoch
+                
+                # Create directory with epoch number
+                best_f1_dir = os.path.join(experiment_dir, f"best_f1_epoch_{epoch}")
+                
                 save_model(
                     model, optimizer, epoch, train_loss, val_loss, val_metrics,
                     config, best_f1_dir
                 )
-                logger.info(f"New best validation f1: {best_val_f1:.4f}")
+                logger.info(f"New best validation f1: {best_val_f1:.4f} at epoch {epoch} (saved to best_f1_epoch_{epoch}/)")
         
             # Check for early stopping based on validation loss
             if early_stopping(val_loss):
@@ -688,31 +737,40 @@ def main(args):
                 break
         
         # Evaluate on test set using best model (based on F1)
-        logger.info("Evaluating best model (based on F1) on test set")
-        best_model_path = os.path.join(best_f1_dir, "best_model.pt")
-        if os.path.exists(best_model_path):
-            model, _, _, _ = load_model(model, None, best_model_path, device)
-            test_loss, test_metrics = evaluate(model, data_loaders['test'], criterion, device, config)
+        if best_epoch >= 0:
+            best_f1_dir = os.path.join(experiment_dir, f"best_f1_epoch_{best_epoch}")
+            logger.info(f"Evaluating best model from epoch {best_epoch} on test set")
+            logger.info(f"Loading model from: {best_f1_dir}")
             
-            logger.info(f"Test AUPRC: {test_metrics['auprc']:.4f}")
-            logger.info(f"Test precision: {test_metrics['precision']:.4f}")
-            logger.info(f"Test recall: {test_metrics['recall']:.4f}")
-            logger.info(f"Test f1: {test_metrics['f1']:.4f}")
-            
-            # Save test results to the same directory as the model
-            test_results = {
-                'test_auprc': float(test_metrics['auprc']),
-                'test_precision': float(test_metrics['precision']),
-                'test_recall': float(test_metrics['recall']),
-                'test_f1': float(test_metrics['f1']),
-                'test_accuracy': float(test_metrics['accuracy']),
-            }
-            
-            # Save as YAML file
-            test_results_path = os.path.join(best_f1_dir, "test_results.yaml")
-            with open(test_results_path, 'w') as f:
-                yaml.dump(test_results, f, default_flow_style=False)
-            logger.info(f"Test results saved to {test_results_path}")
+            best_model_path = os.path.join(best_f1_dir, "best_model.pt")
+            if os.path.exists(best_model_path):
+                model, _, _, _ = load_model(model, None, best_model_path, device)
+                test_loss, test_metrics = evaluate(model, data_loaders['test'], criterion, device, config)
+                
+                logger.info(f"Test AUPRC: {test_metrics['auprc']:.4f}")
+                logger.info(f"Test precision: {test_metrics['precision']:.4f}")
+                logger.info(f"Test recall: {test_metrics['recall']:.4f}")
+                logger.info(f"Test f1: {test_metrics['f1']:.4f}")
+                
+                # Save test results to the same directory as the model
+                test_results = {
+                    'epoch': int(best_epoch),
+                    'test_auprc': float(test_metrics['auprc']),
+                    'test_precision': float(test_metrics['precision']),
+                    'test_recall': float(test_metrics['recall']),
+                    'test_f1': float(test_metrics['f1']),
+                    'test_accuracy': float(test_metrics['accuracy']),
+                }
+                
+                # Save as YAML file
+                test_results_path = os.path.join(best_f1_dir, "test_results.yaml")
+                with open(test_results_path, 'w') as f:
+                    yaml.dump(test_results, f, default_flow_style=False)
+                logger.info(f"Test results saved to {test_results_path}")
+            else:
+                logger.warning(f"Best model file not found: {best_model_path}")
+        else:
+            logger.warning("No best model was saved during training")
     
 
 if __name__ == "__main__":
