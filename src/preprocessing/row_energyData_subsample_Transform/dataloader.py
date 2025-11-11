@@ -200,12 +200,7 @@ class EnergyDataProcessor:
         val_ratio = val_samples / total_samples
         test_ratio = test_samples / total_samples
         
-        logger.info("=== Data Split Statistics ===")
-        logger.info(f"Total samples: {total_samples}")
-        logger.info(f"Train samples: {train_samples} ({train_ratio:.3f})")
-        logger.info(f"Validation samples: {val_samples} ({val_ratio:.3f})")
-        logger.info(f"Test samples: {test_samples} ({test_ratio:.3f})")
-        
+
         # Anomaly ratio in each set
         train_anomalies = self.train_data['anomaly_label'].sum()
         val_anomalies = self.val_data['anomaly_label'].sum()
@@ -218,10 +213,9 @@ class EnergyDataProcessor:
         total_anomaly_ratio = total_anomalies / total_samples
         
         logger.info("=== Anomaly Statistics ===")
-        logger.info(f"Total anomalies: {total_anomalies} ({total_anomaly_ratio:.4f})")
-        logger.info(f"Train anomalies: {train_anomalies} ({train_anomaly_ratio:.4f})")
-        logger.info(f"Validation anomalies: {val_anomalies} ({val_anomaly_ratio:.4f})")
-        logger.info(f"Test anomalies: {test_anomalies} ({test_anomaly_ratio:.4f})")
+        logger.info(f"Train anomalies: ({train_anomaly_ratio:.4f})")
+        logger.info(f"Validation anomalies:({val_anomaly_ratio:.4f})")
+        logger.info(f"Test anomalies: ({test_anomaly_ratio:.4f})")
         
         # Time range information
         logger.info("=== Time Range Information ===")
@@ -243,9 +237,7 @@ class EnergyDataProcessor:
         self.scaler = StandardScaler()
         self.scaler.fit(train_features)
         
-        logger.info(f"Scaler fitted on {len(train_features)} training samples with {len(self.feature_columns)} features")
-        logger.info(f"Feature means range: [{self.scaler.mean_.min():.3f}, {self.scaler.mean_.max():.3f}]")
-        logger.info(f"Feature stds range: [{self.scaler.scale_.min():.3f}, {self.scaler.scale_.max():.3f}]")
+
         
     def save_scaler(self, filepath: str):
         """
@@ -374,11 +366,7 @@ class SlidingWindowDataset(Dataset):
         # Create sliding windows
         windows = []
         window_labels = []
-        
-        # Calculate number of windows
-        num_windows = (len(self.data) - self.window_size) // self.step_size + 1
-        logger.info(f"Creating {num_windows} windows with size {self.window_size} and step {self.step_size}")
-        
+
         for i in range(0, len(self.data) - self.window_size + 1, self.step_size):
             # Extract window of normalized features
             window = self.normalized_features[i:i + self.window_size]
@@ -475,11 +463,13 @@ def create_data_loaders(
         window_size=window_size,
         step_size=step_size
     )
+    
+    # For test dataset, use window_size as step_size to avoid overlapping windows
     test_dataset = SlidingWindowDataset(
         data=test_data,
         normalized_features=test_features,
         window_size=window_size,
-        step_size=step_size
+        step_size=window_size  
     )
     # Create data loaders
     data_loaders = {}

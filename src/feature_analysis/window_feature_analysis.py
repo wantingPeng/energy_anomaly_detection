@@ -49,7 +49,7 @@ def parse_args():
                         default='Data/filtered_feature_s/top_features_Energy_Data_ring_cleaned_1_labeled.parquet',
                         help='输入数据文件路径')
     parser.add_argument('--output_dir', type=str,
-                        default='experiments/statistic_feature_1024s_256/statistic_window_features_ring',
+                        default='experiments/statistic_feature_1024s_256/statistic_window_features_ring2',
                         help='输出目录')
     parser.add_argument('--window_size', type=int,
                         default=1024,

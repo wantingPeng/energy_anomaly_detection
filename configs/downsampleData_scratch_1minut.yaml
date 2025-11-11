@@ -2,7 +2,7 @@
 
 # Paths
 paths:
-  data_dir: "experiments/statistic_feature_s/statistic_80_window_features_contact/filtered_window_features_80.parquet"
+  data_dir: "Data/downsampleData_scratch_1minut/contact/contact_cleaned_1minut_20250928_172122.parquet"
   output_dir: "experiments/downsampleData_scratch_1minut"
 
 # Data configuration
