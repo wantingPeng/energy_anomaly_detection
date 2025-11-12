@@ -385,11 +385,26 @@ def main(args):
         logger.info("=" * 60)
         logger.info(f"Model path: {args.model_path}")
         
-        # Load config from the model directory
+        # Try to find config.json - check both root dir and best_model subdir
         model_config_path = os.path.join(args.model_path, 'config.json')
-        with open(model_config_path, 'r') as f:
+        best_model_config_path = os.path.join(args.model_path, 'best_model', 'config.json')
+        
+        if os.path.exists(model_config_path):
+            config_path = model_config_path
+        elif os.path.exists(best_model_config_path):
+            config_path = best_model_config_path
+            logger.info("Config not found in root, using best_model/config.json")
+        else:
+            raise FileNotFoundError(
+                f"config.json not found in:\n"
+                f"  - {model_config_path}\n"
+                f"  - {best_model_config_path}\n"
+                f"Please ensure the model directory contains config.json"
+            )
+        
+        with open(config_path, 'r') as f:
             config = json.load(f)
-        logger.info(f"Loaded model configuration from: {model_config_path}")
+        logger.info(f"Loaded model configuration from: {config_path}")
         
         # Create output directory for evaluation results
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -411,10 +426,27 @@ def main(args):
         logger.info(f"  Features: {len(data_dict['feature_names'])}")
         
         # Create model instance and load weights
-        model = XGBoostAnomalyDetector(config)
-        model.load_model(args.model_path)
+        # Try to find the model directory (check both root and best_model subdir)
+        model_json_path = os.path.join(args.model_path, 'xgboost_model.json')
+        best_model_json_path = os.path.join(args.model_path, 'best_model', 'xgboost_model.json')
         
-        logger.info(f"Model loaded successfully")
+        if os.path.exists(model_json_path):
+            load_path = args.model_path
+        elif os.path.exists(best_model_json_path):
+            load_path = os.path.join(args.model_path, 'best_model')
+            logger.info(f"Model files found in best_model/ subdirectory")
+        else:
+            raise FileNotFoundError(
+                f"xgboost_model.json not found in:\n"
+                f"  - {model_json_path}\n"
+                f"  - {best_model_json_path}\n"
+                f"Please ensure the model directory contains xgboost_model.json"
+            )
+        
+        model = XGBoostAnomalyDetector(config)
+        model.load_model(load_path)
+        
+        logger.info(f"Model loaded successfully from: {load_path}")
         logger.info(f"  Optimal threshold: {model.optimal_threshold}")
         logger.info(f"  Best iteration: {model.best_iteration}")
         logger.info(f"  Features: {len(model.feature_names)}")

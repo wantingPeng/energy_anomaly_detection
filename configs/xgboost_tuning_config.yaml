@@ -4,7 +4,7 @@
 # Data configuration
 data:
   # Pre-computed window features
-  data_path: "Data/pca_analysis_and_result/contact/pca_features_contact.parquet"
+  data_path: "experiments/statistic_feature_1024s_256/statistic_window_features_contact/window_features.parquet"
   
   train_ratio: 0.7
   val_ratio: 0.15
@@ -74,10 +74,10 @@ feature_importance:
 
 # Paths
 paths:
-  output_dir: "experiments/xgboost_timeseries"
-  model_dir: "experiments/xgboost_timeseries/models"
+  output_dir: "experiments/xgboost_timeseries2"
+  model_dir: "experiments/xgboost_timeseries2/models"
   log_dir: "experiments/logs"
-  results_dir: "experiments/xgboost_timeseries/results"
+  results_dir: "experiments/xgboost_timeseries2/results"
 
 # Optuna tuning specific settings
 optuna:

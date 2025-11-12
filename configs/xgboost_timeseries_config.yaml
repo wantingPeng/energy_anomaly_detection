@@ -3,7 +3,7 @@
 # Data configuration
 data:
   # Pre-computed window features (30-minute windows with statistical features)
-  data_path: "Data/pca_analysis_and_result/contact/pca_features_contact.parquet"
+  data_path: "src/training/xgboost/hyperparameter_tuning.py"
   train_ratio: 0.7
   val_ratio: 0.15
   test_ratio: 0.15
