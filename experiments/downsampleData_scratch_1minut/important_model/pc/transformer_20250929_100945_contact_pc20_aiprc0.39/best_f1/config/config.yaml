@@ -19,7 +19,7 @@ model:
   num_classes: 2
   num_layers: 2
 paths:
-  data_dir: Data/pc/pc_features_20_contact.parquet
+  data_dir: Data/pca_analysis_and_result_1/contact/pca_features_contact.parquet
   output_dir: experiments/downsampleData_scratch_1minut
 preprocessing:
   fit_on_train: true

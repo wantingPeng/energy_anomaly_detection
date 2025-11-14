@@ -262,8 +262,56 @@ def load_model(model, optimizer, checkpoint_path, device):
     # Load checkpoint (weights_only=False for compatibility with older checkpoints)
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     
-    # Load model state
-    model.load_state_dict(checkpoint['model_state_dict'])
+    # Get checkpoint state dict
+    checkpoint_state_dict = checkpoint['model_state_dict']
+    model_state_dict = model.state_dict()
+    
+    # Filter out incompatible keys and handle dimension mismatches
+    filtered_state_dict = {}
+    skipped_keys = []
+    mismatched_keys = []
+    
+    for key, value in checkpoint_state_dict.items():
+        if key not in model_state_dict:
+            skipped_keys.append(key)
+            continue
+        
+        # Check if shapes match
+        if model_state_dict[key].shape != value.shape:
+            # Special handling for input_projection layer if input dimension changed
+            if 'input_projection' in key:
+                logger.warning(f"Skipping {key} due to dimension mismatch: "
+                             f"checkpoint shape {value.shape} vs model shape {model_state_dict[key].shape}")
+                mismatched_keys.append(key)
+                continue
+            else:
+                logger.warning(f"Skipping {key} due to shape mismatch: "
+                             f"checkpoint shape {value.shape} vs model shape {model_state_dict[key].shape}")
+                mismatched_keys.append(key)
+                continue
+        
+        filtered_state_dict[key] = value
+    
+    # Log skipped and mismatched keys
+    if skipped_keys:
+        logger.warning(f"Skipped {len(skipped_keys)} keys not in current model: {skipped_keys[:5]}...")
+    if mismatched_keys:
+        logger.warning(f"Skipped {len(mismatched_keys)} keys due to shape mismatch: {mismatched_keys[:5]}...")
+    
+    # Load filtered state dict with strict=False to allow partial loading
+    missing_keys, unexpected_keys = model.load_state_dict(filtered_state_dict, strict=False)
+    
+    if missing_keys:
+        logger.info(f"Missing keys (will use random initialization): {len(missing_keys)} keys")
+        if len(missing_keys) <= 10:
+            logger.info(f"Missing keys: {missing_keys}")
+    
+    if unexpected_keys:
+        logger.warning(f"Unexpected keys in checkpoint (ignored): {len(unexpected_keys)} keys")
+        if len(unexpected_keys) <= 10:
+            logger.warning(f"Unexpected keys: {unexpected_keys}")
+    
+    logger.info(f"Successfully loaded {len(filtered_state_dict)}/{len(checkpoint_state_dict)} parameters from checkpoint")
     
     # Load optimizer state if provided
     if optimizer is not None and 'optimizer_state_dict' in checkpoint:
@@ -473,6 +521,43 @@ def main(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logger.info(f"Using device: {device}")
     
+    # In test mode, try to load config from model directory
+    if args.test and args.load_model:
+        logger.info("=" * 50)
+        logger.info("TEST MODE: Attempting to load config from model directory")
+        logger.info("=" * 50)
+        
+        # Find model directory
+        model_dir = args.load_model
+        if os.path.isfile(args.load_model):
+            model_dir = os.path.dirname(args.load_model)
+        
+        # Try to find config in model directory
+        config_path = os.path.join(model_dir, "config", "config.yaml")
+        if not os.path.exists(config_path):
+            # Try parent directory
+            config_path = os.path.join(os.path.dirname(model_dir), "config", "config.yaml")
+        
+        if os.path.exists(config_path):
+            logger.info(f"Loading config from model directory: {config_path}")
+            saved_config = load_config(config_path)
+            
+            # Warn if data paths differ
+            if config['paths']['data_dir'] != saved_config['paths']['data_dir']:
+                logger.warning("=" * 50)
+                logger.warning("DATA PATH MISMATCH DETECTED!")
+                logger.warning(f"Command-line config data_dir: {config['paths']['data_dir']}")
+                logger.warning(f"Model saved config data_dir: {saved_config['paths']['data_dir']}")
+                logger.warning("Using saved config to ensure consistency with training")
+                logger.warning("=" * 50)
+            
+            # Use saved config for data loading to ensure consistency
+            config = saved_config
+            logger.info("Using saved configuration from model directory")
+        else:
+            logger.warning(f"Could not find saved config at {config_path}")
+            logger.warning("Using config from command line (may not match training config!)")
+    
     # Create experiment directory (only for training mode)
     if not args.test:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -484,6 +569,13 @@ def main(args):
         os.makedirs(experiment_dir, exist_ok=True)
     
     # Create data loaders
+    logger.info("=" * 50)
+    logger.info("Creating Data Loaders")
+    logger.info("=" * 50)
+    logger.info(f"Data directory: {config['paths']['data_dir']}")
+    logger.info(f"Window size: {config['data']['window_size']}")
+    logger.info(f"Step size: {config['data']['step_size']}")
+    
     data_loaders = create_data_loaders(
         data_dir=config['paths']['data_dir'],
         batch_size=config['training']['batch_size'],

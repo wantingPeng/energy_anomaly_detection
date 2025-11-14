@@ -55,7 +55,7 @@ def parse_args():
                         default=300,
                         help='窗口大小（秒）')
     parser.add_argument('--step_size', type=int,
-                        default=125,
+                        default=120,
                         help='窗口步长（秒）')
     parser.add_argument('--top_n', type=int,
                         default=80,
