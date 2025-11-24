@@ -85,9 +85,7 @@ optuna:
   # so n_jobs=1 is recommended unless you have many CPU cores
   n_jobs: 1
   
-  # Optimization metric (all metrics are point-adjusted by default)
-  # Options: f1, precision, recall, auprc, auroc, accuracy
-  # Note: f1/precision/recall are computed on point-adjusted predictions
+ 
   optimization_metric: "f1"
   
   # Direction: maximize or minimize

@@ -25,3 +25,6 @@ experiments/random_forest/experiments
 experiments/isolation_forest/experiments
 *.parquet
 *.log
+experiments/xgboost_timeseries2
+experiments/xgboost2_timeseries
+experiments/useless

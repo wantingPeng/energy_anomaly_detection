@@ -1,0 +1,12 @@
+alpha: 0.08211900107593093
+colsample_bylevel: 0.7820337096139591
+colsample_bynode: 0.9279624471486654
+colsample_bytree: 0.8946141011648922
+gamma: 0.8285357406354863
+lambda: 0.46949343233132973
+learning_rate: 0.08094452560729892
+max_depth: 3
+min_child_weight: 3
+n_estimators: 350
+scale_pos_weight: 5.024708509640645
+subsample: 0.6667143115153359

@@ -292,10 +292,16 @@ class XGBoostOptunaTuner:
         logger.info("Hyperparameter Tuning Completed")
         logger.info("=" * 60)
         logger.info(f"Number of finished trials: {len(study.trials)}")
-        logger.info(f"Best trial value ({self.optimization_metric}): {self.best_value:.4f}")
-        logger.info(f"Best hyperparameters:")
-        for key, value in self.best_params.items():
-            logger.info(f"  {key}: {value}")
+        
+        if self.best_value is not None:
+            logger.info(f"Best trial value ({self.optimization_metric}): {self.best_value:.4f}")
+            logger.info(f"Best hyperparameters:")
+            for key, value in self.best_params.items():
+                logger.info(f"  {key}: {value}")
+        else:
+            logger.warning("No successful trials found. All trials may have failed.")
+            logger.warning("Please check the error messages above.")
+        
         logger.info("=" * 60)
         
         return study
@@ -318,15 +324,18 @@ class XGBoostOptunaTuner:
         logger.info(f"Saved study object to: {study_path}")
         
         # Save best parameters as YAML (use our own best_params for consistency)
-        best_params_path = os.path.join(save_dir, 'best_params.yaml')
-        with open(best_params_path, 'w') as f:
-            yaml.dump(self.best_params, f, default_flow_style=False)
-        logger.info(f"Saved best parameters to: {best_params_path}")
-        
-        # Save best parameters as JSON
-        best_params_json_path = os.path.join(save_dir, 'best_params.json')
-        with open(best_params_json_path, 'w') as f:
-            json.dump(self.best_params, f, indent=2)
+        if self.best_params is not None:
+            best_params_path = os.path.join(save_dir, 'best_params.yaml')
+            with open(best_params_path, 'w') as f:
+                yaml.dump(self.best_params, f, default_flow_style=False)
+            logger.info(f"Saved best parameters to: {best_params_path}")
+            
+            # Save best parameters as JSON
+            best_params_json_path = os.path.join(save_dir, 'best_params.json')
+            with open(best_params_json_path, 'w') as f:
+                json.dump(self.best_params, f, indent=2)
+        else:
+            logger.warning("No best parameters to save (all trials failed)")
         
         # Save trials dataframe
         trials_df = study.trials_dataframe()
@@ -342,11 +351,16 @@ class XGBoostOptunaTuner:
             f.write("=" * 60 + "\n\n")
             f.write(f"Study name: {study.study_name}\n")
             f.write(f"Number of trials: {len(study.trials)}\n")
-            f.write(f"Best trial number: {self.best_trial_number}\n")
-            f.write(f"Best value ({self.optimization_metric}): {self.best_value:.4f}\n\n")
-            f.write("Best hyperparameters:\n")
-            for key, value in self.best_params.items():
-                f.write(f"  {key}: {value}\n")
+            
+            if self.best_value is not None:
+                f.write(f"Best trial number: {self.best_trial_number}\n")
+                f.write(f"Best value ({self.optimization_metric}): {self.best_value:.4f}\n\n")
+                f.write("Best hyperparameters:\n")
+                for key, value in self.best_params.items():
+                    f.write(f"  {key}: {value}\n")
+            else:
+                f.write("No successful trials found. All trials failed.\n")
+            
             f.write("\n" + "=" * 60 + "\n")
         logger.info(f"Saved summary to: {summary_path}")
         
@@ -487,7 +501,7 @@ def main(args):
         
         # Get tuning parameters from config
         optuna_config = config.get('optuna', {})
-        optimization_metric = optuna_config.get('optimization_metric', 'adj_f1')
+        optimization_metric = optuna_config.get('optimization_metric', 'f1')
         n_trials = optuna_config.get('n_trials', 100)
         timeout = optuna_config.get('timeout', None)
         n_jobs = optuna_config.get('n_jobs', 1)
@@ -553,6 +567,26 @@ def main(args):
         test_metrics['adj_precision'] = float(adj_precision)
         test_metrics['adj_recall'] = float(adj_recall)
         test_metrics['adj_f1'] = float(adj_f1)
+        
+        # Extract and save feature importance
+        logger.info("\n" + "=" * 60)
+        logger.info("Extracting Feature Importance")
+        logger.info("=" * 60)
+        
+        feature_importance_df = best_model.get_feature_importance(importance_type='gain')
+        
+        if feature_importance_df is not None and len(feature_importance_df) > 0:
+            # Save feature importance as CSV
+            feature_importance_csv_path = os.path.join(tuning_dir, 'feature_importance.csv')
+            feature_importance_df.to_csv(feature_importance_csv_path, index=False)
+            logger.info(f"Saved feature importance (CSV) to: {feature_importance_csv_path}")
+            
+            # Log top 15 features
+            logger.info("\nTop 15 Most Important Features:")
+            for rank, row in feature_importance_df.head(15).iterrows():
+                logger.info(f"  {rank+1:2d}. {row['feature']:45s} {row['importance']:.6f}")
+        else:
+            logger.warning("Feature importance is not available from the model.")
         
         # Save test results (with adjusted metrics)
         test_results = {

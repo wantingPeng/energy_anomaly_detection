@@ -1,0 +1,24 @@
+============================================================
+Optuna Hyperparameter Tuning Summary
+============================================================
+
+Study name: optuna_tuning_20251118_163919
+Number of trials: 600
+Best trial number: 550
+Best value (auprc): 0.0441
+
+Best hyperparameters:
+  max_depth: 2
+  min_child_weight: 5
+  gamma: 0.7254277094146246
+  learning_rate: 0.06621139316000478
+  n_estimators: 250
+  alpha: 0.1025067080963156
+  lambda: 4.909474770820281
+  subsample: 0.6132527675747056
+  colsample_bytree: 0.6518526654427164
+  colsample_bylevel: 0.6620767707431705
+  colsample_bynode: 0.5887775250705874
+  scale_pos_weight: 19.993544267378148
+
+============================================================

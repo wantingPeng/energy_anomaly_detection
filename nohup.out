@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/home/wanting/energy_anomaly_detection/src/training/xgboost/hyperparameter_tuning.py", line 27, in <module>
+    from src.training.xgboost.xgboost_model import XGBoostAnomalyDetector
+  File "/home/wanting/energy_anomaly_detection/src/training/xgboost/__init__.py", line 5, in <module>
+    from .xgboost_model import XGBoostAnomalyDetector
+  File "/home/wanting/energy_anomaly_detection/src/training/xgboost/xgboost_model.py", line 12, in <module>
+    import xgboost as xgb
+ModuleNotFoundError: No module named 'xgboost'

@@ -1,0 +1,45 @@
+{
+  "test_metrics": {
+    "accuracy": 0.9223384193382479,
+    "precision": 0.08976046327981048,
+    "recall": 0.09271343121261555,
+    "f1": 0.09121305336364852,
+    "auroc": 0.6945513930459197,
+    "auprc": 0.073378272950503,
+    "confusion_matrix": [
+      [
+        80359,
+        3458
+      ],
+      [
+        3337,
+        341
+      ]
+    ],
+    "true_negatives": 80359,
+    "false_positives": 3458,
+    "false_negatives": 3337,
+    "true_positives": 341,
+    "threshold": 0.18091341853141785,
+    "adj_accuracy": 0.93960797759872,
+    "adj_precision": 0.3487758945386064,
+    "adj_recall": 0.5035345296356716,
+    "adj_f1": 0.4121050289274588
+  },
+  "best_params": {
+    "max_depth": 3,
+    "min_child_weight": 3,
+    "gamma": 0.8285357406354863,
+    "learning_rate": 0.08094452560729892,
+    "n_estimators": 350,
+    "alpha": 0.08211900107593093,
+    "lambda": 0.46949343233132973,
+    "subsample": 0.6667143115153359,
+    "colsample_bytree": 0.8946141011648922,
+    "colsample_bylevel": 0.7820337096139591,
+    "colsample_bynode": 0.9279624471486654,
+    "scale_pos_weight": 5.024708509640645
+  },
+  "best_threshold": 0.18091341853141785,
+  "best_trial_value": 0.11320857427520138
+}

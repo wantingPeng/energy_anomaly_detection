@@ -4,8 +4,7 @@
 # Data configuration
 data:
   # Pre-computed window features
-  data_path: "experiments/statistic_feature_1024s_256/statistic_window_features_contact/window_features.parquet"
-  
+  data_path: "Data/downsampleData_scratch_1minut/contact/contact_cleaned_1minut_20250928_172122.parquet"
   train_ratio: 0.7
   val_ratio: 0.15
   test_ratio: 0.15
@@ -88,9 +87,9 @@ optuna:
   early_stopping_rounds: 30  # Early stopping for each trial (can be different from training config)
   
   # Optimization objective
-  optimization_metric: "auprc"  # Options: "adj_f1", "auprc", "f1"
-  # Recommendation: Use "auprc" for better generalization, "adj_f1" tends to overfit validation set
-  # Note: All metrics are calculated for every trial, this just determines which one to optimize
+  optimization_metric: "f1"  # Options: "f1", "auprc", "precision", "recall"
+  # Recommendation: Use "auprc" for better generalization, "f1" with point adjustment
+  # Note: All metrics are calculated with point adjustment for every trial
   direction: "maximize"  # Options: "maximize", "minimize"
   
   # Pruning settings (MedianPruner for stopping unpromising trials early)
@@ -108,8 +107,8 @@ optuna:
   search_space:
     max_depth:
       type: "int"
-      low: 1
-      high: 3     # 限制为2-4，防止过拟合（手动配置用的是2效果很好）
+      low: 3
+      high: 5     # 限制为2-4，防止过拟合（手动配置用的是2效果很好）
     
     min_child_weight:
       type: "int"

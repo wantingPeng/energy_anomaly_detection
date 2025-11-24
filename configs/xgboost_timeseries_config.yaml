@@ -3,7 +3,7 @@
 # Data configuration
 data:
   # Pre-computed window features (30-minute windows with statistical features)
-  data_path: "src/training/xgboost/hyperparameter_tuning.py"
+  data_path: "Data/downsampleData_scratch_1minut/pcb/pcb_cleaned_1minut_20250928_161509.parquet"
   train_ratio: 0.7
   val_ratio: 0.15
   test_ratio: 0.15
@@ -29,7 +29,7 @@ model:
   device: "cpu"
   
   # Tree parameters
-  max_depth: 4
+  max_depth: 5
   min_child_weight: 1
   gamma: 0.4389345461147306
   
@@ -90,10 +90,10 @@ feature_importance:
 
 # Paths
 paths:
-  output_dir: "experiments/xgboost_timeseries"
-  model_dir: "experiments/xgboost_timeseries/models"
+  output_dir: "experiments/xgboost2_timeseries"
+  model_dir: "experiments/xgboost2_timeseries/models"
   log_dir: "experiments/logs"
-  results_dir: "experiments/xgboost_timeseries/results"
+  results_dir: "experiments/xgboost2_timeseries/results"
 
 
 
