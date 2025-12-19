@@ -30,9 +30,7 @@ from src.training.xgboost.dataloader import create_xgboost_data
 
 def point_adjustment(gt, pred):
     """
-    Point adjustment strategy for anomaly detection evaluation.
     
-    This function adjusts predictions for time series anomaly detection by:
     1. If any point in an anomaly segment is detected, the entire segment is considered detected
     2. Reduces penalty for slightly delayed or early detection
     
@@ -41,7 +39,6 @@ def point_adjustment(gt, pred):
         pred: Predicted labels (numpy array)
     
     Returns:
-        Tuple of (adjusted_gt, adjusted_pred)
     """
     gt = gt.copy()
     pred = pred.copy()
@@ -177,14 +174,11 @@ class XGBoostOptunaTuner:
                 split_name="Validation"
             )
             
-            # Calculate point-adjusted metrics and overwrite originals for reporting/optimization
             val_preds = model.predict(self.data_dict['X_val'])
             val_labels = self.data_dict['y_val']
             
-            # Apply point adjustment
             labels_adj, preds_adj = point_adjustment(val_labels, val_preds)
             
-            # Calculate adjusted metrics and overwrite core metrics
             from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
             adj_accuracy = accuracy_score(labels_adj, preds_adj)
             adj_precision, adj_recall, adj_f1, _ = precision_recall_fscore_support(
@@ -249,7 +243,6 @@ class XGBoostOptunaTuner:
         logger.info(f"Parallel jobs: {n_jobs}")
         logger.info(f"Device: GPU (CUDA)")
         logger.info(f"Optimization metric: {self.optimization_metric}")
-        logger.info(f"Note: Reported F1/Precision/Recall are point-adjusted values")
         logger.info("=" * 60)
         
         # Create study
@@ -549,14 +542,11 @@ def main(args):
             split_name="Test"
         )
         
-        # Always apply point adjustment on test set for comprehensive evaluation
         test_preds = best_model.predict(data_dict['X_test'])
         test_labels = data_dict['y_test']
         
-        # Apply point adjustment
         labels_adj, preds_adj = point_adjustment(test_labels, test_preds)
         
-        # Calculate adjusted metrics
         from sklearn.metrics import accuracy_score, precision_recall_fscore_support
         adj_accuracy = accuracy_score(labels_adj, preds_adj)
         adj_precision, adj_recall, adj_f1, _ = precision_recall_fscore_support(
@@ -588,7 +578,6 @@ def main(args):
         else:
             logger.warning("Feature importance is not available from the model.")
         
-        # Save test results (with adjusted metrics)
         test_results = {
             'test_metrics': test_metrics,
             'best_params': best_params,
@@ -639,7 +628,7 @@ def main(args):
         
  
         
-        logger.info(f"\nTest Performance (With Point Adjustment):")
+        logger.info(f"\nTest Performance:")
         logger.info(f"  F1 Score: {test_metrics['adj_f1']:.4f}")
         logger.info(f"  Precision: {test_metrics['adj_precision']:.4f}")
         logger.info(f"  Recall: {test_metrics['adj_recall']:.4f}")

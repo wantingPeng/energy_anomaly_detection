@@ -127,16 +127,13 @@ class RandomForestDataLoader:
         # Log overall anomaly statistics
         total_anomalies = self.raw_data[self.target_column].sum()
         total_samples = len(self.raw_data)
-        logger.info(f"Overall anomaly ratio: {total_anomalies}/{total_samples} = {total_anomalies/total_samples:.4f}")
     
     def _split_data(self):
         """
         Split data into train, validation, and test sets sequentially.
         Sequential split preserves temporal order for time series data.
         """
-        logger.info(f"Splitting data sequentially - Train: {self.train_ratio}, "
-                   f"Val: {self.val_ratio}, Test: {self.test_ratio}")
-        
+
         total_samples = len(self.raw_data)
         train_end = int(total_samples * self.train_ratio)
         val_end = int(total_samples * (self.train_ratio + self.val_ratio))
@@ -200,14 +197,7 @@ class RandomForestDataLoader:
         val_normal = len(self.val_data) - val_anomalies
         test_normal = len(self.test_data) - test_anomalies
         
-        logger.info("\n--- Anomaly Distribution ---")
-        logger.info(f"Total anomalies: {total_anomalies} ({total_anomalies/total_samples:.4f})")
-        logger.info(f"Train - Normal: {train_normal}, Anomaly: {train_anomalies} "
-                   f"(ratio: {train_anomalies/train_samples:.4f})")
-        logger.info(f"Val   - Normal: {val_normal}, Anomaly: {val_anomalies} "
-                   f"(ratio: {val_anomalies/val_samples:.4f})")
-        logger.info(f"Test  - Normal: {test_normal}, Anomaly: {test_anomalies} "
-                   f"(ratio: {test_anomalies/test_samples:.4f})")
+
         
         # Feature statistics
         logger.info("\n--- Feature Information ---")

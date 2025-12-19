@@ -1,0 +1,19 @@
+============================================================
+Optuna Hyperparameter Tuning Summary
+============================================================
+
+Study name: optuna_tuning_20251129_151813
+Number of trials: 200
+Best trial number: 123
+Best value (f1): 0.4566
+Data path: Data/downsampleData_scratch_1minut/pcb/pcb_cleaned_1minut_20250928_161509.parquet
+
+Best hyperparameters:
+  n_estimators: 150
+  max_depth: 1
+  min_samples_split: 35
+  min_samples_leaf: 20
+  max_features: 0.1
+  bootstrap: True
+
+============================================================

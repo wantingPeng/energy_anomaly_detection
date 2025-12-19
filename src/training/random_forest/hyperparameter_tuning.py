@@ -30,9 +30,7 @@ from src.training.random_forest.dataloader import create_random_forest_data
 
 def point_adjustment(gt, pred):
     """
-    Point adjustment strategy for anomaly detection evaluation.
     
-    This function adjusts predictions for time series anomaly detection by:
     1. If any point in an anomaly segment is detected, the entire segment is considered detected
     2. Reduces penalty for slightly delayed or early detection
     
@@ -41,7 +39,6 @@ def point_adjustment(gt, pred):
         pred: Predicted labels (numpy array)
     
     Returns:
-        Tuple of (adjusted_gt, adjusted_pred)
     """
     gt = gt.copy()
     pred = pred.copy()
@@ -162,20 +159,16 @@ class RandomForestOptunaTuner:
                 class_weights=self.data_dict['class_weights']
             )
             
-            # Get predictions for point adjustment
             val_preds = model.predict(self.data_dict['X_val'])
             val_labels = self.data_dict['y_val']
             
-            # Apply point adjustment
             labels_adj, preds_adj = point_adjustment(val_labels, val_preds)
             
-            # Calculate adjusted metrics (use as primary metrics)
             from sklearn.metrics import accuracy_score, precision_recall_fscore_support, roc_auc_score, average_precision_score
             
             # Get probability predictions for AUPRC/AUROC
             val_proba = model.predict_proba(self.data_dict['X_val'])
             
-            # Primary metrics are adjusted metrics
             accuracy = accuracy_score(labels_adj, preds_adj)
             precision, recall, f1, _ = precision_recall_fscore_support(
                 labels_adj, preds_adj, average='binary', zero_division=0
@@ -237,7 +230,6 @@ class RandomForestOptunaTuner:
         logger.info(f"Timeout: {timeout}")
         logger.info(f"Parallel jobs: {n_jobs}")
         logger.info(f"Optimization metric: {self.optimization_metric}")
-        logger.info(f"Note: All metrics (AUPRC, F1, Adjusted F1) are calculated for every trial")
         logger.info("=" * 60)
         
         # Create study
@@ -511,14 +503,11 @@ def main(args):
         logger.info("Evaluating Best Model on Test Set")
         logger.info("=" * 60)
         
-        # Get predictions for point adjustment
         test_preds = best_model.predict(data_dict['X_test'])
         test_labels = data_dict['y_test']
         
-        # Apply point adjustment
         labels_adj, preds_adj = point_adjustment(test_labels, test_preds)
         
-        # Calculate adjusted metrics (use as primary metrics)
         from sklearn.metrics import (
             accuracy_score, precision_recall_fscore_support, 
             roc_auc_score, average_precision_score, confusion_matrix
@@ -527,7 +516,6 @@ def main(args):
         # Get probability predictions for AUPRC/AUROC
         test_proba = best_model.predict_proba(data_dict['X_test'])
         
-        # Primary metrics are adjusted metrics
         accuracy = accuracy_score(labels_adj, preds_adj)
         precision, recall, f1, _ = precision_recall_fscore_support(
             labels_adj, preds_adj, average='binary', zero_division=0
@@ -555,7 +543,7 @@ def main(args):
         }
         
         # Log metrics
-        logger.info(f"\nTest Performance (Point-Adjusted Metrics):")
+        logger.info(f"\nTest Performance :")
         logger.info(f"  Threshold: {best_threshold:.4f}")
         logger.info(f"  Accuracy: {accuracy:.4f}")
         logger.info(f"  Precision: {precision:.4f}")
@@ -570,7 +558,6 @@ def main(args):
         logger.info(f"  True Negatives: {tn}")
         logger.info(f"  False Negatives: {fn}")
         
-        # Save test results (with adjusted metrics)
         test_results = {
             'test_metrics': test_metrics,
             'best_params': best_params,
@@ -619,7 +606,7 @@ def main(args):
             logger.info(f"Best Trial Number: {tuner.best_trial_number}")
             logger.info(f"Best Validation Score ({tuner.optimization_metric}): {best_value:.4f}")
         
-        logger.info(f"\nTest Performance Summary (Point-Adjusted):")
+        logger.info(f"\nTest Performance Summary:")
         logger.info(f"  F1 Score: {test_metrics['f1']:.4f}")
         logger.info(f"  Precision: {test_metrics['precision']:.4f}")
         logger.info(f"  Recall: {test_metrics['recall']:.4f}")

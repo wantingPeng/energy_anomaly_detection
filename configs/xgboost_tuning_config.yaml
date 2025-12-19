@@ -4,7 +4,10 @@
 # Data configuration
 data:
   # Pre-computed window features
-  data_path: "Data/downsampleData_scratch_1minut/contact/contact_cleaned_1minut_20250928_172122.parquet"
+  #data_path: "Data/downsampleData_scratch_1minut/pcb/pcb_cleaned_1minut_20250928_161509.parquet"
+  #data_path: "Data/downsampleData_scratch_1minut/contact/contact_cleaned_1minut_20250928_172122.parquet"
+  data_path: "Data/downsampleData_scratch_1minut/ring/Ring_cleaned_1minut_20250928_170147.parquet"
+
   train_ratio: 0.7
   val_ratio: 0.15
   test_ratio: 0.15

@@ -1,0 +1,16 @@
+============================================================
+RANDOM FOREST SHAP ANALYSIS SUMMARY
+============================================================
+
+Analysis Date: 20251217_062708
+Model Path: experiments/random_forest/downsampleData_scratch_1minut/optuna_tuning_20251019_161338_contact/best_model
+Config Path: configs/random_forest_tuning_config.yaml
+Data Path: Data/downsampleData_scratch_1minut/contact/contact_cleaned_1minut_20250928_172122.parquet
+Dataset: test
+Dataset Size: 80820
+  - feature_names.pkl
+
+Output Directory:
+  experiments/random_forest/shap_analysis/shap_analysis_20251217_062708
+
+============================================================

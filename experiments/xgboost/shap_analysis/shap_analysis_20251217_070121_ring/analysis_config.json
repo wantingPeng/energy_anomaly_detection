@@ -1,0 +1,15 @@
+{
+  "model_path": "experiments/xgboost_timeseries/downsampleData_scratch_1minut/optuna_tuning_20251118_153435_ring/best_model",
+  "config_path": "configs/xgboost_tuning_config.yaml",
+  "dataset": "test",
+  "dataset_size": 87495,
+  "anomaly_ratio": 0.04203668781073204,
+  "n_anomalies": 3678,
+  "sample_size": 5000,
+  "sampling_strategy": "balanced",
+  "random_state": 42,
+  "top_n_dependence": 5,
+  "n_waterfall_examples": 5,
+  "max_display": 15,
+  "timestamp": "20251217_070121"
+}

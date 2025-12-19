@@ -218,15 +218,7 @@ class XGBoostDataLoader:
         train_normal = len(self.train_data) - train_anomalies
         val_normal = len(self.val_data) - val_anomalies
         test_normal = len(self.test_data) - test_anomalies
-        
-        logger.info("\n--- Anomaly Distribution ---")
-        logger.info(f"Total anomalies: {total_anomalies} ({total_anomalies/total_samples:.4f})")
-        logger.info(f"Train - Normal: {train_normal}, Anomaly: {train_anomalies} "
-                   f"(ratio: {train_anomalies/train_samples:.4f})")
-        logger.info(f"Val   - Normal: {val_normal}, Anomaly: {val_anomalies} "
-                   f"(ratio: {val_anomalies/val_samples:.4f})")
-        logger.info(f"Test  - Normal: {test_normal}, Anomaly: {test_anomalies} "
-                   f"(ratio: {test_anomalies/test_samples:.4f})")
+    
         
         # Feature statistics
         logger.info("\n--- Feature Information ---")
@@ -401,7 +393,6 @@ def create_xgboost_data(
     logger.info(f"X_val shape: {X_val.shape}, y_val shape: {y_val.shape}")
     logger.info(f"X_test shape: {X_test.shape}, y_test shape: {y_test.shape}")
     logger.info(f"Number of features: {len(data_dict['feature_names'])}")
-    logger.info(f"Training set class distribution - Negative: {class_dist['n_negative']}, Positive: {class_dist['n_positive']}, Ratio: {class_dist['ratio']:.2f}")
     
     logger.info("=" * 60 + "\n")
     

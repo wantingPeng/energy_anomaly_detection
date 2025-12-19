@@ -1,0 +1,12 @@
+============================================================
+XGBOOST SHAP ANALYSIS SUMMARY
+============================================================
+
+Analysis Date: 20251217_070121
+Model Path: experiments/xgboost_timeseries/downsampleData_scratch_1minut/optuna_tuning_20251118_153435_ring/best_model
+Config Path: configs/xgboost_tuning_config.yaml
+Data Path: Data/downsampleData_scratch_1minut/ring/Ring_cleaned_1minut_20250928_170147.parquet
+Output Directory:
+  experiments/xgboost/shap_analysis/shap_analysis_20251217_070121
+
+============================================================

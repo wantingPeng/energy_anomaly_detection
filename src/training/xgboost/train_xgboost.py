@@ -28,14 +28,12 @@ from src.training.xgboost.dataloader import create_xgboost_data
 
 def point_adjustment(gt, pred):
     """
-    Point adjustment strategy for anomaly detection evaluation.
     
     Args:
         gt: Ground truth labels
         pred: Predicted labels
     
     Returns:
-        Tuple of (adjusted_gt, adjusted_pred)
     """
     gt = gt.copy()
     pred = pred.copy()
@@ -68,7 +66,6 @@ def point_adjustment(gt, pred):
 
 def evaluate_with_adjustment(preds, labels, model, X, threshold):
     """
-    Evaluate predictions with point adjustment.
     
     Args:
         preds: Predictions
@@ -78,22 +75,17 @@ def evaluate_with_adjustment(preds, labels, model, X, threshold):
         threshold: Decision threshold
         
     Returns:
-        Dictionary of adjusted metrics
     """
     from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
     
     labels_adj, preds_adj = point_adjustment(labels, preds)
     
-    # Calculate adjusted metrics (these will be treated as final metrics)
     adj_accuracy = accuracy_score(labels_adj, preds_adj)
     adj_precision, adj_recall, adj_f1, _ = precision_recall_fscore_support(
         labels_adj, preds_adj, average='binary', zero_division=0
     )
     adj_cm = confusion_matrix(labels_adj, preds_adj)
 
-    logger.info(f"\n===== Point Adjustment Results (used as final) =====")
-    logger.info(f"Original predictions: {np.sum(preds)} anomalies")
-    logger.info(f"Adjusted predictions: {np.sum(preds_adj)} anomalies")
     logger.info(f"Accuracy: {adj_accuracy:.4f}")
     logger.info(f"Precision: {adj_precision:.4f}")
     logger.info(f"Recall: {adj_recall:.4f}")
@@ -105,8 +97,6 @@ def evaluate_with_adjustment(preds, labels, model, X, threshold):
         'recall': adj_recall,
         'f1': adj_f1,
         'confusion_matrix': adj_cm,
-        'original_anomaly_count': int(np.sum(preds)),
-        'adjusted_anomaly_count': int(np.sum(preds_adj))
     }
 
 
@@ -307,14 +297,12 @@ def main(args):
         split_name="Validation"
     )
     
-    # Point adjustment evaluation on validation (overwrite base metrics)
     if config['evaluation'].get('use_point_adjustment', True):
         val_preds = model.predict(data_dict['X_val'])
         val_adj_metrics = evaluate_with_adjustment(
             val_preds, data_dict['y_val'], model, 
             data_dict['X_val'], model.optimal_threshold
         )
-        # Overwrite core metrics with adjusted versions
         for k in ['accuracy', 'precision', 'recall', 'f1', 'confusion_matrix']:
             if k in val_adj_metrics:
                 val_metrics[k] = val_adj_metrics[k]
@@ -327,14 +315,12 @@ def main(args):
         split_name="Test"
     )
     
-    # Point adjustment evaluation on test (overwrite base metrics)
     if config['evaluation'].get('use_point_adjustment', True):
         test_preds = model.predict(data_dict['X_test'])
         test_adj_metrics = evaluate_with_adjustment(
             test_preds, data_dict['y_test'], model,
             data_dict['X_test'], model.optimal_threshold
         )
-        # Overwrite core metrics with adjusted versions
         for k in ['accuracy', 'precision', 'recall', 'f1', 'confusion_matrix']:
             if k in test_adj_metrics:
                 test_metrics[k] = test_adj_metrics[k]
@@ -402,7 +388,7 @@ def main(args):
     logger.info(f"Experiment: {experiment_name}")
     logger.info(f"Best Iteration: {model.best_iteration}")
     logger.info(f"Optimal Threshold: {model.optimal_threshold:.4f}")
-    logger.info(f"\nTest Performance (point-adjusted):")
+    logger.info(f"\nTest Performance:")
     logger.info(f"  F1: {test_metrics['f1']:.4f}")
     logger.info(f"  Precision: {test_metrics['precision']:.4f}")
     logger.info(f"  Recall: {test_metrics['recall']:.4f}")

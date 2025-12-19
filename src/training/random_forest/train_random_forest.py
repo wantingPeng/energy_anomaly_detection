@@ -28,14 +28,12 @@ from src.training.random_forest.dataloader import create_random_forest_data
 
 def point_adjustment(gt, pred):
     """
-    Point adjustment strategy for anomaly detection evaluation.
     
     Args:
         gt: Ground truth labels
         pred: Predicted labels
     
     Returns:
-        Tuple of (adjusted_gt, adjusted_pred)
     """
     gt = gt.copy()
     pred = pred.copy()
@@ -68,7 +66,6 @@ def point_adjustment(gt, pred):
 
 def evaluate_with_adjustment(preds, labels, model, X, threshold):
     """
-    Evaluate predictions with point adjustment.
     
     Args:
         preds: Predictions
@@ -84,15 +81,11 @@ def evaluate_with_adjustment(preds, labels, model, X, threshold):
     
     labels_adj, preds_adj = point_adjustment(labels, preds)
     
-    # Calculate adjusted metrics
     adj_accuracy = accuracy_score(labels_adj, preds_adj)
     adj_precision, adj_recall, adj_f1, _ = precision_recall_fscore_support(
         labels_adj, preds_adj, average='binary', zero_division=0
     )
-    
-    logger.info(f"\n===== Point Adjustment Results =====")
-    logger.info(f"Original predictions: {np.sum(preds)} anomalies")
-    logger.info(f" predictions: {np.sum(preds_adj)} anomalies")
+
     logger.info(f" Accuracy: {adj_accuracy:.4f}")
     logger.info(f" Precision: {adj_precision:.4f}")
     logger.info(f" Recall: {adj_recall:.4f}")
@@ -248,7 +241,6 @@ def main(args):
         split_name="Validation"
     )
     
-    # Point adjustment evaluation on validation
     if config['evaluation'].get('use_point_adjustment', True):
         val_preds = model.predict(data_dict['X_val'])
         val_adj_metrics = evaluate_with_adjustment(
@@ -265,7 +257,6 @@ def main(args):
         split_name="Test"
     )
     
-    # Point adjustment evaluation on test
     if config['evaluation'].get('use_point_adjustment', True):
         test_preds = model.predict(data_dict['X_test'])
         test_adj_metrics = evaluate_with_adjustment(

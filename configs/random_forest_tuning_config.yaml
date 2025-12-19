@@ -7,8 +7,10 @@ paths:
 # Data configuration
 data:
   # Path to processed window features
-  data_path: "experiments/statistic_feature_1024s_256/statistic_window_features_ring/window_features.parquet"
-  
+  data_path: "Data/downsampleData_scratch_1minut/pcb/pcb_cleaned_1minut_20250928_161509.parquet"
+  #data_path: "Data/downsampleData_scratch_1minut/contact/contact_cleaned_1minut_20250928_172122.parquet"
+  #data_path: "Data/downsampleData_scratch_1minut/ring/Ring_cleaned_1minut_20250928_170147.parquet"
+
   # Train/validation/test split ratios
   train_ratio: 0.7
   val_ratio: 0.15
@@ -75,7 +77,7 @@ training:
 # Optuna hyperparameter tuning configuration
 optuna:
   # Number of trials to run
-  n_trials: 70
+  n_trials: 100
   
   # Timeout in seconds (null for no timeout)
   timeout: null

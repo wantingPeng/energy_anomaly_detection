@@ -1,0 +1,15 @@
+{
+  "model_path": "experiments/random_forest/downsampleData_scratch_1minut/optuna_tuning_20251129_151813_pcb/best_model",
+  "config_path": "configs/random_forest_tuning_config.yaml",
+  "dataset": "test",
+  "dataset_size": 87502,
+  "anomaly_ratio": 0.0209823775456561,
+  "n_anomalies": 1836,
+  "sample_size": 5000,
+  "sampling_strategy": "balanced",
+  "random_state": 42,
+  "top_n_dependence": 5,
+  "n_waterfall_examples": 5,
+  "max_display": 20,
+  "timestamp": "20251217_063609"
+}

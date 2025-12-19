@@ -49,13 +49,13 @@ def parse_args():
                         default='Data/filtered_feature_s/top_features_Contacting_cleaned_1_labeled.parquet',
                         help='输入数据文件路径')
     parser.add_argument('--output_dir', type=str,
-                        default='experiments/statistic_feature_300s_125s/statistic_window_features_contact2',
+                        default='experiments/statistic_feature_1024s_256',
                         help='输出目录')
     parser.add_argument('--window_size', type=int,
-                        default=300,
+                        default=1024,
                         help='窗口大小（秒）')
     parser.add_argument('--step_size', type=int,
-                        default=120,
+                        default=256,
                         help='窗口步长（秒）')
     parser.add_argument('--top_n', type=int,
                         default=80,
